@@ -1,0 +1,10 @@
+^build/
+^dist/
+^docs/_build
+\.egg-info
+\.py[co]$
+~$
+\.sw[op]$
+^\.coverage
+^cover/
+,cover$
