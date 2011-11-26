@@ -18,8 +18,8 @@
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with Monk.  If not, see <http://gnu.org/licenses/>.
 """
-Unit Tests
-==========
+Validation tests
+================
 """
 import datetime
 import pymongo
@@ -27,16 +27,17 @@ import pymongo.binary
 import pymongo.code
 import pymongo.dbref
 import pymongo.objectid
-import unittest2
+import pytest
 
 from monk.validation import (
     walk_dict, validate_structure_spec, validate_structure,
+    populate_defaults,
     StructureSpecificationError
 )
 from monk import models
 
 
-class StructureSpecTestCase(unittest2.TestCase):
+class TestStructureSpec:
 
     def test_walk_dict(self):
         data = {
@@ -70,10 +71,10 @@ class StructureSpecTestCase(unittest2.TestCase):
             (('h',), list),
             (('i',), None),
         ]
-        self.assertEqual(sorted(walk_dict(data)), sorted(paths))
+        assert sorted(walk_dict(data)) == sorted(paths)
 
     def test_correct_types(self):
-        """ `None` stands for "any value". """
+        '`None` stands for "any value".'
         validate_structure_spec({'foo': None})
         validate_structure_spec({'foo': bool})
         validate_structure_spec({'foo': dict})
@@ -103,29 +104,59 @@ class StructureSpecTestCase(unittest2.TestCase):
 
     def test_bad_types(self):
         # instances are not accepted; only types
-        with self.assertRaisesRegexp(StructureSpecificationError, 'type'):
+        with pytest.raises(StructureSpecificationError):
+            validate_structure_spec({'foo': u'hello'})
+        with pytest.raises(StructureSpecificationError):
             validate_structure_spec({'foo': u'hello'})
 
-        with self.assertRaisesRegexp(StructureSpecificationError, 'type'):
+        with pytest.raises(StructureSpecificationError):
             validate_structure_spec({'foo': 123})
 
     def test_malformed_lists(self):
         single_elem_err_msg = 'list must contain exactly 1 item'
 
-        with self.assertRaisesRegexp(StructureSpecificationError, single_elem_err_msg):
+        with pytest.raises(StructureSpecificationError) as excinfo:
             validate_structure_spec({'foo': []})
+        assert single_elem_err_msg in str(excinfo)
 
-        with self.assertRaisesRegexp(StructureSpecificationError, single_elem_err_msg):
+        with pytest.raises(StructureSpecificationError):
             validate_structure_spec({'foo': [unicode, unicode]})
+        assert single_elem_err_msg in str(excinfo)
 
-        with self.assertRaisesRegexp(StructureSpecificationError, single_elem_err_msg):
+        with pytest.raises(StructureSpecificationError):
             validate_structure_spec({'foo': {'bar': [unicode, unicode]}})
+        assert single_elem_err_msg in str(excinfo)
 
-        with self.assertRaisesRegexp(StructureSpecificationError, single_elem_err_msg):
+        with pytest.raises(StructureSpecificationError):
             validate_structure_spec({'foo': {'bar': [{'baz': [unicode, unicode]}]}})
+        assert single_elem_err_msg in str(excinfo)
 
 
-class DocumentStructureValidationTestCase(unittest2.TestCase):
+class TestDocumentStructureValidation:
+
+    def test_correct_structures(self):
+        '''
+        # foo is of given type
+        validate_structure({'foo': int}, {}, skip_missing=True)
+        # foo and bar are of given types
+        validate_structure({'foo': int, 'bar': unicode}, {}, skip_missing=True)
+        # foo is a list of values of given type
+        validate_structure({'foo': [int]}, {}, skip_missing=True)
+        # foo.bar is of given type
+        validate_structure({'foo': {'bar': int}}, {}, skip_missing=True)
+        # foo.bar is a list of values of given type
+        validate_structure({'foo': {'bar': [int]}}, {}, skip_missing=True)
+        # foo.bar is a list of mappings where each "baz" is of given type
+        validate_structure({'foo': {'bar': [{'baz': [unicode]}]}}, {}, skip_missing=True)
+        '''
+
+    def test_bad_types(self):
+        pass
+
+    def test_malformed_lists(self):
+        pass
+
+    #---
 
     def test_empty(self):
         validate_structure({'a': unicode}, {'a': None})
@@ -136,28 +167,29 @@ class DocumentStructureValidationTestCase(unittest2.TestCase):
         # is not (unless bool is the correct type for this value)
         validate_structure({'a': bool}, {'a': None})
         validate_structure({'a': bool}, {'a': False})
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             validate_structure({'a': unicode}, {'a': False})
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             validate_structure({'a': unicode}, {'a': 0})
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             validate_structure({'a': bool}, {'a': u''})
 
     def test_missing(self):
         validate_structure({'a': unicode}, {}, skip_missing=True)
-        with self.assertRaises(KeyError):
+        with pytest.raises(KeyError):
             validate_structure({'a': unicode}, {})
-        with self.assertRaises(KeyError):
+        with pytest.raises(KeyError):
             validate_structure({'a': unicode, 'b': int}, {'b': 1})
 
     def test_unknown_keys(self):
         validate_structure({}, {'x': 123}, skip_unknown=True)
-        with self.assertRaises(KeyError):
+        with pytest.raises(KeyError):
             validate_structure({}, {'x': 123})
-        with self.assertRaises(KeyError):
+        with pytest.raises(KeyError):
             validate_structure({'a': unicode}, {'a': u'A', 'x': 123})
-        with self.assertRaisesRegexp(TypeError, "a: b: expected int, got str 'bad'"):
+        with pytest.raises(TypeError) as excinfo:
             validate_structure({'a': [{'b': [int]}]}, {'a': [{'b': ['bad']}]})
+        assert "a: b: expected int, got str 'bad'" in str(excinfo)
 
     def test_bool(self):
         validate_structure({'a': bool}, {'a': None})
@@ -185,7 +217,7 @@ class DocumentStructureValidationTestCase(unittest2.TestCase):
     def test_unicode(self):
         validate_structure({'a': unicode}, {'a': None})
         validate_structure({'a': unicode}, {'a': u'hello'})
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             validate_structure({'a': unicode}, {'a': 123})
 
     def test_datetime(self):
@@ -232,52 +264,3 @@ class DocumentStructureValidationTestCase(unittest2.TestCase):
             ],
         }
         validate_structure(spec, data)
-
-
-
-class DocumentDefaultsTestCase(unittest2.TestCase):
-    class Entry(models.Document):
-        structure = {
-            'title': unicode,
-            'author': {
-                'first_name': unicode,
-                'last_name': unicode,
-            },
-            'comments': [
-                {
-                    'text': unicode,
-                    'is_spam': bool,
-                },
-            ]
-        }
-        defaults = {
-            'comments.is_spam': False,
-        }
-    data = {
-        'title': u'Hello',
-        'author': {
-            'first_name': u'John',
-            'last_name': u'Doe',
-        },
-        'comments': [
-            # XXX when do we add the default value is_spam=False?
-            # anything that is inside a list (0..n) cannot be included in skel.
-            # (just check or also append defaults) on (add / save / validate)?
-            {'text': u'Oh hi'},
-            {'text': u'Hi there', 'is_spam': True},
-        ]
-    }
-    def test_basic_document(self):
-        entry = self.Entry(self.data)
-        self.assertEquals(entry['title'], self.data['title'])
-        with self.assertRaises(KeyError):
-            entry['nonexistent_key']
-
-    @unittest2.expectedFailure
-    def test_dot_expanded(self):
-        entry = self.Entry(self.data)
-        self.assertEquals(entry.title, entry['title'])
-        with self.assertRaises(AttributeError):
-            entry.nonexistent_key
-        self.assertEquals(entry.author.first_name,
-                          entry['author']['first_name'])
