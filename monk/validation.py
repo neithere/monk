@@ -66,7 +66,9 @@ def walk_dict(data):
 def validate_structure_spec(spec):
     """ Checks whether given document structure specification dictionary if
     defined correctly.
-    Raises `StructureSpecificationError` if the specification is malformed.
+
+    Raises :class:`StructureSpecificationError` if the specification is
+    malformed.
     """
     stack = deque(walk_dict(spec))
     while stack:
@@ -116,21 +118,7 @@ def check_type(typespec, value, keys_tuple):
 
 def validate_structure(spec, data, skip_missing=False, skip_unknown=False):
     """ Validates given document against given structure specification.
-
     Always returns ``None``.
-
-    Can raise:
-
-    :class:`MissingKey`
-        if a key is in `spec` but not in `data`.
-    :class:`UnknownKey`
-        if a key is in `data` but not in `spec`.
-    :class:`StructureSpecificationError`
-        if errors were found in `spec`.
-    :class:`TypeError`
-        if a value in `data` does not belong to the designated type.
-
-    Arguments:
 
     :param spec:
         `dict`; document structure specification.
@@ -142,6 +130,17 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False):
     :param skip_unknown:
         ``bool``; if ``True``, :class:`UnknownKey` is never raised.
         Default is ``False``.
+
+    Can raise:
+
+    :class:`MissingKey`
+        if a key is in `spec` but not in `data`.
+    :class:`UnknownKey`
+        if a key is in `data` but not in `spec`.
+    :class:`StructureSpecificationError`
+        if errors were found in `spec`.
+    :class:`TypeError`
+        if a value in `data` does not belong to the designated type.
 
     """
     # flatten the structures so that nested dictionaries are moved to the root
