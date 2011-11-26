@@ -29,7 +29,11 @@ import pymongo.dbref
 import pymongo.objectid
 import unittest2
 
-import monk
+from monk.validation import (
+    walk_dict, validate_structure_spec, validate_structure,
+    StructureSpecificationError
+)
+from monk import models
 
 
 class StructureSpecTestCase(unittest2.TestCase):
@@ -66,137 +70,137 @@ class StructureSpecTestCase(unittest2.TestCase):
             (('h',), list),
             (('i',), None),
         ]
-        self.assertEqual(sorted(monk.walk_dict(data)), sorted(paths))
+        self.assertEqual(sorted(walk_dict(data)), sorted(paths))
 
     def test_correct_types(self):
         """ `None` stands for "any value". """
-        monk.validate_structure_spec({'foo': None})
-        monk.validate_structure_spec({'foo': bool})
-        monk.validate_structure_spec({'foo': dict})
-        monk.validate_structure_spec({'foo': float})
-        monk.validate_structure_spec({'foo': int})
-        monk.validate_structure_spec({'foo': list})
-        monk.validate_structure_spec({'foo': unicode})
-        monk.validate_structure_spec({'foo': datetime.datetime})
-        monk.validate_structure_spec({'foo': pymongo.binary.Binary})
-        monk.validate_structure_spec({'foo': pymongo.code.Code})
-        monk.validate_structure_spec({'foo': pymongo.objectid.ObjectId})
-        monk.validate_structure_spec({'foo': pymongo.dbref.DBRef})
+        validate_structure_spec({'foo': None})
+        validate_structure_spec({'foo': bool})
+        validate_structure_spec({'foo': dict})
+        validate_structure_spec({'foo': float})
+        validate_structure_spec({'foo': int})
+        validate_structure_spec({'foo': list})
+        validate_structure_spec({'foo': unicode})
+        validate_structure_spec({'foo': datetime.datetime})
+        validate_structure_spec({'foo': pymongo.binary.Binary})
+        validate_structure_spec({'foo': pymongo.code.Code})
+        validate_structure_spec({'foo': pymongo.objectid.ObjectId})
+        validate_structure_spec({'foo': pymongo.dbref.DBRef})
 
     def test_correct_structures(self):
         # foo is of given type
-        monk.validate_structure_spec({'foo': int})
+        validate_structure_spec({'foo': int})
         # foo and bar are of given types
-        monk.validate_structure_spec({'foo': int, 'bar': unicode})
+        validate_structure_spec({'foo': int, 'bar': unicode})
         # foo is a list of values of given type
-        monk.validate_structure_spec({'foo': [int]})
+        validate_structure_spec({'foo': [int]})
         # foo.bar is of given type
-        monk.validate_structure_spec({'foo': {'bar': int}})
+        validate_structure_spec({'foo': {'bar': int}})
         # foo.bar is a list of values of given type
-        monk.validate_structure_spec({'foo': {'bar': [int]}})
+        validate_structure_spec({'foo': {'bar': [int]}})
         # foo.bar is a list of mappings where each "baz" is of given type
-        monk.validate_structure_spec({'foo': {'bar': [{'baz': [unicode]}]}})
+        validate_structure_spec({'foo': {'bar': [{'baz': [unicode]}]}})
 
     def test_bad_types(self):
         # instances are not accepted; only types
-        with self.assertRaisesRegexp(monk.StructureSpecificationError, 'type'):
-            monk.validate_structure_spec({'foo': u'hello'})
+        with self.assertRaisesRegexp(StructureSpecificationError, 'type'):
+            validate_structure_spec({'foo': u'hello'})
 
-        with self.assertRaisesRegexp(monk.StructureSpecificationError, 'type'):
-            monk.validate_structure_spec({'foo': 123})
+        with self.assertRaisesRegexp(StructureSpecificationError, 'type'):
+            validate_structure_spec({'foo': 123})
 
     def test_malformed_lists(self):
         single_elem_err_msg = 'list must contain exactly 1 item'
 
-        with self.assertRaisesRegexp(monk.StructureSpecificationError, single_elem_err_msg):
-            monk.validate_structure_spec({'foo': []})
+        with self.assertRaisesRegexp(StructureSpecificationError, single_elem_err_msg):
+            validate_structure_spec({'foo': []})
 
-        with self.assertRaisesRegexp(monk.StructureSpecificationError, single_elem_err_msg):
-            monk.validate_structure_spec({'foo': [unicode, unicode]})
+        with self.assertRaisesRegexp(StructureSpecificationError, single_elem_err_msg):
+            validate_structure_spec({'foo': [unicode, unicode]})
 
-        with self.assertRaisesRegexp(monk.StructureSpecificationError, single_elem_err_msg):
-            monk.validate_structure_spec({'foo': {'bar': [unicode, unicode]}})
+        with self.assertRaisesRegexp(StructureSpecificationError, single_elem_err_msg):
+            validate_structure_spec({'foo': {'bar': [unicode, unicode]}})
 
-        with self.assertRaisesRegexp(monk.StructureSpecificationError, single_elem_err_msg):
-            monk.validate_structure_spec({'foo': {'bar': [{'baz': [unicode, unicode]}]}})
+        with self.assertRaisesRegexp(StructureSpecificationError, single_elem_err_msg):
+            validate_structure_spec({'foo': {'bar': [{'baz': [unicode, unicode]}]}})
 
 
 class DocumentStructureValidationTestCase(unittest2.TestCase):
 
     def test_empty(self):
-        monk.validate_structure({'a': unicode}, {'a': None})
-        monk.validate_structure({'a': list}, {'a': None})
-        monk.validate_structure({'a': dict}, {'a': None})
+        validate_structure({'a': unicode}, {'a': None})
+        validate_structure({'a': list}, {'a': None})
+        validate_structure({'a': dict}, {'a': None})
 
         # None is allowed to represent empty value, but bool(value)==False
         # is not (unless bool is the correct type for this value)
-        monk.validate_structure({'a': bool}, {'a': None})
-        monk.validate_structure({'a': bool}, {'a': False})
+        validate_structure({'a': bool}, {'a': None})
+        validate_structure({'a': bool}, {'a': False})
         with self.assertRaises(TypeError):
-            monk.validate_structure({'a': unicode}, {'a': False})
+            validate_structure({'a': unicode}, {'a': False})
         with self.assertRaises(TypeError):
-            monk.validate_structure({'a': unicode}, {'a': 0})
+            validate_structure({'a': unicode}, {'a': 0})
         with self.assertRaises(TypeError):
-            monk.validate_structure({'a': bool}, {'a': u''})
+            validate_structure({'a': bool}, {'a': u''})
 
     def test_missing(self):
-        monk.validate_structure({'a': unicode}, {}, skip_missing=True)
+        validate_structure({'a': unicode}, {}, skip_missing=True)
         with self.assertRaises(KeyError):
-            monk.validate_structure({'a': unicode}, {})
+            validate_structure({'a': unicode}, {})
         with self.assertRaises(KeyError):
-            monk.validate_structure({'a': unicode, 'b': int}, {'b': 1})
+            validate_structure({'a': unicode, 'b': int}, {'b': 1})
 
     def test_unknown_keys(self):
-        monk.validate_structure({}, {'x': 123}, skip_unknown=True)
+        validate_structure({}, {'x': 123}, skip_unknown=True)
         with self.assertRaises(KeyError):
-            monk.validate_structure({}, {'x': 123})
+            validate_structure({}, {'x': 123})
         with self.assertRaises(KeyError):
-            monk.validate_structure({'a': unicode}, {'a': u'A', 'x': 123})
+            validate_structure({'a': unicode}, {'a': u'A', 'x': 123})
         with self.assertRaisesRegexp(TypeError, "a: b: expected int, got str 'bad'"):
-            monk.validate_structure({'a': [{'b': [int]}]}, {'a': [{'b': ['bad']}]})
+            validate_structure({'a': [{'b': [int]}]}, {'a': [{'b': ['bad']}]})
 
     def test_bool(self):
-        monk.validate_structure({'a': bool}, {'a': None})
-        monk.validate_structure({'a': bool}, {'a': True})
-        monk.validate_structure({'a': bool}, {'a': False})
+        validate_structure({'a': bool}, {'a': None})
+        validate_structure({'a': bool}, {'a': True})
+        validate_structure({'a': bool}, {'a': False})
 
     def test_dict(self):
-        monk.validate_structure({'a': dict}, {'a': None})
-        monk.validate_structure({'a': dict}, {'a': {}})
-        monk.validate_structure({'a': dict}, {'a': {'b': 'c'}})
+        validate_structure({'a': dict}, {'a': None})
+        validate_structure({'a': dict}, {'a': {}})
+        validate_structure({'a': dict}, {'a': {'b': 'c'}})
 
     def test_float(self):
-        monk.validate_structure({'a': float}, {'a': None})
-        monk.validate_structure({'a': float}, {'a': .5})
+        validate_structure({'a': float}, {'a': None})
+        validate_structure({'a': float}, {'a': .5})
 
     def test_int(self):
-        monk.validate_structure({'a': int}, {'a': None})
-        monk.validate_structure({'a': int}, {'a': 123})
+        validate_structure({'a': int}, {'a': None})
+        validate_structure({'a': int}, {'a': 123})
 
     def test_list(self):
-        monk.validate_structure({'a': list}, {'a': None})
-        monk.validate_structure({'a': list}, {'a': []})
-        monk.validate_structure({'a': list}, {'a': ['b', 123]})
+        validate_structure({'a': list}, {'a': None})
+        validate_structure({'a': list}, {'a': []})
+        validate_structure({'a': list}, {'a': ['b', 123]})
 
     def test_unicode(self):
-        monk.validate_structure({'a': unicode}, {'a': None})
-        monk.validate_structure({'a': unicode}, {'a': u'hello'})
+        validate_structure({'a': unicode}, {'a': None})
+        validate_structure({'a': unicode}, {'a': u'hello'})
         with self.assertRaises(TypeError):
-            monk.validate_structure({'a': unicode}, {'a': 123})
+            validate_structure({'a': unicode}, {'a': 123})
 
     def test_datetime(self):
-        monk.validate_structure({'a': datetime.datetime}, {'a': None})
-        monk.validate_structure({'a': datetime.datetime},
+        validate_structure({'a': datetime.datetime}, {'a': None})
+        validate_structure({'a': datetime.datetime},
                                 {'a': datetime.datetime.utcnow()})
 
     def test_objectid(self):
-        monk.validate_structure({'a': pymongo.objectid.ObjectId}, {'a': None})
-        monk.validate_structure({'a': pymongo.objectid.ObjectId},
+        validate_structure({'a': pymongo.objectid.ObjectId}, {'a': None})
+        validate_structure({'a': pymongo.objectid.ObjectId},
                                 {'a': pymongo.objectid.ObjectId()})
 
     def test_dbref(self):
-        monk.validate_structure({'a': pymongo.dbref.DBRef}, {'a': None})
-        monk.validate_structure({'a': pymongo.dbref.DBRef},
+        validate_structure({'a': pymongo.dbref.DBRef}, {'a': None})
+        validate_structure({'a': pymongo.dbref.DBRef},
                                 {'a': pymongo.dbref.DBRef('a', 'b')})
 
     def test_valid_document(self):
@@ -227,4 +231,53 @@ class DocumentStructureValidationTestCase(unittest2.TestCase):
                 },
             ],
         }
-        monk.validate_structure(spec, data)
+        validate_structure(spec, data)
+
+
+
+class DocumentDefaultsTestCase(unittest2.TestCase):
+    class Entry(models.Document):
+        structure = {
+            'title': unicode,
+            'author': {
+                'first_name': unicode,
+                'last_name': unicode,
+            },
+            'comments': [
+                {
+                    'text': unicode,
+                    'is_spam': bool,
+                },
+            ]
+        }
+        defaults = {
+            'comments.is_spam': False,
+        }
+    data = {
+        'title': u'Hello',
+        'author': {
+            'first_name': u'John',
+            'last_name': u'Doe',
+        },
+        'comments': [
+            # XXX when do we add the default value is_spam=False?
+            # anything that is inside a list (0..n) cannot be included in skel.
+            # (just check or also append defaults) on (add / save / validate)?
+            {'text': u'Oh hi'},
+            {'text': u'Hi there', 'is_spam': True},
+        ]
+    }
+    def test_basic_document(self):
+        entry = self.Entry(self.data)
+        self.assertEquals(entry['title'], self.data['title'])
+        with self.assertRaises(KeyError):
+            entry['nonexistent_key']
+
+    @unittest2.expectedFailure
+    def test_dot_expanded(self):
+        entry = self.Entry(self.data)
+        self.assertEquals(entry.title, entry['title'])
+        with self.assertRaises(AttributeError):
+            entry.nonexistent_key
+        self.assertEquals(entry.author.first_name,
+                          entry['author']['first_name'])
