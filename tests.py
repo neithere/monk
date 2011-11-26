@@ -1,4 +1,22 @@
 # -*- coding: utf-8 -*-
+#
+#    Monk is a lightweight schema/query framework for document databases.
+#    Copyright © 2011  Andrey Mikhaylenko
+#
+#    This file is part of Monk.
+#
+#    Monk is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Lesser General Public License as published
+#    by the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    Monk is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public License
+#    along with Monk.  If not, see <http://gnu.org/licenses/>.
 """
 Unit Tests
 ==========
@@ -15,36 +33,40 @@ import monk
 
 
 class StructureSpecTestCase(unittest2.TestCase):
-    def test_walk(self):
-        spec = {
+
+    def test_walk_dict(self):
+        data = {
             'a': {
-                'b': [
-                    { 'c': int },
+                'b': {
+                    'c': 'C',
+                },
+                'd': [
+                    { 'e': 123 },
                 ],
-                'd': str
             },
-            'e': list
+            'f': ['F'],
+            'g': dict,
+            'h': list,
+            'i': None,
         }
         paths = [
-            (('a', 'b', 'c'), int),
-            (('a', 'd',), str),
-            (('e',), list)
-        ]
-        all_paths = [
+            # value is a dictionary, not yielded, queued for unwrapping
             (('a',), None),
-            (('a', 'b'), None),
-            (('a', 'b', 'c'), int),
-            (('a', 'd',), str),
-            (('e',), list)
+            # nested dict unwrapped; value is a dict; queued for unwrapping
+            (('a', 'b',), None),
+            # nested dict unwrapped; value is a string; yielded as is
+            (('a', 'b', 'c'), 'C'),
+            # nested dict unwrapped; next value is a list which in opaque for
+            # this function, so yielded as is, even if there are dicts inside
+            (('a', 'd'), [{'e': 123}]),
+            # value is a list again; yielded as is
+            (('f',), ['F']),
+            # a couple of type definitions
+            (('g',), dict),
+            (('h',), list),
+            (('i',), None),
         ]
-        self.assertEqual(set(monk.walk_structure_spec(spec)), set(paths))
-
-
-        print list(monk.walk_structure_spec(spec, all_keys=True))
-
-
-        self.assertEqual(set(monk.walk_structure_spec(spec, all_keys=True)),
-                         set(all_paths))
+        self.assertEqual(sorted(monk.walk_dict(data)), sorted(paths))
 
     def test_correct_types(self):
         """ `None` stands for "any value". """
@@ -118,6 +140,7 @@ class DocumentStructureValidationTestCase(unittest2.TestCase):
             monk.validate_structure({'a': bool}, {'a': u''})
 
     def test_missing(self):
+        monk.validate_structure({'a': unicode}, {}, skip_missing=True)
         with self.assertRaises(KeyError):
             monk.validate_structure({'a': unicode}, {})
         with self.assertRaises(KeyError):
@@ -129,6 +152,8 @@ class DocumentStructureValidationTestCase(unittest2.TestCase):
             monk.validate_structure({}, {'x': 123})
         with self.assertRaises(KeyError):
             monk.validate_structure({'a': unicode}, {'a': u'A', 'x': 123})
+        with self.assertRaisesRegexp(TypeError, "a: b: expected int, got str 'bad'"):
+            monk.validate_structure({'a': [{'b': [int]}]}, {'a': [{'b': ['bad']}]})
 
     def test_bool(self):
         monk.validate_structure({'a': bool}, {'a': None})
