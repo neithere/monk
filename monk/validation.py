@@ -23,6 +23,8 @@ Validation
 """
 from collections import deque
 
+from monk.helpers import walk_dict
+
 
 class StructureSpecificationError(Exception):
     "Raised when malformed document structure is detected."
@@ -39,28 +41,6 @@ class UnknownKey(KeyError):
     """ Raised when a key in data dictionary is missing from the corresponding
     structure spec.
     """
-
-
-def walk_dict(data):
-    """ Generates pairs ``(keys, value)`` for each item in given dictionary,
-    including nested dictionaries. Each pair contains:
-
-    `keys`
-        a tuple of 1..n keys, e.g. ``('foo',)`` for a key on root level or
-        ``('foo', 'bar')`` for a key in a nested dictionary.
-    `value`
-        the value of given key or ``None`` if it is a nested dictionary and
-        therefore can be further unwrapped.
-    """
-    assert hasattr(data, '__getitem__')
-    for key, value in data.iteritems():
-        if isinstance(value, dict):
-            yield (key,), None
-            for keys, value in walk_dict(value):
-                path = (key,) + keys
-                yield path, value
-        else:
-            yield (key,), value
 
 
 def validate_structure_spec(spec):

@@ -30,48 +30,11 @@ import pymongo.objectid
 import pytest
 
 from monk.validation import (
-    walk_dict, validate_structure_spec, validate_structure,
-    populate_defaults,
-    StructureSpecificationError
+    validate_structure_spec, validate_structure, StructureSpecificationError
 )
-from monk import models
 
 
 class TestStructureSpec:
-
-    def test_walk_dict(self):
-        data = {
-            'a': {
-                'b': {
-                    'c': 'C',
-                },
-                'd': [
-                    { 'e': 123 },
-                ],
-            },
-            'f': ['F'],
-            'g': dict,
-            'h': list,
-            'i': None,
-        }
-        paths = [
-            # value is a dictionary, not yielded, queued for unwrapping
-            (('a',), None),
-            # nested dict unwrapped; value is a dict; queued for unwrapping
-            (('a', 'b',), None),
-            # nested dict unwrapped; value is a string; yielded as is
-            (('a', 'b', 'c'), 'C'),
-            # nested dict unwrapped; next value is a list which in opaque for
-            # this function, so yielded as is, even if there are dicts inside
-            (('a', 'd'), [{'e': 123}]),
-            # value is a list again; yielded as is
-            (('f',), ['F']),
-            # a couple of type definitions
-            (('g',), dict),
-            (('h',), list),
-            (('i',), None),
-        ]
-        assert sorted(walk_dict(data)) == sorted(paths)
 
     def test_correct_types(self):
         '`None` stands for "any value".'
