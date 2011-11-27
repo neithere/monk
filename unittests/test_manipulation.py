@@ -27,16 +27,19 @@ from monk.manipulation import merged
 
 
 class TestDocumentDefaults:
+    @pytest.mark.xfail()
     def test_none(self):
         assert {'a': None} == merged({'a': None}, {})
         assert {'a': None} == merged({'a': None}, {'a': None})
         assert {'a': 1234} == merged({'a': None}, {'a': 1234})
 
+    @pytest.mark.xfail()
     def test_type(self):
         assert {'a': None} == merged({'a': unicode}, {})
         assert {'a': None} == merged({'a': unicode}, {'a': None})
         assert {'a': u'a'} == merged({'a': 1}, {'a': u'a'})
 
+    @pytest.mark.xfail()
     def test_type_in_dict(self):
         spec = {'a': {'b': int}}
         # value is absent
@@ -47,27 +50,33 @@ class TestDocumentDefaults:
         # value is present
         assert {'a': {'b': 1234}} == merged(spec, {'a': {'b': 1234}})
 
+    @pytest.mark.xfail()
     def test_type_in_list(self):
         assert {'a': [int]} == merged({}, {'a': []})
         assert {'a': [int]} == merged({'a': []}, {'a': []})
 
+    @pytest.mark.xfail()
     def test_instance(self):
         assert {'a': 1} == merged({'a': 1}, {})
 
+    @pytest.mark.xfail()
     def test_instance_in_dict(self):
         assert {'a': {'b': 1}} == merged({'a': {'b': 1}}, {})
 
+    @pytest.mark.xfail()
     def test_instance_in_list(self):
         assert {'a': [1]} == merged({}, {'a': [1]})
         assert {'a': [1]} == merged({'a': []}, {'a': [1]})
         assert {'a': [0]} == merged({'a': [0]}, {'a': [0]})
 
+    @pytest.mark.xfail()
     def test_instance_in_list_of_dicts(self):
         assert {'a': {'b': 1}} == merged({'a': [{'b': 1}]}, {})
         assert {'a': {'b': 1}} == merged({'a': [{'b': 1}]}, {'a': []})
         assert {'a': {'b': 1}} == merged({'a': [{'b': 1}]}, {'a': [{}]})
         assert {'a': {'b': 0}} == merged({'a': [{'b': 1}]}, {'a': [{'b': 0}]})
 
+    @pytest.mark.xfail()
     def test_complex_list_of_dicts(self):
         "some items are populated, some aren't"
         spec = {
