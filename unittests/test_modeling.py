@@ -24,11 +24,11 @@ Modeling tests
 import pymongo
 import pytest
 
-from monk import models
+from monk import modeling
 
 
 class TestDocumentModel:
-    class Entry(models.Document):
+    class Entry(modeling.Document):
         structure = {
             'title': unicode,
             'author': {
