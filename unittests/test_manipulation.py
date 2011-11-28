@@ -35,30 +35,38 @@ class TestDocumentDefaults:
         assert {'a': None} == merged({'a': None}, {'a': None})
         assert {'a': 1234} == merged({'a': None}, {'a': 1234})
 
-    @pytest.mark.xfail()
     def test_type(self):
         assert {'a': None} == merged({'a': unicode}, {})
         assert {'a': None} == merged({'a': unicode}, {'a': None})
-        assert {'a': u'a'} == merged({'a': 1}, {'a': u'a'})
+        assert {'a': u'a'} == merged({'a': unicode}, {'a': u'a'})
 
-    @pytest.mark.xfail()
     def test_type_in_dict(self):
         spec = {'a': {'b': int}}
-        # value is absent
-        assert {'a': {'b': None}} == merged(spec, {})
-        assert {'a': {'b': None}} == merged(spec, {'a': None})
-        assert {'a': {'b': None}} == merged(spec, {'a': {}})
-        assert {'a': {'b': None}} == merged(spec, {'a': {'b': None}})
-        # value is present
-        assert {'a': {'b': 1234}} == merged(spec, {'a': {'b': 1234}})
 
-    @pytest.mark.xfail()
+        # key is absent; should be inserted
+        assert {'a': {'b': None}} == merged(spec, {})
+        # same with nested key
+        assert {'a': {'b': None}} == merged(spec, {'a': {}})
+
+        # key is present but value is None; should be overridden with defaults
+        #
+        #   XXX do we really need to override *present* values in data
+        #       even if they are None?
+        #
+        assert {'a': {'b': None}} == merged(spec, {'a': None})
+        assert {'a': {'b': None}} == merged(spec, {'a': {'b': None}})
+
+        # key is present, value is not None; leave as is
+        # (even if it won't pass validation)
+        assert {'a': {'b': 1234}} == merged(spec, {'a': {'b': 1234}})
+        assert {'a': u'bogus string'} == merged(spec, {'a': u'bogus string'})
+
     def test_type_in_list(self):
         # XXX интересный момент: видимо, не заполняем тут ничего, но может ли
         # пройти валидацию пустой список, если внутри списка ожидается нечто?
         # В сущности, это вариация на тему test_type_in_dict.
-        assert {'a': [int]} == merged({}, {'a': []})
-        assert {'a': [int]} == merged({'a': []}, {'a': []})
+        assert {'a': []} == merged({'a': [int]}, {'a': []})
+        assert {'a': []} == merged({'a': [int]}, {'a': []})
 
     def test_instance(self):
         assert {'a': 1} == merged({'a': 1}, {})
@@ -70,15 +78,15 @@ class TestDocumentDefaults:
         assert {'a': [1]} == merged({}, {'a': [1]})
         assert {'a': [1]} == merged({'a': []}, {'a': [1]})
         assert {'a': [0]} == merged({'a': [0]}, {'a': [0]})
+        assert {'a': [0, 1]} == merged({'a': [0]}, {'a': [0, 1]})
 
-    @pytest.mark.xfail()
     def test_instance_in_list_of_dicts(self):
-        assert {'a': {'b': 1}} == merged({'a': [{'b': 1}]}, {})
-        assert {'a': {'b': 1}} == merged({'a': [{'b': 1}]}, {'a': []})
-        assert {'a': {'b': 1}} == merged({'a': [{'b': 1}]}, {'a': [{}]})
-        assert {'a': {'b': 0}} == merged({'a': [{'b': 1}]}, {'a': [{'b': 0}]})
+        spec = {'a': [{'b': 1}]}
+        assert {'a': []} == merged(spec, {})
+        assert {'a': []} == merged(spec, {'a': []})
+        assert {'a': [{'b': 1}]} == merged(spec, {'a': [{}]})
+        assert {'a': [{'b': 0}]} == merged(spec, {'a': [{'b': 0}]})
 
-    @pytest.mark.xfail()
     def test_complex_list_of_dicts(self):
         "some items are populated, some aren't"
         spec = {
@@ -89,13 +97,20 @@ class TestDocumentDefaults:
         data = {
             'a': [
                 { },
-                {'b': 2}
+                {'c': 1},
+                {'b': 2, 'c': {'d': 1}}
             ]
         }
         expected = {
             'a': [
                 {'b': 1},
-                {'b': 2}
+                {'b': 1, 'c': 1},
+                {'b': 2, 'c': {'d': 1}}
             ]
         }
         assert merged(spec, data) == expected
+
+    def test_custom_structures(self):
+        "custom keys should not be lost even if they are not in spec"
+        data = {'a': [{'b': {'c': 123}}]}
+        assert data == merged({}, data)

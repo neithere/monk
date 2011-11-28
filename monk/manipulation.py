@@ -21,9 +21,6 @@
 Data manipulation
 =================
 """
-from monk.helpers import walk_dict
-
-
 def merged(spec, data):
     """ Returns a dictionary based on `spec` + `data`.
 
@@ -41,14 +38,39 @@ def merged(spec, data):
         value = None
         if key in spec:
             if key in data:
-                value = data[key]
+                if data[key] is None:
+                    value = spec[key]
+                else:
+                    value = data[key]
             else:
                 value = spec[key]
-            # TODO: special handling of dict and list instances
-            # ...
+
+            # special handling of dict and list instances
+            if isinstance(value, dict):
+                # nested dictionary
+                value = merged(spec.get(key, {}), value)
+            elif isinstance(value, list):
+                # nested list
+                item_spec = spec[key][0] if spec[key] else None
+                if isinstance(item_spec, type):
+                    value = []
+                elif isinstance(item_spec, dict):
+                    # list of dictionaries
+                    # FIXME `value` was prematurely merged, refactor this
+                    value = data.get(key, [])
+                    value = [merged(item_spec, item) for item in value]
+                elif item_spec == None:
+                    # any value is accepted as list item
+                    pass
+                else:
+                    # probably default list item like [1]
+                    pass
         else:
             # never mind if there are nested structures: anyway we cannot check
             # them as they aren't in the spec
             value = data[key]
+        if isinstance(value, type):
+            # there's no default value for this key, just a restriction on type
+            value = None
         result[key] = value
     return result
