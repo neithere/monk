@@ -28,6 +28,10 @@ def merged(spec, data):
     trusted. The result can be validated later with
     :func:`~monk.validation.validate_structure`.
 
+    Note that a key/value pair is added from `spec` either if `data` does not
+    define this key at all, or if the value is ``None``. This behaviour may not
+    be suitable for all cases and therefore may change in the future.
+
     :param spec:
         `dict`. A document structure specification.
     :param data:
