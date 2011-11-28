@@ -38,12 +38,9 @@ class TestDocumentModel:
             'comments': [
                 {
                     'text': unicode,
-                    'is_spam': bool,
+                    'is_spam': False,
                 },
             ]
-        }
-        defaults = {
-            'comments.is_spam': False,
         }
     data = {
         'title': u'Hello',
@@ -65,37 +62,31 @@ class TestDocumentModel:
         with pytest.raises(KeyError):
             entry['nonexistent_key']
 
-    @pytest.mark.xfail(reason='nested dictionaries are dumb')
     def test_dot_expanded(self):
         entry = self.Entry(self.data)
-        assert entry.title == entry['title']
+
+        # getattr -> getitem
+        assert entry['title'] == self.data['title']
+        assert entry['title'] == entry.title
         with pytest.raises(AttributeError):
             entry.nonexistent_key
+        assert entry['author']['first_name'] == entry.author.first_name
+
+        # setattr -> setitem
+        entry.title = u'Bye!'
+        assert entry.title == u'Bye!'
+        assert entry.title == entry['title']
+
+        entry.author.first_name = u'Joan'
+        assert entry.author.first_name == u'Joan'
         assert entry.author.first_name == entry['author']['first_name']
 
-    '''
+        assert entry.comments[0].text == entry['comments'][0]['text']
 
-    def test_dotted_dict(self):
-        self.assertEqual(
-            monk.get_dotkeys(self.Entry.structure),
-            ['author', 'author.first_name', 'author.last_name',
-             'comments', 'comments.is_spam', 'comments.text', 'title']
-        )
-        d = self.Entry()
-        #self.assertEqual(d['comments'], [])
+    def test_defaults(self):
+        entry = self.Entry(self.data)
+        assert entry.comments[0].is_spam == False
 
-        d = self.Entry(self.data)
-        assert d['title'] == self.data['title']
-        assert d['author']['first_name'] == self.data['author']['first_name']
-
-        #assert d.author.first_name == data['author']['first_name']
-        with self.assertRaises(KeyError):
-            d['comments'][0]['is_spam']
-        #d.populate_skeleton()
-        #d.populate_defaults()
-        #assert d['comments'][0]['is_spam'] == False
-
-    '''
 
     '''
     TEST_DATABASE_NAME = 'test_monk'

@@ -28,12 +28,32 @@ from pymongo import dbref
 from monk import validation
 
 
-class DotExpandedDictMixin(object):
+def make_dot_expanded(data):
+    if isinstance(data, dict):
+        pairs = []
+        for key, value in data.iteritems():
+            pairs.append((key, make_dot_expanded(value)))
+        return DotExpandedDict(pairs)
+    elif isinstance(data, list):
+        return [make_dot_expanded(x) for x in data]
+    return data
+
+
+class DotExpandedDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(DotExpandedDict, self).__init__(*args, **kwargs)
+        for key, value in self.iteritems():
+            self[key] = make_dot_expanded(value)
+
     def __getattr__(self, attr):
         if not attr.startswith('_') and attr in self:
             return self[attr]
         raise AttributeError('Attribute or key {0.__class__.__name__}.{1} '
                              'does not exist'.format(self, attr))
+
+    def __setattr__(self, attr, value):
+        if not attr.startswith('_') and attr in self:
+            self[attr] = value
 
 
 class TypedDictReprMixin(object):
@@ -98,7 +118,7 @@ class MongoBoundDictMixin(object):
         db[self.collection].save(outgoing)
 
 
-class StructuredDict(dict):
+class StructuredDictMixin(object):
     """ A dictionary with structure specification and validation.
     """
     structure = {}
@@ -114,8 +134,8 @@ class StructuredDict(dict):
         validation.validate_structure(self.structure, self)
 
 
-class Document(TypedDictReprMixin, MongoBoundDictMixin, DotExpandedDictMixin,
-               StructuredDict):
+class Document(TypedDictReprMixin, MongoBoundDictMixin,
+               StructuredDictMixin, DotExpandedDict):
     """ A structured dictionary that is bound to MongoDB and supports dot
     notation for access to items.
     """
