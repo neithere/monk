@@ -25,4 +25,30 @@ from monk.helpers import walk_dict
 
 
 def merged(spec, data):
-    raise NotImplementedError
+    """ Returns a dictionary based on `spec` + `data`.
+
+    Does not validate values. If `data` overrides a default value, it is
+    trusted. The result can be validated later with
+    :func:`~monk.validation.validate_structure`.
+
+    :param spec:
+        `dict`. A document structure specification.
+    :param data:
+        `dict`. Overrides some or all default values from the spec.
+    """
+    result = {}
+    for key in set(spec.keys() + data.keys()):
+        value = None
+        if key in spec:
+            if key in data:
+                value = data[key]
+            else:
+                value = spec[key]
+            # TODO: special handling of dict and list instances
+            # ...
+        else:
+            # never mind if there are nested structures: anyway we cannot check
+            # them as they aren't in the spec
+            value = data[key]
+        result[key] = value
+    return result

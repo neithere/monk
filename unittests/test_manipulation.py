@@ -27,7 +27,9 @@ from monk.manipulation import merged
 
 
 class TestDocumentDefaults:
-    @pytest.mark.xfail()
+    def test_merge(self):
+        assert {'a': 1, 'b': 2} == merged({'a': 1}, {'b': 2})
+
     def test_none(self):
         assert {'a': None} == merged({'a': None}, {})
         assert {'a': None} == merged({'a': None}, {'a': None})
@@ -52,18 +54,18 @@ class TestDocumentDefaults:
 
     @pytest.mark.xfail()
     def test_type_in_list(self):
+        # XXX интересный момент: видимо, не заполняем тут ничего, но может ли
+        # пройти валидацию пустой список, если внутри списка ожидается нечто?
+        # В сущности, это вариация на тему test_type_in_dict.
         assert {'a': [int]} == merged({}, {'a': []})
         assert {'a': [int]} == merged({'a': []}, {'a': []})
 
-    @pytest.mark.xfail()
     def test_instance(self):
         assert {'a': 1} == merged({'a': 1}, {})
 
-    @pytest.mark.xfail()
     def test_instance_in_dict(self):
         assert {'a': {'b': 1}} == merged({'a': {'b': 1}}, {})
 
-    @pytest.mark.xfail()
     def test_instance_in_list(self):
         assert {'a': [1]} == merged({}, {'a': [1]})
         assert {'a': [1]} == merged({'a': []}, {'a': [1]})
