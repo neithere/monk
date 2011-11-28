@@ -83,26 +83,36 @@ class TestDocumentModel:
 
         assert entry.comments[0].text == entry['comments'][0]['text']
 
+    @pytest.mark.xfail
     def test_defaults(self):
         entry = self.Entry(self.data)
         assert entry.comments[0].is_spam == False
 
 
-    '''
-    TEST_DATABASE_NAME = 'test_monk'
+class TestMongo:
 
+    DATABASE = 'test_monk'
 
-    class BaseTestCase(unittest2.TestCase):
-        FIXTURES = {}
+    class Entry(modeling.Document):
+        collection = 'entries'
+        structure = {
+            'title': unicode,
+        }
 
-        def setUp(self):
-            self.db = pymongo.Connection()[TEST_DATABASE_NAME]
-            self.load_fixtures()
+    def setup_method(self, method):
+        self.db = pymongo.Connection()[self.DATABASE]
+        self.collection = self.db[self.Entry.collection]
+        self.collection.drop()
 
-        def load_fixtures(self):
-            for cname, documents in self.FIXTURES.iteritems():
-                collection = self.db[cname]
-                collection.drop()
-                for document in documents:
-                    collection.insert(document)
-    '''
+    def test_query(self):
+        self.collection.insert({'title': u'Hello world!'})
+        entries = self.Entry.find(self.db, {'title': u'Hello world!'})
+        assert entries.count() == 1
+        entry = entries[0]
+        assert entry.title == u'Hello world!'
+
+    def test_insert(self):
+        entry = self.Entry(title=u'Hello')
+        entry.save(self.db)
+        assert self.collection.find().count() == 1
+        assert self.collection.find({'title': u'Hello'}).count() == 1

@@ -25,6 +25,7 @@ from functools import partial
 
 from pymongo import dbref
 
+from monk import manipulation
 from monk import validation
 
 
@@ -72,6 +73,9 @@ class MongoResultSet(object):
     def __iter__(self):
         return (self._wrap(x) for x in self._cursor)
 
+    def __getitem__(self, index):
+        return self._wrap(self._cursor[index])
+
     def __getattr__(self, attr):
         return getattr(self._cursor, attr)
 
@@ -112,8 +116,6 @@ class MongoBoundDictMixin(object):
 
     def save(self, db):
         assert self.collection
-        #self.populate_defaults()
-        self.validate()
         outgoing = dict(dict_to_db(self, self.structure))
         db[self.collection].save(outgoing)
 
@@ -127,18 +129,27 @@ class StructuredDictMixin(object):
     #validators = {}
     with_skeleton = True
 
-#    def __init__(self, *args, **kwargs):
-#        super(StructuredDict, self).__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super(StructuredDictMixin, self).__init__(*args, **kwargs)
+        self._insert_defaults()
+
+    def _insert_defaults(self):
+        with_defaults = manipulation.merged(self.structure, self)
+        for key, value in with_defaults.iteritems():
+            self[key] = value
 
     def validate(self):
         validation.validate_structure(self.structure, self)
 
 
 class Document(TypedDictReprMixin, MongoBoundDictMixin,
-               StructuredDictMixin, DotExpandedDict):
+               DotExpandedDict, StructuredDictMixin):
     """ A structured dictionary that is bound to MongoDB and supports dot
     notation for access to items.
     """
+    def save(self, db):
+        self.validate()
+        super(Document, self).save(db)
 
 
 def dict_from_db(data, db):
