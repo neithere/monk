@@ -44,11 +44,12 @@ setup(
 
     # more info
     url          = 'http://bitbucket.org/neithere/monk/',
-    download_url = 'http://bitbucket.org/neithere/monk/src/',
+    download_url = 'http://bitbucket.org/neithere/monk/get/tip.zip',
 
     # categorization
-    keywords     = ('mongo mongodb document query database api model models'
-                    'orm odm document-oriented non-relational nosql'),
+    keywords     = ('mongo mongodb document query database api model models '
+                    'orm odm document-oriented non-relational nosql '
+                    'validation'),
     classifiers  = [
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
