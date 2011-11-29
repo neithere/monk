@@ -4,5 +4,8 @@ API reference
 .. automodule:: monk.validation
    :members:
 
-.. automodule:: monk.models
+.. automodule:: monk.manipulation
+   :members:
+
+.. automodule:: monk.modeling
    :members:
