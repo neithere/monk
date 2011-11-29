@@ -40,9 +40,8 @@ def make_dot_expanded(data):
     return data
 
 
-class DotExpandedDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(DotExpandedDict, self).__init__(*args, **kwargs)
+class DotExpandedDictMixin(object):
+    def _make_dot_expanded(self):
         for key, value in self.iteritems():
             self[key] = make_dot_expanded(value)
 
@@ -55,6 +54,12 @@ class DotExpandedDict(dict):
     def __setattr__(self, attr, value):
         if not attr.startswith('_') and attr in self:
             self[attr] = value
+
+
+class DotExpandedDict(DotExpandedDictMixin, dict):
+    def __init__(self, *args, **kwargs):
+        super(DotExpandedDict, self).__init__(*args, **kwargs)
+        self._make_dot_expanded()
 
 
 class TypedDictReprMixin(object):
@@ -124,14 +129,10 @@ class StructuredDictMixin(object):
     """ A dictionary with structure specification and validation.
     """
     structure = {}
-    defaults = {}
+    #defaults = {}
     #required = []
     #validators = {}
-    with_skeleton = True
-
-    def __init__(self, *args, **kwargs):
-        super(StructuredDictMixin, self).__init__(*args, **kwargs)
-        self._insert_defaults()
+    #with_skeleton = True
 
     def _insert_defaults(self):
         with_defaults = manipulation.merged(self.structure, self)
@@ -142,11 +143,21 @@ class StructuredDictMixin(object):
         validation.validate_structure(self.structure, self)
 
 
-class Document(TypedDictReprMixin, MongoBoundDictMixin,
-               DotExpandedDict, StructuredDictMixin):
+class Document(
+        TypedDictReprMixin,
+        DotExpandedDictMixin,
+        StructuredDictMixin,
+        MongoBoundDictMixin,
+        dict
+    ):
     """ A structured dictionary that is bound to MongoDB and supports dot
     notation for access to items.
     """
+    def __init__(self, *args, **kwargs):
+        super(Document, self).__init__(*args, **kwargs)
+        self._insert_defaults()
+        self._make_dot_expanded()
+
     def save(self, db):
         self.validate()
         super(Document, self).save(db)

@@ -54,7 +54,8 @@ class TestDocumentModel:
             # (just check or also append defaults) on (add / save / validate)?
             {'text': u'Oh hi'},
             {'text': u'Hi there', 'is_spam': True},
-        ]
+        ],
+        'views_cnt': 0,
     }
     def test_basic_document(self):
         entry = self.Entry(self.data)
@@ -83,8 +84,11 @@ class TestDocumentModel:
 
         assert entry.comments[0].text == entry['comments'][0]['text']
 
-    @pytest.mark.xfail
     def test_defaults(self):
+        entry = self.Entry(self.data)
+        assert entry.views_cnt == 0
+
+    def test_defaults_dict_in_list(self):
         entry = self.Entry(self.data)
         assert entry.comments[0].is_spam == False
 
