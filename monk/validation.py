@@ -83,12 +83,11 @@ def validate_structure_spec(spec):
 
 def check_type(typespec, value, keys_tuple):
     if typespec is None:
+        # any value is allowed
         return
     if not isinstance(typespec, type):
-        key = '.'.join(keys_tuple)
-        raise StructureSpecificationError(
-            '{path}: expected dict, list, type or None (got {value!r})'
-                .format(path=key, value=value))
+        # default value is provided
+        typespec = type(typespec)
     if not isinstance(value, typespec):
         key = '.'.join(keys_tuple)
         raise TypeError('{key}: expected {typespec.__name__}, got '
@@ -152,6 +151,9 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False):
             continue
         elif isinstance(typespec, list) and value:
             # nested list
+            if not typespec:
+                # empty by default
+                continue
             item_spec = typespec[0]
             for item in value:
                 if item_spec == dict or isinstance(item, dict):

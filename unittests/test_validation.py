@@ -159,23 +159,53 @@ class TestDocumentStructureValidation:
         validate_structure({'a': bool}, {'a': True})
         validate_structure({'a': bool}, {'a': False})
 
+    def test_bool_instance(self):
+        validate_structure({'a': True}, {'a': None})
+        validate_structure({'a': True}, {'a': True})
+        validate_structure({'a': True}, {'a': False})
+
     def test_dict(self):
         validate_structure({'a': dict}, {'a': None})
         validate_structure({'a': dict}, {'a': {}})
         validate_structure({'a': dict}, {'a': {'b': 'c'}})
 
+    def test_dict_instance(self):
+        validate_structure({'a': {}}, {'a': None})
+        validate_structure({'a': {}}, {'a': {}})
+        validate_structure({'a': {}}, {'a': {'b': 123}})
+
     def test_float(self):
         validate_structure({'a': float}, {'a': None})
         validate_structure({'a': float}, {'a': .5})
+
+    def test_float_instance(self):
+        validate_structure({'a': .2}, {'a': None})
+        validate_structure({'a': .2}, {'a': .5})
 
     def test_int(self):
         validate_structure({'a': int}, {'a': None})
         validate_structure({'a': int}, {'a': 123})
 
+    def test_int_instance(self):
+        validate_structure({'a': 1}, {'a': None})
+        validate_structure({'a': 1}, {'a': 123})
+
     def test_list(self):
         validate_structure({'a': list}, {'a': None})
         validate_structure({'a': list}, {'a': []})
         validate_structure({'a': list}, {'a': ['b', 123]})
+
+    def test_list_instance(self):
+        validate_structure({'a': []}, {'a': None})
+        validate_structure({'a': []}, {'a': []})
+        validate_structure({'a': []}, {'a': ['b', 123]})
+
+        validate_structure({'a': [int]}, {'a': None})
+        validate_structure({'a': [int]}, {'a': []})
+        validate_structure({'a': [int]}, {'a': [123]})
+        validate_structure({'a': [int]}, {'a': [123, 456]})
+        with pytest.raises(TypeError):
+            validate_structure({'a': [int]}, {'a': ['b', 123]})
 
     def test_unicode(self):
         validate_structure({'a': unicode}, {'a': None})
@@ -183,10 +213,25 @@ class TestDocumentStructureValidation:
         with pytest.raises(TypeError):
             validate_structure({'a': unicode}, {'a': 123})
 
+    def test_unicode_instance(self):
+        validate_structure({'a': u'foo'}, {'a': None})
+        validate_structure({'a': u'foo'}, {'a': u'hello'})
+        with pytest.raises(TypeError):
+            validate_structure({'a': u'foo'}, {'a': 123})
+
     def test_datetime(self):
         validate_structure({'a': datetime.datetime}, {'a': None})
         validate_structure({'a': datetime.datetime},
-                                {'a': datetime.datetime.utcnow()})
+                           {'a': datetime.datetime.utcnow()})
+        with pytest.raises(TypeError):
+            validate_structure({'a': datetime.datetime}, {'a': 123})
+
+    def test_datetime_instance(self):
+        validate_structure({'a': datetime.datetime(1900, 1, 1)}, {'a': None})
+        validate_structure({'a': datetime.datetime(1900, 1, 1)},
+                           {'a': datetime.datetime.utcnow()})
+        with pytest.raises(TypeError):
+            validate_structure({'a': datetime.datetime}, {'a': 123})
 
     def test_objectid(self):
         validate_structure({'a': pymongo.objectid.ObjectId}, {'a': None})
