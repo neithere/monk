@@ -55,6 +55,13 @@ class DotExpandedDictMixin(object):
         if not attr.startswith('_') and attr in self:
             self[attr] = value
 
+    def __setitem__(self, key, value):
+        if isinstance(value, dict) and \
+           not isinstance(value, DotExpandedDict):
+            value = make_dot_expanded(value)
+        super(DotExpandedDictMixin, self).__setitem__(key, value)
+
+
 
 class DotExpandedDict(DotExpandedDictMixin, dict):
     def __init__(self, *args, **kwargs):
@@ -104,7 +111,8 @@ class MongoBoundDictMixin(object):
 
     @classmethod
     def wrap_incoming(cls, data, db):
-        return cls(dict_from_db(data, db))
+        # XXX self.structure belongs to StructuredDictMixin !!
+        return cls(dict_from_db(cls.structure, data, db))
 
     @classmethod
     def find(cls, db, *args, **kwargs):
@@ -121,6 +129,7 @@ class MongoBoundDictMixin(object):
 
     def save(self, db):
         assert self.collection
+        # XXX self.structure belongs to StructuredDictMixin !!
         outgoing = dict(dict_to_db(self, self.structure))
         db[self.collection].save(outgoing)
 
@@ -139,6 +148,9 @@ class StructuredDictMixin(object):
         for key, value in with_defaults.iteritems():
             self[key] = value
 
+    def _validate_structure_spec(self):
+        validation.validate_structure_spec(self.structure)
+
     def validate(self):
         validation.validate_structure(self.structure, self)
 
@@ -155,6 +167,8 @@ class Document(
     """
     def __init__(self, *args, **kwargs):
         super(Document, self).__init__(*args, **kwargs)
+# TODO
+#        self._validate_structure_spec()
         self._insert_defaults()
         self._make_dot_expanded()
 
@@ -163,25 +177,34 @@ class Document(
         super(Document, self).save(db)
 
 
-def dict_from_db(data, db):
-    def generate():
-        for key, value in data.iteritems():
-            if isinstance(value, dbref.DBRef):
-                yield key, dict(
-                    db.dereference(value),
-                    _id = value['_id']
-                )
-            else:
-                yield key, value
-    return dict(generate())
+def _db_to_dict_pairs(spec, data, db):
+    for key, value in data.iteritems():
+        if isinstance(value, dict):
+            yield key, dict(_db_to_dict_pairs(spec.get(key, {}), value, db))
+        elif isinstance(value, dbref.DBRef):
+            yield key, dict(
+                db.dereference(value),
+                _id = value['_id']
+            )
+        else:
+            yield key, value
 
 
-def dict_to_db(data, structure={}):
-    def generate():
-        for key, value in data.iteritems():
-            if hasattr(value, '_id'):
-                collection = structure[key].collection
+def dict_from_db(spec, data, db):
+    return dict(_db_to_dict_pairs(spec, data, db))
+
+
+def _dict_to_db_pairs(spec, data):
+    for key, value in data.iteritems():
+        if isinstance(value, dict):
+            if '_id' in value:
+                collection = spec[key].collection
                 yield key, dbref.DBRef(collection, value['_id'])
             else:
-                yield key, value
-    return dict(generate())
+                yield key, dict(_dict_to_db_pairs(spec.get(key, {}), value))
+        else:
+            yield key, value
+
+
+def dict_to_db(data, spec={}):
+    return dict(_dict_to_db_pairs(spec, data))

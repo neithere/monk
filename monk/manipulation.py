@@ -50,10 +50,10 @@ def merged(spec, data):
                 value = spec[key]
 
             # special handling of dict and list instances
-            if isinstance(value, dict):
+            if (spec[key] == dict or isinstance(spec[key], dict)) and isinstance(value, dict):
                 # nested dictionary
                 value = merged(spec.get(key, {}), value)
-            elif isinstance(value, list):
+            if (spec[key] == list or isinstance(spec[key], list)) and isinstance(value, list):
                 # nested list
                 item_spec = spec[key][0] if spec[key] else None
                 if isinstance(item_spec, type):
@@ -69,12 +69,18 @@ def merged(spec, data):
                 else:
                     # probably default list item like [1]
                     pass
+            else:
+                # some value from spec that can be checked for type
+                pass
         else:
             # never mind if there are nested structures: anyway we cannot check
             # them as they aren't in the spec
             value = data[key]
+
         if isinstance(value, type):
             # there's no default value for this key, just a restriction on type
             value = None
+
         result[key] = value
+
     return result

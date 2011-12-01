@@ -114,3 +114,15 @@ class TestDocumentDefaults:
         "custom keys should not be lost even if they are not in spec"
         data = {'a': [{'b': {'c': 123}}]}
         assert data == merged({}, data)
+
+    def test_unexpected_dict(self):
+        """ Non-dictionary in spec, dict in data.
+        Data is preserved though won't validate.
+        """
+        assert {'a': {'b': 123}} == merged({'a': unicode}, {'a': {'b': 123}})
+
+    def test_unexpected_list(self):
+        """ Non-list in spec, list in data.
+        Data is preserved though won't validate.
+        """
+        assert {'a': [123]} == merged({'a': unicode}, {'a': [123]})

@@ -32,7 +32,7 @@ setup(
     long_description = readme,
 
     # technical info
-    version  = '0.0.1',
+    version  = '0.1.0',
 #    packages = ['monk'],
     requires = ['python (>= 2.7)'],
     provides = ['monk'],
