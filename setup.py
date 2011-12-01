@@ -22,6 +22,8 @@
 import os
 from setuptools import setup
 
+import monk
+
 
 readme = open(os.path.join(os.path.dirname(__file__), 'README')).read()
 
@@ -32,8 +34,8 @@ setup(
     long_description = readme,
 
     # technical info
-    version  = '0.1.0',
-#    packages = ['monk'],
+    version  = monk.__version__,
+    packages = ['monk'],
     requires = ['python (>= 2.7)'],
     provides = ['monk'],
 
