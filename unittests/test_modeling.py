@@ -94,21 +94,42 @@ class TestDocumentModel:
         entry = self.Entry(self.data)
         assert entry.comments[0].is_spam == False
 
-    def test_callable_defaults(self):
+    def test_callable_defaults_builtin_func(self):
         class Event(modeling.Document):
             structure = {
-                'text': unicode,
                 'time': datetime.datetime.utcnow,
             }
 
         event = Event(time=datetime.datetime.utcnow())
         event.validate()
+        assert isinstance(event.time, datetime.datetime)
 
         event = Event()
         event.validate()
+        assert isinstance(event.time, datetime.datetime)
 
         with pytest.raises(TypeError):
             event = Event(time=datetime.date.today())
+            event.validate()
+
+    def test_callable_defaults_custom_func(self):
+        class Event(modeling.Document):
+            structure = {
+                'text': lambda: u'hello'
+            }
+
+        event = Event(text=u'albatross')
+        event.validate()
+        assert isinstance(event.text, unicode)
+        assert event.text == u'albatross'
+
+        event = Event()
+        event.validate()
+        assert isinstance(event.text, unicode)
+        assert event.text == u'hello'
+
+        with pytest.raises(TypeError):
+            event = Event(text=123)
             event.validate()
 
 
