@@ -26,18 +26,21 @@ from collections import deque
 from monk.helpers import walk_dict
 
 
-class StructureSpecificationError(Exception):
+class ValidationError(Exception):
+    "Raised when a document or its part cannot pass validation."
+
+
+class StructureSpecificationError(ValidationError):
     "Raised when malformed document structure is detected."
-    pass
 
 
-class MissingKey(KeyError):
+class MissingKey(ValidationError):
     """ Raised when a key is defined in the structure spec but is missing from
     a data dictionary.
     """
 
 
-class UnknownKey(KeyError):
+class UnknownKey(ValidationError):
     """ Raised when a key in data dictionary is missing from the corresponding
     structure spec.
     """

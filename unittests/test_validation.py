@@ -30,7 +30,8 @@ import pymongo.objectid
 import pytest
 
 from monk.validation import (
-    validate_structure_spec, validate_structure, StructureSpecificationError
+    validate_structure_spec, validate_structure, StructureSpecificationError,
+    MissingKey, UnknownKey
 )
 
 
@@ -139,16 +140,16 @@ class TestDocumentStructureValidation:
 
     def test_missing(self):
         validate_structure({'a': unicode}, {}, skip_missing=True)
-        with pytest.raises(KeyError):
+        with pytest.raises(MissingKey):
             validate_structure({'a': unicode}, {})
-        with pytest.raises(KeyError):
+        with pytest.raises(MissingKey):
             validate_structure({'a': unicode, 'b': int}, {'b': 1})
 
     def test_unknown_keys(self):
         validate_structure({}, {'x': 123}, skip_unknown=True)
-        with pytest.raises(KeyError):
+        with pytest.raises(UnknownKey):
             validate_structure({}, {'x': 123})
-        with pytest.raises(KeyError):
+        with pytest.raises(UnknownKey):
             validate_structure({'a': unicode}, {'a': u'A', 'x': 123})
         with pytest.raises(TypeError) as excinfo:
             validate_structure({'a': [{'b': [int]}]}, {'a': [{'b': ['bad']}]})
