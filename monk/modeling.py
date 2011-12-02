@@ -30,7 +30,9 @@ from monk import validation
 
 
 def make_dot_expanded(data):
-    if isinstance(data, dict):
+    if isinstance(data, DotExpandedDictMixin):
+        return data
+    elif isinstance(data, dict):
         pairs = []
         for key, value in data.iteritems():
             pairs.append((key, make_dot_expanded(value)))
