@@ -133,7 +133,11 @@ class MongoBoundDictMixin(object):
         assert self.collection
         # XXX self.structure belongs to StructuredDictMixin !!
         outgoing = dict(dict_to_db(self, self.structure))
-        db[self.collection].save(outgoing)
+        object_id = db[self.collection].save(outgoing)
+        if '_id' in self:
+            assert self['_id'] == object_id
+        else:
+            self['_id'] = object_id
 
 
 class StructuredDictMixin(object):
@@ -184,10 +188,9 @@ def _db_to_dict_pairs(spec, data, db):
         if isinstance(value, dict):
             yield key, dict(_db_to_dict_pairs(spec.get(key, {}), value, db))
         elif isinstance(value, dbref.DBRef):
-            yield key, dict(
-                db.dereference(value),
-                _id = value['_id']
-            )
+            obj = db.dereference(value)
+            cls = spec.get(key, dict)
+            yield key, cls(obj, _id=obj['_id']) if obj else None
         else:
             yield key, value
 
