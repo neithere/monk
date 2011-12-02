@@ -114,13 +114,38 @@ class TestDocumentStructureValidation:
         validate_structure({'foo': {'bar': [{'baz': [unicode]}]}}, {}, skip_missing=True)
         '''
 
-    def test_bad_types(self):
-        pass
-
     def test_malformed_lists(self):
         pass
 
     #---
+
+    def test_bad_types(self):
+        with pytest.raises(TypeError) as excinfo:
+            validate_structure({'a': int}, {'a': 'bad'})
+        assert "a: expected int, got str 'bad'" in str(excinfo)
+
+        with pytest.raises(TypeError) as excinfo:
+            validate_structure({'a': [int]}, {'a': 'bad'})
+        assert "a: expected list, got str 'bad'" in str(excinfo)
+
+        with pytest.raises(TypeError) as excinfo:
+            validate_structure({'a': [int]}, {'a': ['bad']})
+        assert "a: expected int, got str 'bad'" in str(excinfo)
+
+        with pytest.raises(TypeError) as excinfo:
+            validate_structure({'a': {'b': int}}, {'a': {'b': 'bad'}})
+        assert "a.b: expected int, got str 'bad'" in str(excinfo)
+
+        with pytest.raises(TypeError) as excinfo:
+            validate_structure({'a': [{'b': [int]}]}, {'a': [{'b': ['bad']}]})
+        assert "a: b: expected int, got str 'bad'" in str(excinfo)
+
+    @pytest.mark.xfail
+    def test_bad_types_FIXME(self):
+        with pytest.raises(TypeError) as excinfo:
+            validate_structure({'a': {'b': int}}, {'a': 'bad'})
+        assert "a: expected dict, got str 'bad'" in str(excinfo)
+
 
     def test_empty(self):
         validate_structure({'a': unicode}, {'a': None})
@@ -151,9 +176,6 @@ class TestDocumentStructureValidation:
             validate_structure({}, {'x': 123})
         with pytest.raises(UnknownKey):
             validate_structure({'a': unicode}, {'a': u'A', 'x': 123})
-        with pytest.raises(TypeError) as excinfo:
-            validate_structure({'a': [{'b': [int]}]}, {'a': [{'b': ['bad']}]})
-        assert "a: b: expected int, got str 'bad'" in str(excinfo)
 
     def test_bool(self):
         validate_structure({'a': bool}, {'a': None})

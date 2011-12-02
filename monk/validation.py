@@ -151,12 +151,23 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False):
             continue
         elif typespec is None:
             # any value is acceptable
+            #------
+            # FIXME if the value was expected to be a nested dict instance, we
+            #   still get here because walk_dict yields None as value for
+            #   nested items. This should be fixed, see tests:
+            #   test_validation:TestDocumentStructureValidation.test_bad_types_FIXME
             continue
         elif isinstance(typespec, list) and value:
             # nested list
             if not typespec:
                 # empty by default
                 continue
+            if not isinstance(value, list):
+                key = '.'.join(keys)
+                raise TypeError('{key}: expected {typespec.__name__}, got '
+                                '{valtype.__name__} {value!r}'.format(
+                                    key=key, typespec=list,
+                                    valtype=type(value), value=value))
             item_spec = typespec[0]
             for item in value:
                 if item_spec == dict or isinstance(item, dict):
