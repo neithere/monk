@@ -21,7 +21,7 @@
 Data manipulation
 =================
 """
-def merged(spec, data):
+def merged(spec, data, value_processor=lambda x:x):
     """ Returns a dictionary based on `spec` + `data`.
 
     Does not validate values. If `data` overrides a default value, it is
@@ -80,6 +80,12 @@ def merged(spec, data):
         if isinstance(value, type):
             # there's no default value for this key, just a restriction on type
             value = None
+
+        # call additional value processor, if any
+        #
+        # TODO: move most of logic above to such pluggable processors
+        #       because similar logic is also used in validation
+        value = value_processor(value)
 
         result[key] = value
 

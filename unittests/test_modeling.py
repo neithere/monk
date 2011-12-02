@@ -21,6 +21,7 @@
 Modeling tests
 ==============
 """
+import datetime
 import pymongo
 from pymongo.objectid import ObjectId
 import pytest
@@ -92,6 +93,23 @@ class TestDocumentModel:
     def test_defaults_dict_in_list(self):
         entry = self.Entry(self.data)
         assert entry.comments[0].is_spam == False
+
+    def test_callable_defaults(self):
+        class Event(modeling.Document):
+            structure = {
+                'text': unicode,
+                'time': datetime.datetime.utcnow,
+            }
+
+        event = Event(time=datetime.datetime.utcnow())
+        event.validate()
+
+        event = Event()
+        event.validate()
+
+        with pytest.raises(TypeError):
+            event = Event(time=datetime.date.today())
+            event.validate()
 
 
 class TestMongo:

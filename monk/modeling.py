@@ -22,6 +22,7 @@ Models
 ======
 """
 from functools import partial
+import types
 
 from pymongo import dbref
 
@@ -149,6 +150,13 @@ class MongoBoundDictMixin(object):
 
 class StructuredDictMixin(object):
     """ A dictionary with structure specification and validation.
+
+    .. attribute:: structure
+
+        The document structure specification. For details see
+        :func:`monk.validation.validate_structure_spec` and
+        :func:`monk.validation.validate_structure`.
+
     """
     structure = {}
     #defaults = {}
@@ -157,7 +165,20 @@ class StructuredDictMixin(object):
     #with_skeleton = True
 
     def _insert_defaults(self):
-        with_defaults = manipulation.merged(self.structure, self)
+        """ Inserts default values from :attr:`StructuredDictMixin.structure`
+        to `self` by merging the two structures
+        (see :func:`monk.manipulation.merged`).
+        """
+        def process_value(value):
+            func_types = types.FunctionType,types.BuiltinFunctionType
+            if isinstance(value, func_types):
+                return value()
+            else:
+                return value
+
+        with_defaults = manipulation.merged(self.structure, self,
+                                            value_processor=process_value)
+
         for key, value in with_defaults.iteritems():
             self[key] = value
 
@@ -177,6 +198,15 @@ class Document(
     ):
     """ A structured dictionary that is bound to MongoDB and supports dot
     notation for access to items.
+
+    Inherits features from:
+
+    * `dict` (builtin),
+    * class:`~monk.modeling.TypedDictReprMixin`,
+    * class:`~monk.modeling.DotExpandedDictMixin`,
+    * class:`~monk.modeling.StructuredDictMixin` and
+    * class:`~monk.modeling.MongoBoundDictMixin`.
+
     """
     def __init__(self, *args, **kwargs):
         super(Document, self).__init__(*args, **kwargs)

@@ -22,6 +22,7 @@ Validation
 ==========
 """
 from collections import deque
+import types
 
 from monk.helpers import walk_dict
 
@@ -88,9 +89,17 @@ def check_type(typespec, value, keys_tuple):
     if typespec is None:
         # any value is allowed
         return
+
+    if isinstance(typespec, (types.FunctionType, types.BuiltinFunctionType)):
+        # default value is obtained from a function with no arguments;
+        # then check type against  what the callable returns. (It is expected
+        # that the callable does not have side effects.)
+        typespec = typespec()
+
     if not isinstance(typespec, type):
         # default value is provided
         typespec = type(typespec)
+
     if not isinstance(value, typespec):
         key = '.'.join(keys_tuple)
         raise TypeError('{key}: expected {typespec.__name__}, got '
