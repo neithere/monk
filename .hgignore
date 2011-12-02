@@ -9,3 +9,9 @@
 ^cover/
 ,cover$
 ^htmlcov/
+
+# Arch Linux: makepkg
+^src/
+^pkg/
+^.PKGINFO$
+^(python2-)?monk-.+\.tar\..z
