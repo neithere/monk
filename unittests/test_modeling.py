@@ -22,6 +22,7 @@ Modeling tests
 ==============
 """
 import pymongo
+from pymongo.objectid import ObjectId
 import pytest
 
 from monk import modeling
@@ -100,6 +101,7 @@ class TestMongo:
     class Entry(modeling.Document):
         collection = 'entries'
         structure = {
+            '_id': ObjectId,
             'title': unicode,
         }
 
@@ -120,3 +122,20 @@ class TestMongo:
         entry.save(self.db)
         assert self.collection.find().count() == 1
         assert self.collection.find({'title': u'Hello'}).count() == 1
+
+    def test_id(self):
+        entry = self.Entry(title=u'Hello')
+        assert entry['_id'] is None
+
+        # save the first time
+        obj_id = entry.save(self.db)
+        assert obj_id == entry['_id']
+        assert self.Entry.find(self.db).count() == 1
+        assert [entry] == list(self.Entry.find(self.db, _id=obj_id))
+
+        # update
+        entry.title = u'Bye'
+        same_id = entry.save(self.db)
+        assert obj_id == same_id
+        assert obj_id == entry['_id']
+        assert self.Entry.find(self.db).count() == 1
