@@ -1,6 +1,6 @@
 # Maintainer: Andrey Mikhaylenko <neithere at gmail dot com>
 pkgname=python2-monk
-pkgver=0.1.2
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="A lightweight schema/query framework for MongoDB"
 arch=(any)
