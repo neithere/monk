@@ -187,3 +187,34 @@ class TestMongo:
         assert entry.get_ref() is None
         entry.save(self.db)
         assert entry.get_ref() == DBRef(self.Entry.collection, entry.get_id())
+
+    def test_equality(self):
+        """Documents are equal if all these conditions are met:
+
+        * both inherit to the same class;
+        * both are stored in the same collection;
+        * both have assigned ids and ids are equal.
+        """
+        a = self.Entry(title=u'Hello')
+        b = self.Entry(title=u'Hello')
+        assert a != b
+        a.save(self.db)
+        assert a != b
+        c = self.Entry.get_one(self.db)
+        assert a == c
+        b.save(self.db)
+        assert a != b
+        d = dict(title=u'Hello')
+        assert a != d
+
+        class E(modeling.Document):
+            structure = self.Entry.structure
+        e = E(title=u'Hello')
+        assert a != e
+
+        class F(modeling.Document):
+            collection = 'comments'
+            structure = self.Entry.structure
+        e = F(title=u'Hello')
+        e.save(self.db)
+        assert a != e

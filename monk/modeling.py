@@ -100,8 +100,38 @@ class MongoBoundDictMixin(object):
     indexes = []
 
     def __hash__(self):
-        "Collection name and id together make the hash."
-        return hash(self.collection) | hash(self.get('_id'))
+        """ Collection name and id together make the hash; document class
+        doesn't matter.
+
+        Raises `TypeError` if collection or id is not set.
+        """
+        if self.collection and self.get_id():
+            return hash(self.collection) | hash(self.get_id())
+        raise TypeError('Document is unhashable: collection or id is not set')
+
+    def __eq__(self, other):
+        # both must inherit to this class
+        if not isinstance(other, MongoBoundDictMixin):
+            return False
+        # both must have collections defined
+        if not self.collection or not other.collection:
+            return False
+        # both must have ids
+        if not self.get_id() or not other.get_id():
+            return False
+
+        # collections must be equal
+        if self.collection != other.collection:
+            return False
+        # ids must be equal
+        if self.get_id() != other.get_id():
+            return False
+
+        return True
+
+    def __ne__(self, other):
+        # this is required to override the call to dict.__eq__()
+        return not self.__eq__(other)
 
     @classmethod
     def _ensure_indexes(cls, db):
