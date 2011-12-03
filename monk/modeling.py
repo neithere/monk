@@ -147,6 +147,16 @@ class MongoBoundDictMixin(object):
 
         return object_id
 
+    def get_id(self):
+        return self.get('_id')
+
+    def get_ref(self):
+        _id = self.get_id()
+        if _id is None:
+            return None
+        else:
+            return dbref.DBRef(self.collection, _id)
+
 
 class StructuredDictMixin(object):
     """ A dictionary with structure specification and validation.

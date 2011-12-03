@@ -24,6 +24,7 @@ Modeling tests
 import datetime
 import pymongo
 from pymongo.objectid import ObjectId
+from pymongo.dbref import DBRef
 import pytest
 
 from monk import modeling
@@ -165,6 +166,7 @@ class TestMongo:
     def test_id(self):
         entry = self.Entry(title=u'Hello')
         assert entry['_id'] is None
+        assert entry.get_id() is None
 
         # save the first time
         obj_id = entry.save(self.db)
@@ -177,4 +179,11 @@ class TestMongo:
         same_id = entry.save(self.db)
         assert obj_id == same_id
         assert obj_id == entry['_id']
+        assert obj_id == entry.get_id()
         assert self.Entry.find(self.db).count() == 1
+
+    def test_get_ref(self):
+        entry = self.Entry(title=u'Hello')
+        assert entry.get_ref() is None
+        entry.save(self.db)
+        assert entry.get_ref() == DBRef(self.Entry.collection, entry.get_id())
