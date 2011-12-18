@@ -218,3 +218,17 @@ class TestMongo:
         e = F(title=u'Hello')
         e.save(self.db)
         assert a != e
+
+    def test_index_id(self):
+        "Index for _id is created on first save to a collection"
+        assert self.collection.index_information() == {}
+        self.Entry(title=u'entry').save(self.db)
+        assert '_id_' in self.collection.index_information()
+
+    def test_index_custom(self):
+        "Index for _id is created on first save to a collection"
+        assert self.collection.index_information() == {}
+        class IndexedEntry(self.Entry):
+            indexes = {'title': None}
+        IndexedEntry(title=u'Hello').save(self.db)
+        assert 'title_1' in self.collection.index_information()

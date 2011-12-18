@@ -1,6 +1,6 @@
 # Maintainer: Andrey Mikhaylenko <neithere at gmail dot com>
 pkgname=python2-monk
-pkgver=0.2.0
+pkgver=0.2.1
 pkgrel=1
 pkgdesc="A lightweight schema/query framework for MongoDB"
 arch=(any)
@@ -15,7 +15,7 @@ backup=()
 options=(!emptydirs)
 install=
 source=(http://pypi.python.org/packages/source/m/monk/monk-${pkgver}.tar.gz)
-md5sums=('90050e75651999375c88e2ca89a7e528')
+md5sums=('0af9650f8e9d88999a7c29eb430c2ec2')
 
 build() {
    cd "${srcdir}/monk-${pkgver}"

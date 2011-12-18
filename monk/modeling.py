@@ -20,6 +20,31 @@
 """
 Models
 ======
+
+Declaring indexes
+-----------------
+
+Let's declare a model with indexes::
+
+    class Item(Document):
+        structure = dict(text=unicode, slug=unicode)
+        indexes = dict(text=None, slug=dict(unique=True))
+
+Now create a model instance::
+
+    item = Item(text=u'foo', slug=u'bar')
+
+Save it and make sure the indexes are created::
+
+    item.save(db)
+
+The last line is roughly equivalent to::
+
+    collection = db[item.collection]
+    collection.ensure_index('text')
+    collection.ensure_index('slug', unique=True)
+    collection.save(dict(item))  # also validation, transformation, etc.
+
 """
 from functools import partial
 import types
@@ -97,7 +122,7 @@ class MongoResultSet(object):
 
 class MongoBoundDictMixin(object):
     collection = None
-    indexes = []
+    indexes = {}
 
     def __hash__(self):
         """ Collection name and id together make the hash; document class
@@ -135,12 +160,9 @@ class MongoBoundDictMixin(object):
 
     @classmethod
     def _ensure_indexes(cls, db):
-        for definition in cls.indexes:
-            fields = definition['fields']
-            for field in fields:
-                kwargs = dict(definition)
-                kwargs.pop('fields')
-                db[cls.collection].ensure_index(field, **kwargs)
+        for field, kwargs in cls.indexes.iteritems():
+            kwargs = kwargs or {}
+            db[cls.collection].ensure_index(field, **kwargs)
 
     @classmethod
     def wrap_incoming(cls, data, db):
@@ -155,7 +177,6 @@ class MongoBoundDictMixin(object):
 
     @classmethod
     def get_one(cls, db, *args, **kwargs):
-        cls._ensure_indexes(db)
         data = db[cls.collection].find_one(*args, **kwargs)
         if data:
             return cls.wrap_incoming(data, db)
@@ -164,6 +185,8 @@ class MongoBoundDictMixin(object):
 
     def save(self, db):
         assert self.collection
+
+        self._ensure_indexes(db)
 
         # XXX self.structure belongs to StructuredDictMixin !!
         outgoing = dict(dict_to_db(self, self.structure))
