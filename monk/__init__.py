@@ -30,5 +30,7 @@ __version__ = '0.2.1'
 # remember to also update:
 #
 # * PKGBUILD
+#   * version
+#   * md5 -- from: "md5sum dist/monk-VERSION.tar.gz"
 # * hg tag
 #
