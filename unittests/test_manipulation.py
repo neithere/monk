@@ -126,3 +126,19 @@ class TestDocumentDefaults:
         Data is preserved though won't validate.
         """
         assert {'a': [123]} == merged({'a': unicode}, {'a': [123]})
+
+    def test_callable(self):
+        """ Callable defaults.
+        """
+        spec = {'text': lambda: u'hello'}
+        data = {}
+        expected = {'text': u'hello'}
+        assert merged(spec, data) == expected
+
+    def test_callable_nested(self):
+        """ Nested callable defaults.
+        """
+        spec = {'content': {'text': lambda: u'hello'}}
+        data = {}
+        expected = {'content': {'text': u'hello'}}
+        assert merged(spec, data) == expected

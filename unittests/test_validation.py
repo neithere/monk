@@ -264,7 +264,7 @@ class TestDocumentStructureValidation:
     def test_dbref(self):
         validate_structure({'a': pymongo.dbref.DBRef}, {'a': None})
         validate_structure({'a': pymongo.dbref.DBRef},
-                                {'a': pymongo.dbref.DBRef('a', 'b')})
+                           {'a': pymongo.dbref.DBRef('a', 'b')})
 
     def test_valid_document(self):
         "a complex document"

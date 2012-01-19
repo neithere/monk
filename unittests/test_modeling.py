@@ -134,6 +134,30 @@ class TestDocumentModel:
             event.validate()
 
 
+    def test_callable_defaults_custom_func_nested(self):
+        # Issue #1  https://bitbucket.org/neithere/monk/issue/1/callable-defaults-in-nested-structures
+        class Event(modeling.Document):
+            structure = {
+                'content': {
+                    'text': lambda: u'hello'
+                }
+            }
+
+        event = Event(content=dict(text=u'albatross'))
+        event.validate()
+        assert isinstance(event.content.text, unicode)
+        assert event.content.text == u'albatross'
+
+        event = Event()
+        event.validate()
+        assert isinstance(event.content.text, unicode)
+        assert event.content.text == u'hello'
+
+        with pytest.raises(TypeError):
+            event = Event(content=dict(text=123))
+            event.validate()
+
+
 class TestMongo:
 
     DATABASE = 'test_monk'
