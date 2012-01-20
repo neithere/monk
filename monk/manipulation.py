@@ -24,7 +24,7 @@ Data manipulation
 import types
 
 
-def merged(spec, data, value_processor=lambda x:x):
+def merged(spec, data, value_processor=lambda x: x):
     """ Returns a dictionary based on `spec` + `data`.
 
     Does not validate values. If `data` overrides a default value, it is
@@ -53,10 +53,12 @@ def merged(spec, data, value_processor=lambda x:x):
                 value = spec[key]
 
             # special handling of dict instances, list instances and callables
-            if (spec[key] == dict or isinstance(spec[key], dict)) and isinstance(value, dict):
+            if (spec[key] == dict or isinstance(spec[key], dict)) \
+                and isinstance(value, dict):
                 # nested dictionary
                 value = merged(spec.get(key, {}), value)
-            elif (spec[key] == list or isinstance(spec[key], list)) and isinstance(value, list):
+            elif (spec[key] == list or isinstance(spec[key], list)) \
+                  and isinstance(value, list):
                 # nested list
                 item_spec = spec[key][0] if spec[key] else None
                 if isinstance(item_spec, type):
@@ -72,9 +74,10 @@ def merged(spec, data, value_processor=lambda x:x):
                 else:
                     # probably default list item like [1]
                     pass
-            elif isinstance(spec[key], (types.FunctionType, types.BuiltinFunctionType)):
+            elif isinstance(spec[key], (types.FunctionType,
+                                        types.BuiltinFunctionType)):
                 # default value is obtained from a function with no arguments;
-                # (It is expected that the callable does not have side effects.)
+                # (It is expected that the callable does not have side effects)
                 if hasattr(value, '__call__'):
                     # FIXME this is unreliable: the value may be already
                     # a result of calling the function from spec which, in

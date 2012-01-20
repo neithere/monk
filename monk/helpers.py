@@ -21,6 +21,8 @@
 Helpers
 =======
 """
+
+
 def walk_dict(data):
     """ Generates pairs ``(keys, value)`` for each item in given dictionary,
     including nested dictionaries. Each pair contains:

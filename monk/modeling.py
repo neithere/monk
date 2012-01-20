@@ -105,7 +105,6 @@ class DotExpandedDictMixin(object):
         super(DotExpandedDictMixin, self).__setitem__(key, value)
 
 
-
 class DotExpandedDict(DotExpandedDictMixin, dict):
     def __init__(self, *args, **kwargs):
         super(DotExpandedDict, self).__init__(*args, **kwargs)
@@ -299,7 +298,7 @@ class StructuredDictMixin(object):
         (see :func:`monk.manipulation.merged`).
         """
         def process_value(value):
-            func_types = types.FunctionType,types.BuiltinFunctionType
+            func_types = types.FunctionType, types.BuiltinFunctionType
             if isinstance(value, func_types):
                 return value()
             else:

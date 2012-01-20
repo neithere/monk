@@ -70,7 +70,7 @@ def validate_structure_spec(spec):
             # accepted: nested dictionary (a spec on its own)
             # e.g.: {...} -> {...}
             for subkeys, subvalue in walk_dict(value):
-                stack.append((keys+subkeys, subvalue))
+                stack.append((keys + subkeys, subvalue))
         elif value is None:
             # accepted: any value
             # e.g.: None -> 123
