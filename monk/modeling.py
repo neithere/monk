@@ -331,9 +331,9 @@ class Document(
     Inherits features from:
 
     * `dict` (builtin),
-    * :class:`~monk.modeling.TypedDictReprMixin`,
-    * :class:`~monk.modeling.DotExpandedDictMixin`,
-    * :class:`~monk.modeling.StructuredDictMixin` and
+    * :class:`~TypedDictReprMixin`,
+    * :class:`~DotExpandedDictMixin`,
+    * :class:`~StructuredDictMixin` and
     * :class:`~MongoBoundDictMixin`.
 
     """
