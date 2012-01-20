@@ -69,6 +69,21 @@ def make_dot_expanded(data):
 
 
 class DotExpandedDictMixin(object):
+    """ Makes the dictionary dot-expandable by exposing dictionary members
+    via ``__getattr__`` and ``__setattr__`` in addition to ``__getitem__`` and
+    ``__setitem__``. For example, this is the default API::
+
+        data = {'foo': {'bar': 0 } }
+        print data['foo']['bar']
+        data['foo']['bar'] = 123
+
+    This mixin adds the following API::
+
+        print data.foo.bar
+        data.foo.bar = 123
+
+    Nested dictionaries are converted to dot-expanded ones on adding.
+    """
     def _make_dot_expanded(self):
         for key, value in self.iteritems():
             self[key] = make_dot_expanded(value)
@@ -98,6 +113,8 @@ class DotExpandedDict(DotExpandedDictMixin, dict):
 
 
 class TypedDictReprMixin(object):
+    """ Makes ``repr(self)`` depend on ``unicode(self)``.
+    """
     def __repr__(self):
         return '<{0.__class__.__name__} {1}>'.format(self, unicode(self))
 
@@ -119,8 +136,22 @@ class MongoResultSet(object):
     def __getattr__(self, attr):
         return getattr(self._cursor, attr)
 
+#    def count(self):
+#        return self._cursor.count()
+
 
 class MongoBoundDictMixin(object):
+    """ Adds MongoDB-specific features to the dictionary.
+
+    .. attribute:: collection
+
+        Collection name.
+
+    .. attribute:: indexes
+
+        (TODO)
+
+    """
     collection = None
     indexes = {}
 
@@ -171,12 +202,35 @@ class MongoBoundDictMixin(object):
 
     @classmethod
     def find(cls, db, *args, **kwargs):
+        """
+        Returns a :class:`MongoResultSet` object.
+
+        Example::
+
+            items = Item.find(db, {'title': u'Hello'})
+
+        .. note::
+
+           The arguments are those of pymongo collection's `find` method.
+           A frequent error is to pass query key/value pairs as keyword
+           arguments. This is **wrong**. In most cases you will want to pass
+           a dictionary ("query spec") as the first positional argument.
+
+        """
         cls._ensure_indexes(db)
         docs = db[cls.collection].find(*args, **kwargs)
         return MongoResultSet(docs, partial(cls.wrap_incoming, db=db))
 
     @classmethod
     def get_one(cls, db, *args, **kwargs):
+        """
+        Returns an object that corresponds to given query or ``None``.
+
+        Example::
+
+            item = Item.get_one(db, {'title': u'Hello'})
+
+        """
         data = db[cls.collection].find_one(*args, **kwargs)
         if data:
             return cls.wrap_incoming(data, db)
@@ -184,6 +238,14 @@ class MongoBoundDictMixin(object):
             return None
 
     def save(self, db):
+        """
+        Saves the object to given database. Usage::
+
+            item = Item(title=u'Hello')
+            item.save(db)
+
+        Collection name is taken from :attr:`MongoBoundDictMixin.collection`.
+        """
         assert self.collection
 
         self._ensure_indexes(db)
@@ -201,9 +263,13 @@ class MongoBoundDictMixin(object):
         return object_id
 
     def get_id(self):
+        """ Returns object id or ``None``.
+        """
         return self.get('_id')
 
     def get_ref(self):
+        """ Returns a `DBRef` for this object or ``None``.
+        """
         _id = self.get_id()
         if _id is None:
             return None
@@ -265,10 +331,10 @@ class Document(
     Inherits features from:
 
     * `dict` (builtin),
-    * class:`~monk.modeling.TypedDictReprMixin`,
-    * class:`~monk.modeling.DotExpandedDictMixin`,
-    * class:`~monk.modeling.StructuredDictMixin` and
-    * class:`~monk.modeling.MongoBoundDictMixin`.
+    * :class:`~monk.modeling.TypedDictReprMixin`,
+    * :class:`~monk.modeling.DotExpandedDictMixin`,
+    * :class:`~monk.modeling.StructuredDictMixin` and
+    * :class:`~MongoBoundDictMixin`.
 
     """
     def __init__(self, *args, **kwargs):
