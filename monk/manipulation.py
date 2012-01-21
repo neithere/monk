@@ -20,48 +20,76 @@
 """
 Data manipulation
 =================
+
+.. attribute:: VALUE_MERGERS
+
+    Default series of mergers:
+
+    * :class:`TypeMerger`
+    * :class:`DictMerger`
+    * :class:`ListMerger`
+    * :class:`FuncMerger`
+    * :class:`AnyMerger`
+
 """
 import types
 
 
 class ValueMerger(object):
-    def __init__(self, spec, value, orig_value):
+    def __init__(self, spec, value):
         self.spec = spec
         self.value = value
-        self.orig_value = orig_value
 
     def check(self):
-        return False
+        raise NotImplementedError
 
     def process(self):
-        return self.value
+        raise NotImplementedError
 
 
 class TypeMerger(ValueMerger):
+    """ Type definition. Preserves empty values.
+    Example::
+
+        >>> TypeMerger(int, None).process()
+        None
+        >>> TypeMerger(int, 123).process()
+        123
+
+    """
     def check(self):
-        if isinstance(self.value, type):
-            return True
+        return isinstance(self.spec, type)
 
     def process(self):
         # there's no default value for this key, just a restriction on type
-        return None
+        return self.value
 
 
 class DictMerger(ValueMerger):
+    """ Nested dictionary.
+    Example::
+
+        >>> DictMerger({'a': 123}, {}).process()
+        {'a': 123}
+        >>> DictMerger({'a': 123}, {'a': 456}).process()
+        {'a': 456}
+
+    """
     def check(self):
-        if isinstance(self.value, dict) and \
-            (self.spec == dict or isinstance(self.spec, dict)):
-            return True
+        return self.spec == dict or isinstance(self.spec, dict)
 
     def process(self):
-        return merged(self.spec or {}, self.value)
+        if self.value is not None and not isinstance(self.value, dict):
+            # bogus value; will not pass validation but should be preserved
+            return self.value
+        return merged(self.spec or {}, self.value or {})
 
 
 class ListMerger(ValueMerger):
+    """ Nested list.
+    """
     def check(self):
-        if isinstance(self.value, list) and \
-            (self.spec == list or isinstance(self.spec, list)):
-            return True
+        return self.spec == list or isinstance(self.spec, list)
 
     def process(self):
         item_spec = self.spec[0] if self.spec else None
@@ -69,9 +97,10 @@ class ListMerger(ValueMerger):
             return []
         elif isinstance(item_spec, dict):
             # list of dictionaries
-            # FIXME `value` was prematurely merged, refactor this
-            value = self.orig_value or []
-            return [merged(item_spec, item) for item in value]
+            if self.value:
+                return [merged(item_spec, item) for item in self.value]
+            else:
+                return []
         elif item_spec == None:
             # any value is accepted as list item
             return self.value
@@ -81,44 +110,67 @@ class ListMerger(ValueMerger):
 
 
 class FuncMerger(ValueMerger):
+    """ Default value is obtained from a function with no arguments.
+    It is expected that the callable does not have side effects.
+    Example::
+
+        >>> FuncMerger(lambda: 123, None).process()
+        123
+        >>> FuncMerger(lambda: 123, 456).process()
+        456
+
+    """
     def check(self):
         func_types = types.FunctionType, types.BuiltinFunctionType
-        if isinstance(self.spec, func_types):
-            return True
+        return isinstance(self.spec, func_types)
 
     def process(self):
-        # default value is obtained from a function with no arguments;
-        # (It is expected that the callable does not have side effects)
-        if hasattr(self.value, '__call__'):
-            # FIXME this is unreliable: the value may be already
-            # a result of calling the function from spec which, in
-            # turn, can be callable. Instead of checking for __call__
-            # we should check if the value was obtained from data or
-            # from the spec. This is problematic at the moment because
-            # nested structures are simply assigned to `value` if
-            # `value` is None or is not in the data, and *then* the
-            # structure is recursively merged (at which point the
-            # information on the source of given chunk of data is lost)
-            return self.value()
+        if self.value is None:
+            return self.spec()
         else:
             return self.value
 
 
-VALUE_MERGERS = TypeMerger, DictMerger, ListMerger, FuncMerger
+class AnyMerger(ValueMerger):
+    """ Any value from spec that can be checked for type.
+    """
+    def check(self):
+        return True
+
+    def process(self):
+        if self.value is None:
+            return self.spec
+        else:
+            return self.value
 
 
-def merge_value(spec, value):
-    orig_value = value
-    value = spec if value is None else value
-    for merger_class in VALUE_MERGERS:
-        merger = merger_class(spec, value, orig_value)
+VALUE_MERGERS = TypeMerger, DictMerger, ListMerger, FuncMerger, AnyMerger
+
+
+def merge_value(spec, value, mergers):
+    """ Returns a merged value based on given spec and data, using given
+    sequence of mergers.
+
+    The mergers are polled expected to be subclasses of :class:`ValueMerger`.
+    They are polled one by one; the first one that agrees to process given
+    value is used to produce the result.
+
+    Example::
+
+        >>> merge_value({'a': 123}, {}, [DictMerger])
+        {'a': 123}
+        >>> merge_value({'a': 123}, {'a': 456}, [DictMerger])
+        {'a': 456}
+
+    """
+    for merger_class in mergers:
+        merger = merger_class(spec, value)
         if merger.check():
             return merger.process()
-    # some value from spec that can be checked for type
     return value
 
 
-def merged(spec, data, value_processor=None):
+def merged(spec, data, value_processor=None, mergers=VALUE_MERGERS):
     """ Returns a dictionary based on `spec` + `data`.
 
     Does not validate values. If `data` overrides a default value, it is
@@ -129,16 +181,27 @@ def merged(spec, data, value_processor=None):
     define this key at all, or if the value is ``None``. This behaviour may not
     be suitable for all cases and therefore may change in the future.
 
+    You can fine-tune the process by changing the list of mergers.
+
     :param spec:
         `dict`. A document structure specification.
     :param data:
         `dict`. Overrides some or all default values from the spec.
+    :param value_processor:
+        function, must take one argument and return the modified value.
+    :param mergers:
+        `tuple`. An ordered series of :class:`ValueMerger` subclasses.
+        Default is :attr:`VALUE_MERGERS`. The mergers are passed to
+        :func:`merge_value`.
     """
     result = {}
 
+    if not isinstance(data, dict):
+        raise TypeError('data must be a dictionary')
+
     for key in set(spec.keys() + data.keys()):
         if key in spec:
-            value = merge_value(spec[key], data.get(key))
+            value = merge_value(spec[key], data.get(key), mergers=mergers)
         else:
             # never mind if there are nested structures: anyway we cannot check
             # them as they aren't in the spec
