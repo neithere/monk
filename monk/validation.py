@@ -20,6 +20,17 @@
 """
 Validation
 ==========
+
+.. attribute:: VALUE_VALIDATORS
+
+    Default sequence of validators:
+
+    * :class:`DictValidator`
+    * :class:`ListValidator`
+    * :class:`TypeValidator`
+    * :class:`FuncValidator`
+    * :class:`InstanceValidator`
+
 """
 from collections import deque
 import types
@@ -85,96 +96,183 @@ def validate_structure_spec(spec):
                     .format(path='.'.join(keys), value=value))
 
 
-def check_type(typespec, value):
-    if typespec is None:
-        # any value is allowed
-        return
+class ValueValidator(object):
+    """ Base class for value validators.
+    """
+    def __init__(self, spec, value, skip_missing=False, skip_unknown=False):
+        self.spec = spec
+        self.value = value
+        self.skip_missing = skip_missing
+        self.skip_unknown = skip_unknown
 
-    if isinstance(typespec, (types.FunctionType, types.BuiltinFunctionType)):
-        # default value is obtained from a function with no arguments;
-        # then check type against  what the callable returns. (It is expected
-        # that the callable does not have side effects.)
-        typespec = typespec()
+    def check(self):
+        """ Returns ``True`` if this validator can handle given spec/value
+        pair, otherwise returns ``False``.
 
-    if not isinstance(typespec, type):
-        # default value is provided
-        typespec = type(typespec)
+        Subclasses must overload this method.
+        """
+        raise NotImplementedError
 
-    if not isinstance(value, typespec):
-        raise TypeError('expected {typespec.__name__}, got '
-                        '{valtype.__name__} {value!r}'.format(
-                        typespec=typespec, valtype=type(value), value=value))
+    def validate(self):
+        """ Returns ``None`` if `self.value` is valid for `self.spec` or raises
+        a :class:`ValidationError`.
 
-
-def validate_dict_value(typespec, value, skip_missing, skip_unknown):
-    if not typespec:
-        # empty by default
-        return
-
-    if not isinstance(value, dict):
-        raise TypeError('expected {typespec.__name__}, got '
-                        '{valtype.__name__} {value!r}'.format(
-                        typespec=dict, valtype=type(value), value=value))
-
-    # validate value as a separate document
-    validate_structure(typespec, value,
-                       skip_missing=skip_missing,
-                       skip_unknown=skip_unknown)
+        Subclasses must overload this method.
+        """
+        raise NotImplementedError
 
 
-def validate_list_value(typespec, value, skip_missing, skip_unknown):
-    if not typespec:
-        # empty by default
-        return
+class DictValidator(ValueValidator):
+    """ Nested dictionary. May contain complex structures which are validated
+    recursively.
+    """
+    def check(self):
+        return isinstance(self.spec, dict)
 
-    if not isinstance(value, list):
-        raise TypeError('expected {typespec.__name__}, got '
-                        '{valtype.__name__} {value!r}'.format(
-                        typespec=list, valtype=type(value), value=value))
+    def validate(self):
+        if not isinstance(self.value, dict):
+            raise TypeError('expected {spec.__name__}, got '
+                            '{valtype.__name__} {value!r}'.format(
+                            spec=dict, valtype=type(self.value),
+                            value=self.value))
 
-    if 1 < len(typespec):
-        raise StructureSpecificationError(
-            'List specification must contain exactly one item; '
-            'got {cnt}: {spec}'.format(cnt=len(typespec), spec=typespec))
+        if not self.spec:
+            # spec is {} which means "a dict of anything"
+            return
 
-    item_spec = typespec[0]
-
-    for item in value:
-        if item_spec == dict or isinstance(item, dict):
-            # validate each value in the list as a separate document
-            validate_structure(item_spec, item,
-                               skip_missing=skip_missing,
-                               skip_unknown=skip_unknown)
-        else:
-            check_type(item_spec, item)
-    return
+        # validate value as a separate document
+        validate_structure(self.spec, self.value,
+                           skip_missing=self.skip_missing,
+                           skip_unknown=self.skip_unknown)
 
 
-def validate_value(typespec, value, skip_missing=False, skip_unknown=False):
+
+class ListValidator(ValueValidator):
+    """ Nested list. May contain complex structures which are validated
+    recursively.
+    """
+    def check(self):
+        return isinstance(self.spec, list)
+
+    def validate(self):
+        if not isinstance(self.value, list):
+            raise TypeError('expected {spec.__name__}, got '
+                            '{valtype.__name__} {value!r}'.format(
+                            spec=list, valtype=type(self.value),
+                            value=self.value))
+
+        if 1 < len(self.spec):
+            raise StructureSpecificationError(
+                'List specification must contain exactly one item; '
+                'got {cnt}: {spec}'.format(cnt=len(self.spec), spec=self.spec))
+
+        if not self.spec:
+            # spec is [] which means "a list of anything"
+            return
+
+        item_spec = self.spec[0]
+
+        for item in self.value:
+            if item_spec == dict or isinstance(item, dict):
+                # validate each value in the list as a separate document
+                validate_structure(item_spec, item,
+                                   skip_missing=self.skip_missing,
+                                   skip_unknown=self.skip_unknown)
+            else:
+                validate_value(item_spec, item, [TypeValidator])
+
+
+class TypeValidator(ValueValidator):
+    """ Simple type check.
+    """
+    def check(self):
+        return isinstance(self.spec, type)
+
+    def validate(self):
+        if not isinstance(self.value, self.spec):
+            raise TypeError('expected {typespec.__name__}, got '
+                            '{valtype.__name__} {value!r}'.format(
+                            typespec=self.spec, valtype=type(self.value),
+                            value=self.value))
+
+
+class InstanceValidator(ValueValidator):
+    """ Type check against an instance: both instances must be of the same
+    type. Example::
+
+        >>> InstanceValidator(1, 2).validate()
+        >>> InstanceValidator(1, 'a').validate()
+        TypeError: ...
+
+    """
+    def check(self):
+        # NOTE: greedy!
+        return not isinstance(self.spec, type)
+
+    def validate(self):
+        spec = type(self.spec)
+        validate_value(spec, self.value, [TypeValidator])
+
+
+class FuncValidator(ValueValidator):
+    """ Default value is obtained from a function with no arguments;
+    then check type against what the callable returns. (It is expected
+    that the callable does not have side effects.)
+    Example::
+
+        >>> FuncValidator(lambda: int, 2).validate()
+        >>> FuncValidator(lambda: int, 'a').validate()
+        TypeError: ...
+
+    Instances are also supported::
+
+        >>> FuncValidator(lambda: 1, 2).validate()
+        >>> FuncValidator(lambda: 1, 'a').validate()
+        TypeError: ...
+
+    """
+    def check(self):
+        func_types = types.FunctionType, types.BuiltinFunctionType
+        return isinstance(self.spec, func_types)
+
+    def validate(self):
+        spec = self.spec()
+        validate_value(spec, self.value, [TypeValidator, InstanceValidator])
+
+
+VALUE_VALIDATORS = (
+    DictValidator, ListValidator, TypeValidator, FuncValidator,
+    InstanceValidator
+)
+
+
+def validate_value(spec, value, validators,
+                   skip_missing=False, skip_unknown=False):
+    """ Checks if given `value` is valid for given `spec`, using given sequence
+    of `validators`.
+
+    The validators are expected to be subclasses of :class:`ValueValidator`.
+    They are polled one by one; the first one that agrees to process given
+    value is used to validate the value.
+    """
     if value is None:
         # empty value, ok unless required
         return
-    elif typespec is None:
+
+    if spec is None:
         # any value is acceptable
-        #------
-        # FIXME if the value was expected to be a nested dict instance, we
-        #   still get here because walk_dict yields None as value for
-        #   nested items. This should be fixed, see tests:
-        #   test_validation:TestDocumentStructureValidation.test_bad_types_FIXME
         return
-    elif isinstance(typespec, dict) and value:
-        # nested dict
-        validate_dict_value(typespec, value, skip_missing, skip_unknown)
-        return
-    elif isinstance(typespec, list) and value:
-        # nested list
-        validate_list_value(typespec, value, skip_missing, skip_unknown)
-        return
+
+    for validator_class in validators:
+        validator = validator_class(spec, value, skip_missing, skip_unknown)
+        if validator.check():
+            return validator.validate()
     else:
-        check_type(typespec, value)
+        pass  # for test coverage
 
 
-def validate_structure(spec, data, skip_missing=False, skip_unknown=False):
+def validate_structure(spec, data, skip_missing=False, skip_unknown=False,
+                       validators=VALUE_VALIDATORS):
     """ Validates given document against given structure specification.
     Always returns ``None``.
 
@@ -188,6 +286,10 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False):
     :param skip_unknown:
         ``bool``; if ``True``, :class:`UnknownKey` is never raised.
         Default is ``False``.
+    :param validators:
+        `sequence`. An ordered series of :class:`ValueValidator` subclasses.
+        Default is :attr:`VALUE_VALIDATORS`. The validators are passed to
+        :func:`validate_value`.
 
     Can raise:
 
@@ -219,6 +321,7 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False):
         typespec = spec.get(key)
         value = data.get(key)
         try:
-            validate_value(typespec, value, skip_missing, skip_unknown)
+            validate_value(typespec, value, validators,
+                           skip_missing, skip_unknown)
         except (MissingKey, UnknownKey, TypeError) as e:
             raise type(e)('{k}: {e}'.format(k=key, e=e))
