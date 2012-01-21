@@ -66,32 +66,19 @@ class TestStructureSpec:
         # foo.bar is a list of mappings where each "baz" is of given type
         validate_structure_spec({'foo': {'bar': [{'baz': [unicode]}]}})
 
-    def test_bad_types(self):
-        # instances are not accepted; only types
-        with pytest.raises(StructureSpecificationError):
-            validate_structure_spec({'foo': u'hello'})
-        with pytest.raises(StructureSpecificationError):
-            validate_structure_spec({'foo': u'hello'})
-
-        with pytest.raises(StructureSpecificationError):
-            validate_structure_spec({'foo': 123})
-
     def test_malformed_lists(self):
-        single_elem_err_msg = 'list must contain exactly 1 item'
+        single_elem_err_msg = 'empty list or a list containing exactly 1 item'
 
         with pytest.raises(StructureSpecificationError) as excinfo:
-            validate_structure_spec({'foo': []})
-        assert single_elem_err_msg in str(excinfo)
-
-        with pytest.raises(StructureSpecificationError):
             validate_structure_spec({'foo': [unicode, unicode]})
+        print 'excinfo',excinfo
         assert single_elem_err_msg in str(excinfo)
 
-        with pytest.raises(StructureSpecificationError):
+        with pytest.raises(StructureSpecificationError) as excinfo:
             validate_structure_spec({'foo': {'bar': [unicode, unicode]}})
         assert single_elem_err_msg in str(excinfo)
 
-        with pytest.raises(StructureSpecificationError):
+        with pytest.raises(StructureSpecificationError) as excinfo:
             validate_structure_spec({'foo': {'bar': [{'baz': [unicode, unicode]}]}})
         assert single_elem_err_msg in str(excinfo)
 

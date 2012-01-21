@@ -32,10 +32,13 @@ Validation
     * :class:`InstanceValidator`
 
 """
-from collections import deque
+# TODO yield/return subdocuments (spec and value) for external processing so
+#      that we don't pass validators/skip_missing/skip_unknown recursively to
+#      each validator.
+
 import types
 
-from monk.helpers import walk_dict
+from manipulation import merged
 
 
 class ValidationError(Exception):
@@ -58,52 +61,17 @@ class UnknownKey(ValidationError):
     """
 
 
-def validate_structure_spec(spec):
-    """ Checks whether given document structure specification dictionary if
-    defined correctly.
-
-    Raises :class:`StructureSpecificationError` if the specification is
-    malformed.
-    """
-    stack = deque(walk_dict(spec))
-    while stack:
-        keys, value = stack.pop()
-        if isinstance(value, list):
-            # accepted: list of values of given type
-            # e.g.: [unicode] -> [u'foo', u'bar']
-            if len(value) == 1:
-                stack.append((keys, value[0]))
-            else:
-                raise StructureSpecificationError(
-                    '{path}: list must contain exactly 1 item (got {count})'
-                         .format(path='.'.join(keys), count=len(value)))
-        elif isinstance(value, dict):
-            # accepted: nested dictionary (a spec on its own)
-            # e.g.: {...} -> {...}
-            for subkeys, subvalue in walk_dict(value):
-                stack.append((keys + subkeys, subvalue))
-        elif value is None:
-            # accepted: any value
-            # e.g.: None -> 123
-            pass
-        elif isinstance(value, type):
-            # accepted: given type
-            # e.g.: unicode -> u'foo'   or   dict -> {'a': 123}   or whatever.
-            pass
-        else:
-            raise StructureSpecificationError(
-                '{path}: expected dict, list, type or None (got {value!r})'
-                    .format(path='.'.join(keys), value=value))
-
-
 class ValueValidator(object):
     """ Base class for value validators.
     """
-    def __init__(self, spec, value, skip_missing=False, skip_unknown=False):
+    def __init__(self, spec, value, skip_missing=False, skip_unknown=False,
+                 value_preprocessor=None):
         self.spec = spec
         self.value = value
         self.skip_missing = skip_missing
         self.skip_unknown = skip_unknown
+        self.value_preprocessor = value_preprocessor
+
 
     def check(self):
         """ Returns ``True`` if this validator can handle given spec/value
@@ -125,6 +93,9 @@ class ValueValidator(object):
 class DictValidator(ValueValidator):
     """ Nested dictionary. May contain complex structures which are validated
     recursively.
+
+    The specification can be any dictionary, whether empty or not. It will be
+    treated as a separate document.
     """
     def check(self):
         return isinstance(self.spec, dict)
@@ -143,13 +114,24 @@ class DictValidator(ValueValidator):
         # validate value as a separate document
         validate_structure(self.spec, self.value,
                            skip_missing=self.skip_missing,
-                           skip_unknown=self.skip_unknown)
+                           skip_unknown=self.skip_unknown,
+                           value_preprocessor=self.value_preprocessor)
 
 
 
 class ListValidator(ValueValidator):
     """ Nested list. May contain complex structures which are validated
     recursively.
+
+    The specification can be either an empty list::
+
+        >>> ListValidator([], [123]).validate()
+
+    ...or a list with exactly one item::
+
+        >>> ListValidator([int], [123, 456]).validate()
+        >>> ListValidator([{'foo': int], [{'foo': 123}]).validate()
+
     """
     def check(self):
         return isinstance(self.spec, list)
@@ -163,7 +145,7 @@ class ListValidator(ValueValidator):
 
         if 1 < len(self.spec):
             raise StructureSpecificationError(
-                'List specification must contain exactly one item; '
+                'Expected an empty list or a list containing exactly 1 item; '
                 'got {cnt}: {spec}'.format(cnt=len(self.spec), spec=self.spec))
 
         if not self.spec:
@@ -177,7 +159,8 @@ class ListValidator(ValueValidator):
                 # validate each value in the list as a separate document
                 validate_structure(item_spec, item,
                                    skip_missing=self.skip_missing,
-                                   skip_unknown=self.skip_unknown)
+                                   skip_unknown=self.skip_unknown,
+                                   value_preprocessor=self.value_preprocessor)
             else:
                 validate_value(item_spec, item, [TypeValidator])
 
@@ -247,7 +230,8 @@ VALUE_VALIDATORS = (
 
 
 def validate_value(spec, value, validators,
-                   skip_missing=False, skip_unknown=False):
+                   skip_missing=False, skip_unknown=False,
+                   value_preprocessor=None):
     """ Checks if given `value` is valid for given `spec`, using given sequence
     of `validators`.
 
@@ -257,6 +241,7 @@ def validate_value(spec, value, validators,
     """
     if value is None:
         # empty value, ok unless required
+        print 'value is None'
         return
 
     if spec is None:
@@ -264,7 +249,8 @@ def validate_value(spec, value, validators,
         return
 
     for validator_class in validators:
-        validator = validator_class(spec, value, skip_missing, skip_unknown)
+        validator = validator_class(spec, value, skip_missing, skip_unknown,
+                   value_preprocessor=value_preprocessor)
         if validator.check():
             return validator.validate()
     else:
@@ -272,7 +258,7 @@ def validate_value(spec, value, validators,
 
 
 def validate_structure(spec, data, skip_missing=False, skip_unknown=False,
-                       validators=VALUE_VALIDATORS):
+                       validators=VALUE_VALIDATORS, value_preprocessor=None):
     """ Validates given document against given structure specification.
     Always returns ``None``.
 
@@ -320,8 +306,33 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False,
     for key in spec_keys | data_keys:
         typespec = spec.get(key)
         value = data.get(key)
+        if value_preprocessor:
+            value = value_preprocessor(typespec, value)
+        print key, typespec, value
         try:
             validate_value(typespec, value, validators,
-                           skip_missing, skip_unknown)
+                           skip_missing, skip_unknown,
+                           value_preprocessor=value_preprocessor)
         except (MissingKey, UnknownKey, TypeError) as e:
             raise type(e)('{k}: {e}'.format(k=key, e=e))
+
+
+def validate_structure_spec(spec, validators=VALUE_VALIDATORS):
+    # this is a pretty dumb function that simply populates the data when normal
+    # manipulation function fails to do that because of ambiguity.
+    # The dictionaries are created even within lists; missing keys are created
+    # with None values.
+    # This enables validate_structure() to peek into nested levels (by default
+    # it bails out when a key is missing).
+    def dictmerger(typespec, value):
+        if value == [] and typespec:
+            for elem in typespec:
+                if isinstance(elem, type):
+                    # [int] -> [None]
+                    value.append(None)
+                elif isinstance(elem, dict):
+                    # [{'a': int}] -> [{'a': None}]
+                    value.append(merged(elem, {}))
+        return value
+    validate_structure(spec, merged(spec, {}), skip_missing=True, skip_unknown=True,
+                       validators=validators, value_preprocessor=dictmerger)

@@ -21,7 +21,7 @@
 Helpers tests
 =============
 """
-from monk.validation import walk_dict
+from monk.helpers import walk_dict
 
 
 class TestDataWalking:
