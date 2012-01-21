@@ -297,15 +297,7 @@ class StructuredDictMixin(object):
         to `self` by merging the two structures
         (see :func:`monk.manipulation.merged`).
         """
-        def process_value(value):
-            func_types = types.FunctionType, types.BuiltinFunctionType
-            if isinstance(value, func_types):
-                return value()
-            else:
-                return value
-
-        with_defaults = manipulation.merged(self.structure, self,
-                                            value_processor=process_value)
+        with_defaults = manipulation.merged(self.structure, self)
 
         for key, value in with_defaults.iteritems():
             self[key] = value

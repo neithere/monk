@@ -181,7 +181,7 @@ def merge_value(spec, value, mergers):
     return value
 
 
-def merged(spec, data, value_processor=None, mergers=VALUE_MERGERS):
+def merged(spec, data, mergers=VALUE_MERGERS):
     """ Returns a dictionary based on `spec` + `data`.
 
     Does not validate values. If `data` overrides a default value, it is
@@ -198,8 +198,6 @@ def merged(spec, data, value_processor=None, mergers=VALUE_MERGERS):
         `dict`. A document structure specification.
     :param data:
         `dict`. Overrides some or all default values from the spec.
-    :param value_processor:
-        function, must take one argument and return the modified value.
     :param mergers:
         `tuple`. An ordered series of :class:`ValueMerger` subclasses.
         Default is :attr:`VALUE_MERGERS`. The mergers are passed to
@@ -217,9 +215,6 @@ def merged(spec, data, value_processor=None, mergers=VALUE_MERGERS):
             # never mind if there are nested structures: anyway we cannot check
             # them as they aren't in the spec
             value = data[key]
-
-        if value_processor:
-            value = value_processor(value)
 
         result[key] = value
 
