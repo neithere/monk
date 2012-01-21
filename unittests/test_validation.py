@@ -133,19 +133,16 @@ class TestDocumentStructureValidation:
         assert "a: expected int, got str 'bad'" in str(excinfo)
 
         with pytest.raises(TypeError) as excinfo:
+            validate_structure({'a': {'b': int}}, {'a': 'bad'})
+        assert "a: expected dict, got str 'bad'" in str(excinfo)
+
+        with pytest.raises(TypeError) as excinfo:
             validate_structure({'a': {'b': int}}, {'a': {'b': 'bad'}})
-        assert "a.b: expected int, got str 'bad'" in str(excinfo)
+        assert "a: b: expected int, got str 'bad'" in str(excinfo)
 
         with pytest.raises(TypeError) as excinfo:
             validate_structure({'a': [{'b': [int]}]}, {'a': [{'b': ['bad']}]})
         assert "a: b: expected int, got str 'bad'" in str(excinfo)
-
-    @pytest.mark.xfail
-    def test_bad_types_FIXME(self):
-        with pytest.raises(TypeError) as excinfo:
-            validate_structure({'a': {'b': int}}, {'a': 'bad'})
-        assert "a: expected dict, got str 'bad'" in str(excinfo)
-
 
     def test_empty(self):
         validate_structure({'a': unicode}, {'a': None})

@@ -106,6 +106,22 @@ def check_type(typespec, value):
                         typespec=typespec, valtype=type(value), value=value))
 
 
+def validate_dict_value(typespec, value, skip_missing, skip_unknown):
+    if not typespec:
+        # empty by default
+        return
+
+    if not isinstance(value, dict):
+        raise TypeError('expected {typespec.__name__}, got '
+                        '{valtype.__name__} {value!r}'.format(
+                        typespec=dict, valtype=type(value), value=value))
+
+    # validate value as a separate document
+    validate_structure(typespec, value,
+                       skip_missing=skip_missing,
+                       skip_unknown=skip_unknown)
+
+
 def validate_list_value(typespec, value, skip_missing, skip_unknown):
     if not typespec:
         # empty by default
@@ -115,7 +131,14 @@ def validate_list_value(typespec, value, skip_missing, skip_unknown):
         raise TypeError('expected {typespec.__name__}, got '
                         '{valtype.__name__} {value!r}'.format(
                         typespec=list, valtype=type(value), value=value))
+
+    if 1 < len(typespec):
+        raise StructureSpecificationError(
+            'List specification must contain exactly one item; '
+            'got {cnt}: {spec}'.format(cnt=len(typespec), spec=typespec))
+
     item_spec = typespec[0]
+
     for item in value:
         if item_spec == dict or isinstance(item, dict):
             # validate each value in the list as a separate document
@@ -138,6 +161,10 @@ def validate_value(typespec, value, skip_missing=False, skip_unknown=False):
         #   still get here because walk_dict yields None as value for
         #   nested items. This should be fixed, see tests:
         #   test_validation:TestDocumentStructureValidation.test_bad_types_FIXME
+        return
+    elif isinstance(typespec, dict) and value:
+        # nested dict
+        validate_dict_value(typespec, value, skip_missing, skip_unknown)
         return
     elif isinstance(typespec, list) and value:
         # nested list
@@ -174,11 +201,6 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False):
         if a value in `data` does not belong to the designated type.
 
     """
-    # flatten the structures so that nested dictionaries are moved to the root
-    # level and {'a': {'b': 1}} becomes {('a','b'): 1}
-    flat_spec = dict(walk_dict(spec))
-    flat_data = dict(walk_dict(data))
-
     # compare the two structures; nested dictionaries are included in the
     # comparison but nested lists are opaque and will be dealt with later on.
     spec_keys = set(spec.iterkeys())
@@ -193,9 +215,10 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False):
         raise UnknownKey('Unknown keys: {0}'.format(', '.join(unknown)))
 
     # check types and deal with nested lists
-    for keys, value in flat_data.iteritems():
-        typespec = flat_spec.get(keys)
+    for key in spec_keys | data_keys:
+        typespec = spec.get(key)
+        value = data.get(key)
         try:
             validate_value(typespec, value, skip_missing, skip_unknown)
         except (MissingKey, UnknownKey, TypeError) as e:
-            raise type(e)('{k}: {e}'.format(k='.'.join(keys), e=e))
+            raise type(e)('{k}: {e}'.format(k=key, e=e))
