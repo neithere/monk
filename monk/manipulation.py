@@ -24,7 +24,101 @@ Data manipulation
 import types
 
 
-def merged(spec, data, value_processor=lambda x: x):
+class ValueMerger(object):
+    def __init__(self, spec, value, orig_value):
+        self.spec = spec
+        self.value = value
+        self.orig_value = orig_value
+
+    def check(self):
+        return False
+
+    def process(self):
+        return self.value
+
+
+class TypeMerger(ValueMerger):
+    def check(self):
+        if isinstance(self.value, type):
+            return True
+
+    def process(self):
+        # there's no default value for this key, just a restriction on type
+        return None
+
+
+class DictMerger(ValueMerger):
+    def check(self):
+        if isinstance(self.value, dict) and \
+            (self.spec == dict or isinstance(self.spec, dict)):
+            return True
+
+    def process(self):
+        return merged(self.spec or {}, self.value)
+
+
+class ListMerger(ValueMerger):
+    def check(self):
+        if isinstance(self.value, list) and \
+            (self.spec == list or isinstance(self.spec, list)):
+            return True
+
+    def process(self):
+        item_spec = self.spec[0] if self.spec else None
+        if isinstance(item_spec, type):
+            return []
+        elif isinstance(item_spec, dict):
+            # list of dictionaries
+            # FIXME `value` was prematurely merged, refactor this
+            value = self.orig_value or []
+            return [merged(item_spec, item) for item in value]
+        elif item_spec == None:
+            # any value is accepted as list item
+            return self.value
+        else:
+            # probably default list item like [1]
+            return self.value
+
+
+class FuncMerger(ValueMerger):
+    def check(self):
+        func_types = types.FunctionType, types.BuiltinFunctionType
+        if isinstance(self.spec, func_types):
+            return True
+
+    def process(self):
+        # default value is obtained from a function with no arguments;
+        # (It is expected that the callable does not have side effects)
+        if hasattr(self.value, '__call__'):
+            # FIXME this is unreliable: the value may be already
+            # a result of calling the function from spec which, in
+            # turn, can be callable. Instead of checking for __call__
+            # we should check if the value was obtained from data or
+            # from the spec. This is problematic at the moment because
+            # nested structures are simply assigned to `value` if
+            # `value` is None or is not in the data, and *then* the
+            # structure is recursively merged (at which point the
+            # information on the source of given chunk of data is lost)
+            return self.value()
+        else:
+            return self.value
+
+
+VALUE_MERGERS = TypeMerger, DictMerger, ListMerger, FuncMerger
+
+
+def merge_value(spec, value):
+    orig_value = value
+    value = spec if value is None else value
+    for merger_class in VALUE_MERGERS:
+        merger = merger_class(spec, value, orig_value)
+        if merger.check():
+            return merger.process()
+    # some value from spec that can be checked for type
+    return value
+
+
+def merged(spec, data, value_processor=None):
     """ Returns a dictionary based on `spec` + `data`.
 
     Does not validate values. If `data` overrides a default value, it is
@@ -41,71 +135,17 @@ def merged(spec, data, value_processor=lambda x: x):
         `dict`. Overrides some or all default values from the spec.
     """
     result = {}
-    for key in set(spec.keys() + data.keys()):
-        value = None
-        if key in spec:
-            if key in data:
-                if data[key] is None:
-                    value = spec[key]
-                else:
-                    value = data[key]
-            else:
-                value = spec[key]
 
-            # special handling of dict instances, list instances and callables
-            if (spec[key] == dict or isinstance(spec[key], dict)) \
-                and isinstance(value, dict):
-                # nested dictionary
-                value = merged(spec.get(key, {}), value)
-            elif (spec[key] == list or isinstance(spec[key], list)) \
-                  and isinstance(value, list):
-                # nested list
-                item_spec = spec[key][0] if spec[key] else None
-                if isinstance(item_spec, type):
-                    value = []
-                elif isinstance(item_spec, dict):
-                    # list of dictionaries
-                    # FIXME `value` was prematurely merged, refactor this
-                    value = data.get(key, [])
-                    value = [merged(item_spec, item) for item in value]
-                elif item_spec == None:
-                    # any value is accepted as list item
-                    pass
-                else:
-                    # probably default list item like [1]
-                    pass
-            elif isinstance(spec[key], (types.FunctionType,
-                                        types.BuiltinFunctionType)):
-                # default value is obtained from a function with no arguments;
-                # (It is expected that the callable does not have side effects)
-                if hasattr(value, '__call__'):
-                    # FIXME this is unreliable: the value may be already
-                    # a result of calling the function from spec which, in
-                    # turn, can be callable. Instead of checking for __call__
-                    # we should check if the value was obtained from data or
-                    # from the spec. This is problematic at the moment because
-                    # nested structures are simply assigned to `value` if
-                    # `value` is None or is not in the data, and *then* the
-                    # structure is recursively merged (at which point the
-                    # information on the source of given chunk of data is lost)
-                    value = value()
-            else:
-                # some value from spec that can be checked for type
-                pass
+    for key in set(spec.keys() + data.keys()):
+        if key in spec:
+            value = merge_value(spec[key], data.get(key))
         else:
             # never mind if there are nested structures: anyway we cannot check
             # them as they aren't in the spec
             value = data[key]
 
-        if isinstance(value, type):
-            # there's no default value for this key, just a restriction on type
-            value = None
-
-        # call additional value processor, if any
-        #
-        # TODO: move most of logic above to such pluggable processors
-        #       because similar logic is also used in validation
-        value = value_processor(value)
+        if value_processor:
+            value = value_processor(value)
 
         result[key] = value
 
