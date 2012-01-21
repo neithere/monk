@@ -85,7 +85,7 @@ def validate_structure_spec(spec):
                     .format(path='.'.join(keys), value=value))
 
 
-def check_type(typespec, value, keys_tuple):
+def check_type(typespec, value):
     if typespec is None:
         # any value is allowed
         return
@@ -101,10 +101,50 @@ def check_type(typespec, value, keys_tuple):
         typespec = type(typespec)
 
     if not isinstance(value, typespec):
-        key = '.'.join(keys_tuple)
-        raise TypeError('{key}: expected {typespec.__name__}, got '
-                        '{valtype.__name__} {value!r}'.format(key=key,
+        raise TypeError('expected {typespec.__name__}, got '
+                        '{valtype.__name__} {value!r}'.format(
                         typespec=typespec, valtype=type(value), value=value))
+
+
+def validate_list_value(typespec, value, skip_missing, skip_unknown):
+    if not typespec:
+        # empty by default
+        return
+
+    if not isinstance(value, list):
+        raise TypeError('expected {typespec.__name__}, got '
+                        '{valtype.__name__} {value!r}'.format(
+                        typespec=list, valtype=type(value), value=value))
+    item_spec = typespec[0]
+    for item in value:
+        if item_spec == dict or isinstance(item, dict):
+            # validate each value in the list as a separate document
+            validate_structure(item_spec, item,
+                               skip_missing=skip_missing,
+                               skip_unknown=skip_unknown)
+        else:
+            check_type(item_spec, item)
+    return
+
+
+def validate_value(typespec, value, skip_missing=False, skip_unknown=False):
+    if value is None:
+        # empty value, ok unless required
+        return
+    elif typespec is None:
+        # any value is acceptable
+        #------
+        # FIXME if the value was expected to be a nested dict instance, we
+        #   still get here because walk_dict yields None as value for
+        #   nested items. This should be fixed, see tests:
+        #   test_validation:TestDocumentStructureValidation.test_bad_types_FIXME
+        return
+    elif isinstance(typespec, list) and value:
+        # nested list
+        validate_list_value(typespec, value, skip_missing, skip_unknown)
+        return
+    else:
+        check_type(typespec, value)
 
 
 def validate_structure(spec, data, skip_missing=False, skip_unknown=False):
@@ -155,40 +195,7 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False):
     # check types and deal with nested lists
     for keys, value in flat_data.iteritems():
         typespec = flat_spec.get(keys)
-        if value is None:
-            # empty value, ok unless required
-            continue
-        elif typespec is None:
-            # any value is acceptable
-            #------
-            # FIXME if the value was expected to be a nested dict instance, we
-            #   still get here because walk_dict yields None as value for
-            #   nested items. This should be fixed, see tests:
-            #   test_validation:TestDocumentStructureValidation.test_bad_types_FIXME
-            continue
-        elif isinstance(typespec, list) and value:
-            # nested list
-            if not typespec:
-                # empty by default
-                continue
-            if not isinstance(value, list):
-                key = '.'.join(keys)
-                raise TypeError('{key}: expected {typespec.__name__}, got '
-                                '{valtype.__name__} {value!r}'.format(
-                                    key=key, typespec=list,
-                                    valtype=type(value), value=value))
-            item_spec = typespec[0]
-            for item in value:
-                if item_spec == dict or isinstance(item, dict):
-                    # validate each value in the list as a separate document
-                    # and fix error message to include outer key
-                    try:
-                        validate_structure(item_spec, item,
-                                           skip_missing=skip_missing,
-                                           skip_unknown=skip_unknown)
-                    except (MissingKey, UnknownKey, TypeError) as e:
-                        raise type(e)('{k}: {e}'.format(k='.'.join(keys), e=e))
-                else:
-                    check_type(item_spec, item, keys)
-        else:
-            check_type(typespec, value, keys)
+        try:
+            validate_value(typespec, value, skip_missing, skip_unknown)
+        except (MissingKey, UnknownKey, TypeError) as e:
+            raise type(e)('{k}: {e}'.format(k='.'.join(keys), e=e))
