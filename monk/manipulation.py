@@ -48,14 +48,14 @@ class ValueMerger(object):
 
         Subclasses must overload this method.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: nocover
 
     def process(self):
         """ Returns a merged version or `self.spec` and `self.value`.
 
         Subclasses must overload this method.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: nocover
 
 
 class TypeMerger(ValueMerger):
