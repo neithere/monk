@@ -23,7 +23,7 @@ Data manipulation
 
 .. attribute:: VALUE_MERGERS
 
-    Default series of mergers:
+    Default sequence of mergers:
 
     * :class:`TypeMerger`
     * :class:`DictMerger`
@@ -162,7 +162,7 @@ def merge_value(spec, value, mergers):
     """ Returns a merged value based on given spec and data, using given
     sequence of mergers.
 
-    The mergers are polled expected to be subclasses of :class:`ValueMerger`.
+    The mergers are expected to be subclasses of :class:`ValueMerger`.
     They are polled one by one; the first one that agrees to process given
     value is used to produce the result.
 
@@ -199,7 +199,7 @@ def merged(spec, data, mergers=VALUE_MERGERS):
     :param data:
         `dict`. Overrides some or all default values from the spec.
     :param mergers:
-        `tuple`. An ordered series of :class:`ValueMerger` subclasses.
+        `sequence`. An ordered series of :class:`ValueMerger` subclasses.
         Default is :attr:`VALUE_MERGERS`. The mergers are passed to
         :func:`merge_value`.
     """
