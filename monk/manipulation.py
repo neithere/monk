@@ -36,14 +36,25 @@ import types
 
 
 class ValueMerger(object):
+    """ Base class for value mergers.
+    """
     def __init__(self, spec, value):
         self.spec = spec
         self.value = value
 
     def check(self):
+        """ Returns ``True`` if this merger can handle given spec/value pair,
+        otherwise returns ``False``.
+
+        Subclasses must overload this method.
+        """
         raise NotImplementedError
 
     def process(self):
+        """ Returns a merged version or `self.spec` and `self.value`.
+
+        Subclasses must overload this method.
+        """
         raise NotImplementedError
 
 
