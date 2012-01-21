@@ -26,7 +26,7 @@ A simple schema validation layer for pymongo_. Inspired by MongoKit and Doqu.
 .. _pymongo: http://api.mongodb.org/python/current/
 
 """
-__version__ = '0.2.2'
+__version__ = '0.2.3'
 # remember to also update:
 #
 # * PKGBUILD
