@@ -62,11 +62,9 @@ class TestDocumentDefaults:
         assert {'a': u'bogus string'} == merged(spec, {'a': u'bogus string'})
 
     def test_type_in_list(self):
-        # XXX интересный момент: видимо, не заполняем тут ничего, но может ли
-        # пройти валидацию пустой список, если внутри списка ожидается нечто?
-        # В сущности, это вариация на тему test_type_in_dict.
         assert {'a': []} == merged({'a': [int]}, {'a': []})
-        assert {'a': []} == merged({'a': [int]}, {'a': []})
+        assert {'a': [123]} == merged({'a': [int]}, {'a': [123]})
+        assert {'a': [123, 456]} == merged({'a': [int]}, {'a': [123, 456]})
 
     def test_instance(self):
         assert {'a': 1} == merged({'a': 1}, {})

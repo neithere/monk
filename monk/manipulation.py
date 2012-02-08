@@ -105,7 +105,10 @@ class ListMerger(ValueMerger):
     def process(self):
         item_spec = self.spec[0] if self.spec else None
         if isinstance(item_spec, type):
-            return []
+            if self.value and len(self.spec) == 1:
+                return self.value
+            else:
+                return []
         elif isinstance(item_spec, dict):
             # list of dictionaries
             if self.value:

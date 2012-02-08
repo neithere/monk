@@ -47,7 +47,6 @@ The last line is roughly equivalent to::
 
 """
 from functools import partial
-import types
 
 from pymongo import dbref
 
