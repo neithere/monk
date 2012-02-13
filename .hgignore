@@ -9,6 +9,7 @@
 ^cover/
 ,cover$
 ^htmlcov/
+^\.tox/
 
 # Arch Linux: makepkg
 ^src/
