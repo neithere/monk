@@ -241,7 +241,6 @@ def validate_value(spec, value, validators,
     """
     if value is None:
         # empty value, ok unless required
-        print 'value is None'
         return
 
     if spec is None:
@@ -308,7 +307,6 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False,
         value = data.get(key)
         if value_preprocessor:
             value = value_preprocessor(typespec, value)
-        print key, typespec, value
         try:
             validate_value(typespec, value, validators,
                            skip_missing, skip_unknown,
