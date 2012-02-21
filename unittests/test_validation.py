@@ -71,7 +71,6 @@ class TestStructureSpec:
 
         with pytest.raises(StructureSpecificationError) as excinfo:
             validate_structure_spec({'foo': [unicode, unicode]})
-        print 'excinfo',excinfo
         assert single_elem_err_msg in str(excinfo)
 
         with pytest.raises(StructureSpecificationError) as excinfo:

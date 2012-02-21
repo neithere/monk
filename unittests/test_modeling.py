@@ -187,6 +187,18 @@ class TestMongo:
         assert self.collection.find().count() == 1
         assert self.collection.find({'title': u'Hello'}).count() == 1
 
+    def test_remove(self):
+        self.collection.insert({'title': u'Hello'})
+
+        entries = self.Entry.find(self.db)
+        assert entries.count() == 1
+
+        entry = entries[0]
+        entry.remove(self.db)
+
+        entries = self.Entry.find(self.db)
+        assert entries.count() == 0
+
     def test_id(self):
         entry = self.Entry(title=u'Hello')
         assert entry['_id'] is None

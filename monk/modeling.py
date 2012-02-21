@@ -274,6 +274,20 @@ class MongoBoundDictMixin(object):
         else:
             return dbref.DBRef(self.collection, _id)
 
+    def remove(self, db):
+        """
+        Removes the object from given database. Usage::
+
+            item = Item.get_one(db)
+            item.remove(db)
+
+        Collection name is taken from :attr:`MongoBoundDictMixin.collection`.
+        """
+        assert self.collection
+        assert self.get_id()
+
+        db[self.collection].remove(self.get_id())
+
 
 class StructuredDictMixin(object):
     """ A dictionary with structure specification and validation.
