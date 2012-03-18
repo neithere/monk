@@ -121,6 +121,15 @@ class TypedDictReprMixin(object):
 
 
 class MongoResultSet(object):
+    """ A wrapper for pymongo cursor that wraps each item using given function
+    or class.
+
+    .. warning::
+
+       This class does not introduce caching.
+       Iterating over results exhausts the cursor.
+
+    """
     def __init__(self, cursor, wrapper):
         self._cursor = cursor
         self._wrap = wrapper
@@ -133,6 +142,23 @@ class MongoResultSet(object):
 
     def __getattr__(self, attr):
         return getattr(self._cursor, attr)
+
+    def ids(self):
+        """ Returns a generator with identifiers of objects in set.
+        These expressions are equivalent::
+
+            ids = (item.get_id() for item in result_set)
+
+            ids = result_set.ids()
+
+        .. warning::
+
+           This method **exhausts** the cursor, so an attempt to iterate over
+           results after calling this method will *fail*. The results are *not*
+           cached.
+
+        """
+        return (item.get_id() for item in self)
 
 #    def count(self):
 #        return self._cursor.count()

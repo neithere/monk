@@ -224,6 +224,15 @@ class TestMongo:
         entry.save(self.db)
         assert entry.get_ref() == DBRef(self.Entry.collection, entry.get_id())
 
+    def test_result_set_ids(self):
+        self.collection.insert({'title': u'Foo'})
+        self.collection.insert({'title': u'Bar'})
+        results = self.Entry.find(self.db)
+        ids_manual = [x.get_id() for x in results]
+        # new object because caching is not supported
+        ids = self.Entry.find(self.db).ids()
+        assert ids_manual == list(ids)
+
     def test_equality(self):
         """Documents are equal if all these conditions are met:
 
