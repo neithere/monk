@@ -46,9 +46,10 @@ The last line is roughly equivalent to::
     collection.save(dict(item))  # also validation, transformation, etc.
 
 """
+from __future__ import unicode_literals
 from functools import partial
 
-from pymongo import dbref
+from bson import DBRef
 
 from monk import manipulation
 from monk import validation
@@ -298,7 +299,7 @@ class MongoBoundDictMixin(object):
         if _id is None:
             return None
         else:
-            return dbref.DBRef(self.collection, _id)
+            return DBRef(self.collection, _id)
 
     def remove(self, db):
         """
@@ -383,7 +384,7 @@ def _db_to_dict_pairs(spec, data, db):
     for key, value in data.iteritems():
         if isinstance(value, dict):
             yield key, dict(_db_to_dict_pairs(spec.get(key, {}), value, db))
-        elif isinstance(value, dbref.DBRef):
+        elif isinstance(value, DBRef):
             obj = db.dereference(value)
             cls = spec.get(key, dict)
             yield key, cls(obj, _id=obj['_id']) if obj else None
@@ -403,7 +404,7 @@ def _dict_to_db_pairs(spec, data):
         if isinstance(value, dict):
             if '_id' in value:
                 collection = spec[key].collection
-                yield key, dbref.DBRef(collection, value['_id'])
+                yield key, DBRef(collection, value['_id'])
             else:
                 yield key, dict(_dict_to_db_pairs(spec.get(key, {}), value))
         else:

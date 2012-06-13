@@ -22,11 +22,8 @@ Validation tests
 ================
 """
 import datetime
+import bson
 import pymongo
-import pymongo.binary
-import pymongo.code
-import pymongo.dbref
-import pymongo.objectid
 import pytest
 
 from monk.validation import (
@@ -47,10 +44,10 @@ class TestStructureSpec:
         validate_structure_spec({'foo': list})
         validate_structure_spec({'foo': unicode})
         validate_structure_spec({'foo': datetime.datetime})
-        validate_structure_spec({'foo': pymongo.binary.Binary})
-        validate_structure_spec({'foo': pymongo.code.Code})
-        validate_structure_spec({'foo': pymongo.objectid.ObjectId})
-        validate_structure_spec({'foo': pymongo.dbref.DBRef})
+        validate_structure_spec({'foo': bson.Binary})
+        validate_structure_spec({'foo': bson.Code})
+        validate_structure_spec({'foo': bson.ObjectId})
+        validate_structure_spec({'foo': bson.DBRef})
 
     def test_correct_structures(self):
         # foo is of given type
@@ -240,14 +237,13 @@ class TestDocumentStructureValidation:
             validate_structure({'a': datetime.datetime}, {'a': 123})
 
     def test_objectid(self):
-        validate_structure({'a': pymongo.objectid.ObjectId}, {'a': None})
-        validate_structure({'a': pymongo.objectid.ObjectId},
-                                {'a': pymongo.objectid.ObjectId()})
+        validate_structure({'a': bson.ObjectId}, {'a': None})
+        validate_structure({'a': bson.ObjectId}, {'a': bson.ObjectId()})
 
     def test_dbref(self):
-        validate_structure({'a': pymongo.dbref.DBRef}, {'a': None})
-        validate_structure({'a': pymongo.dbref.DBRef},
-                           {'a': pymongo.dbref.DBRef('a', 'b')})
+        validate_structure({'a': bson.DBRef}, {'a': None})
+        validate_structure({'a': bson.DBRef},
+                           {'a': bson.DBRef('a', 'b')})
 
     def test_valid_document(self):
         "a complex document"

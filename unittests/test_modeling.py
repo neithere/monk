@@ -23,8 +23,7 @@ Modeling tests
 """
 import datetime
 import pymongo
-from pymongo.objectid import ObjectId
-from pymongo.dbref import DBRef
+from bson import ObjectId, DBRef
 import pytest
 
 from monk import modeling
