@@ -15,7 +15,7 @@ backup=()
 options=(!emptydirs)
 install=
 source=(http://pypi.python.org/packages/source/m/monk/monk-${pkgver}.tar.gz)
-md5sums=('b743be7d0ce5387242fff5390149217a')
+md5sums=('b439f03d21c0af79c35e5d39758fcbf6')
 
 build() {
    cd "${srcdir}/monk-${pkgver}"
