@@ -79,6 +79,11 @@ class DotExpandedDictMixin(object):
     def __setattr__(self, attr, value):
         if not attr.startswith('_') and attr in self:
             self[attr] = value
+        else:
+            # Ambigous intent: cannot tell whether user wants to create
+            # a dictionary key or actually set an object attribute.
+            # Assuming the last option.
+            super(DotExpandedDictMixin, self).__setattr__(attr, value)
 
     def __setitem__(self, key, value):
         if isinstance(value, dict) and \
@@ -134,11 +139,3 @@ class StructuredDictMixin(object):
 
     def validate(self):
         validation.validate_structure(self.structure, self)
-
-
-def Document(*args, **kwargs):
-    import warnings
-    warnings.warn('monk.modeling.Document is deprecated, use '
-                  'monk.mongo.Document instead', DeprecationWarning)
-    import monk.mongo
-    return monk.mongo.Document(*args, **kwargs)

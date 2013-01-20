@@ -51,6 +51,7 @@ The last line is roughly equivalent to::
 
 """
 from bson import DBRef
+from monk import modeling
 
 
 class MongoResultSet(object):
@@ -284,9 +285,9 @@ def dict_to_db(data, spec={}):
 
 
 class Document(
-        TypedDictReprMixin,
-        DotExpandedDictMixin,
-        StructuredDictMixin,
+        modeling.TypedDictReprMixin,
+        modeling.DotExpandedDictMixin,
+        modeling.StructuredDictMixin,
         MongoBoundDictMixin,
         dict
     ):

@@ -25,12 +25,12 @@ import datetime
 import pymongo
 import pytest
 
-from bson import DBRef
-from monk import modeling
+from bson import DBRef, ObjectId
+from monk import mongo
 
 
 class TestDocumentModel:
-    class Entry(modeling.Document):
+    class Entry(mongo.Document):
         structure = {
             'title': unicode,
             'author': {
@@ -95,7 +95,7 @@ class TestDocumentModel:
         assert entry.comments[0].is_spam == False
 
     def test_callable_defaults_builtin_func(self):
-        class Event(modeling.Document):
+        class Event(mongo.Document):
             structure = {
                 'time': datetime.datetime.utcnow,
             }
@@ -113,7 +113,7 @@ class TestDocumentModel:
             event.validate()
 
     def test_callable_defaults_custom_func(self):
-        class Event(modeling.Document):
+        class Event(mongo.Document):
             structure = {
                 'text': lambda: u'hello'
             }
@@ -135,7 +135,7 @@ class TestDocumentModel:
 
     def test_callable_defaults_custom_func_nested(self):
         # Issue #1  https://bitbucket.org/neithere/monk/issue/1/callable-defaults-in-nested-structures
-        class Event(modeling.Document):
+        class Event(mongo.Document):
             structure = {
                 'content': {
                     'text': lambda: u'hello'
@@ -161,7 +161,7 @@ class TestMongo:
 
     DATABASE = 'test_monk'
 
-    class Entry(modeling.Document):
+    class Entry(mongo.Document):
         collection = 'entries'
         structure = {
             '_id': ObjectId,
@@ -251,12 +251,12 @@ class TestMongo:
         d = dict(title=u'Hello')
         assert a != d
 
-        class E(modeling.Document):
+        class E(mongo.Document):
             structure = self.Entry.structure
         e = E(title=u'Hello')
         assert a != e
 
-        class F(modeling.Document):
+        class F(mongo.Document):
             collection = 'comments'
             structure = self.Entry.structure
         e = F(title=u'Hello')

@@ -21,62 +21,68 @@
 Modeling tests
 ~~~~~~~~~~~~~~
 """
-from monk import modeling
+import mock
+import pytest
+
+from monk import manipulation, modeling
 
 
 def test_make_dot_expanded():
 
     data = modeling.DotExpandedDict()
-    assert id(data) == id(make_dot_expanded(data))
+    assert id(data) == id(modeling.make_dot_expanded(data))
 
     data = {'foo': {'bar': 123}}
-    result = make_dot_expanded(data)
-    assert isinstance(result, DotExpandedDict)
-    assert isinstance(result['foo'], DotExpandedDict)
+    result = modeling.make_dot_expanded(data)
+    assert isinstance(result, modeling.DotExpandedDict)
+    assert isinstance(result['foo'], modeling.DotExpandedDict)
     assert result.foo.bar == 123
 
-    data = {'foo': [{'bar': 123, 'baz': {'quux': 456}}]
-    result = make_dot_expanded(data)
-    assert isinstance(result, DotExpandedDict)
-    assert isinstance(result['foo'][0], DotExpandedDict)
-    assert isinstance(result['foo'][1], DotExpandedDict)
+    data = {'foo': [{'bar': 123, 'baz': {'quux': 456}}, {'zzz': 'yyy'}]}
+    result = modeling.make_dot_expanded(data)
+    assert isinstance(result, modeling.DotExpandedDict)
+    assert isinstance(result['foo'][0], modeling.DotExpandedDict)
+    assert isinstance(result['foo'][1], modeling.DotExpandedDict)
     assert result.foo[0].bar == 123
     assert result.foo[0].baz.quux == 456
 
-    assert make_dot_expanded(123) == 123
-    assert make_dot_expanded('foo') == 'foo'
+    assert modeling.make_dot_expanded(123) == 123
+    assert modeling.make_dot_expanded('foo') == 'foo'
 
 
 def test_dot_expanded_dict():
     obj = modeling.DotExpandedDict(foo=dict(bar=123))
     assert obj.foo.bar == 123
 
+    obj.foo.bar = u'Whoa'
+    assert obj.foo.bar == u'Whoa'
+    assert obj.foo.bar == obj['foo']['bar']
+
+    obj = modeling.DotExpandedDict(comments=[{'text': 'hi'}])
+    assert obj.comments[0].text == obj['comments'][0]['text']
 
 def test_dot_expanded_dict_mixin():
     class Entry(modeling.DotExpandedDictMixin, dict):
         pass
 
-    obj = Entry(foo=dict(bar=123), baz='quux', comments=[{'text': 'hi'}])
-    assert obj.foo.bar == 123
+    entry = Entry(foo=123)
 
     # getattr -> getitem
-    assert entry['baz'] == 'quux'
-    assert entry['baz'] == entry.title
+    assert entry['foo'] == 123
+    assert entry['foo'] == entry.foo
     with pytest.raises(AttributeError):
         entry.nonexistent_key
-    assert entry['foo']['bar'] == entry.foo.bar
 
     # setattr -> setitem
+    entry.foo = 'bar'
+    assert entry.foo == 'bar'
+    assert entry.foo == entry['foo']
+
+    # setattr -> setitem  won't work if key did not exist
+    #   (reason: ambiguity of intent)
     entry.title = u'zzz'
-    assert entry.title == u'zzz'
-    assert entry.title == entry['title']
-
-    entry.foo.bar = u'Whoa'
-    assert entry.foo.bar == u'Whoa'
-    assert entry.foo.bar == entry['foo']['bar']
-
-    assert entry.comments[0].text == entry['comments'][0]['text']
-
+    assert 'title' not in entry
+    assert hasattr(entry, 'title')
 
 def test_typed_dict_repr_mixin():
     class Entry(modeling.TypedDictReprMixin, dict):
@@ -91,7 +97,9 @@ def test_structured_dict_mixin():
         structure = {'foo': int, 'bar': {'quux': 123}}
 
     obj = Entry()
-    assert obj._insert_defaults() == manipulation.merged(obj.structure, obj)
+    expected = manipulation.merged(obj.structure, obj)
+    obj._insert_defaults()
+    assert obj == expected
 
     data = {'foo': 5, 'bar': {'quux': 9}}
     obj = Entry(data)
