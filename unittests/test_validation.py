@@ -28,7 +28,7 @@ import pytest
 
 from monk.validation import (
     validate_structure_spec, validate_structure, StructureSpecificationError,
-    MissingKey, UnknownKey
+    MissingKey, UnknownKey, Rule, optional
 )
 
 
@@ -68,15 +68,15 @@ class TestStructureSpec:
 
         with pytest.raises(StructureSpecificationError) as excinfo:
             validate_structure_spec({'foo': [unicode, unicode]})
-        assert single_elem_err_msg in str(excinfo)
+        assert single_elem_err_msg in excinfo.exconly()
 
         with pytest.raises(StructureSpecificationError) as excinfo:
             validate_structure_spec({'foo': {'bar': [unicode, unicode]}})
-        assert single_elem_err_msg in str(excinfo)
+        assert single_elem_err_msg in excinfo.exconly()
 
         with pytest.raises(StructureSpecificationError) as excinfo:
             validate_structure_spec({'foo': {'bar': [{'baz': [unicode, unicode]}]}})
-        assert single_elem_err_msg in str(excinfo)
+        assert single_elem_err_msg in excinfo.exconly()
 
 
 class TestDocumentStructureValidation:
@@ -105,27 +105,27 @@ class TestDocumentStructureValidation:
     def test_bad_types(self):
         with pytest.raises(TypeError) as excinfo:
             validate_structure({'a': int}, {'a': 'bad'})
-        assert "a: expected int, got str 'bad'" in str(excinfo)
+        assert "a: expected int, got str 'bad'" in excinfo.exconly()
 
         with pytest.raises(TypeError) as excinfo:
             validate_structure({'a': [int]}, {'a': 'bad'})
-        assert "a: expected list, got str 'bad'" in str(excinfo)
+        assert "a: expected list, got str 'bad'" in excinfo.exconly()
 
         with pytest.raises(TypeError) as excinfo:
             validate_structure({'a': [int]}, {'a': ['bad']})
-        assert "a: expected int, got str 'bad'" in str(excinfo)
+        assert "a: expected int, got str 'bad'" in excinfo.exconly()
 
         with pytest.raises(TypeError) as excinfo:
             validate_structure({'a': {'b': int}}, {'a': 'bad'})
-        assert "a: expected dict, got str 'bad'" in str(excinfo)
+        assert "a: expected dict, got str 'bad'" in excinfo.exconly()
 
         with pytest.raises(TypeError) as excinfo:
             validate_structure({'a': {'b': int}}, {'a': {'b': 'bad'}})
-        assert "a: b: expected int, got str 'bad'" in str(excinfo)
+        assert "a: b: expected int, got str 'bad'" in excinfo.exconly()
 
         with pytest.raises(TypeError) as excinfo:
             validate_structure({'a': [{'b': [int]}]}, {'a': [{'b': ['bad']}]})
-        assert "a: b: expected int, got str 'bad'" in str(excinfo)
+        assert "a: b: expected int, got str 'bad'" in excinfo.exconly()
 
     def test_empty(self):
         validate_structure({'a': unicode}, {'a': None})
@@ -274,3 +274,53 @@ class TestDocumentStructureValidation:
             ],
         }
         validate_structure(spec, data)
+
+
+class TestValidationRules:
+    def test_simple(self):
+        # simple rule behaves as the spec within it
+        spec = {
+            'a': Rule(int),
+        }
+        validate_structure(spec, {'a': 1})
+        with pytest.raises(MissingKey):
+            validate_structure(spec, {})
+        with pytest.raises(TypeError):
+            validate_structure(spec, {'a': 'bogus'})
+
+    def test_skip_missing(self):
+        # the rule modifies behaviour of nested validator
+        spec = {
+            'a': optional(int),
+        }
+        validate_structure(spec, {})
+
+    def test_skip_missing_nested(self):
+        spec = {
+            'a': {'b': optional(int)},
+        }
+
+        validate_structure(spec, {'a': None})
+
+        with pytest.raises(MissingKey) as excinfo:
+            validate_structure(spec, {})
+        assert excinfo.exconly() == 'MissingKey: a'
+
+        validate_structure(spec, {'a': {}})
+
+    def test_skip_missing_nested_required(self):
+        "optional dict contains a dict with required values"
+        spec = {
+            'a': optional({'b': int}),
+        }
+
+        # None is OK (optional)
+        validate_structure(spec, {'a': None})
+
+        # empty dict is OK (optional)
+        validate_structure(spec, {})
+
+        # empty subdict fails because only its parent is optional
+        with pytest.raises(MissingKey) as excinfo:
+            validate_structure(spec, {'a': {}})
+        assert excinfo.exconly() == 'MissingKey: a: b'

@@ -41,6 +41,20 @@ import types
 from manipulation import merged
 
 
+__all__ = [
+    # errors
+    'ValidationError', 'StructureSpecificationError', 'MissingKey',
+    'UnknownKey',
+    # validators
+    'ValueValidator', 'DictValidator', 'ListValidator', 'TypeValidator',
+    'InstanceValidator', 'FuncValidator',
+    # functions
+    'validate_structure_spec', 'validate_structure', 'validate_value',
+    # helpers
+    'Rule', 'optional'
+]
+
+
 class ValidationError(Exception):
     "Raised when a document or its part cannot pass validation."
 
@@ -247,8 +261,13 @@ def validate_value(spec, value, validators,
         # any value is acceptable
         return
 
+    if isinstance(spec, Rule):
+        rule = spec
+    else:
+        rule = Rule(spec)
+
     for validator_class in validators:
-        validator = validator_class(spec, value, skip_missing, skip_unknown,
+        validator = validator_class(rule.spec, value, skip_missing, skip_unknown,
                    value_preprocessor=value_preprocessor)
         if validator.check():
             return validator.validate()
@@ -256,8 +275,17 @@ def validate_value(spec, value, validators,
         pass  # for test coverage
 
 
+#def canonize(spec):
+#    canonic = {}
+#    for key, value in spec.iteritems():
+#        canonic[key] = value if isinstance(value, Rule) else Rule(value)
+#    return canonic
+
+
 def validate_structure(spec, data, skip_missing=False, skip_unknown=False,
                        validators=VALUE_VALIDATORS, value_preprocessor=None):
+                       #this_level_skip_missing=None,
+                       #this_level_skip_unknown=None):
     """ Validates given document against given structure specification.
     Always returns ``None``.
 
@@ -295,8 +323,8 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False,
     missing = spec_keys - data_keys
     unknown = data_keys - spec_keys
 
-    if missing and not skip_missing:
-        raise MissingKey('Missing keys: {0}'.format(', '.join(missing)))
+#    if missing and not skip_missing:
+#        raise MissingKey('Missing keys: {0}'.format(', '.join(missing)))
 
     if unknown and not skip_unknown:
         raise UnknownKey('Unknown keys: {0}'.format(', '.join(unknown)))
@@ -304,15 +332,21 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False,
     # check types and deal with nested lists
     for key in spec_keys | data_keys:
         typespec = spec.get(key)
-        value = data.get(key)
-        if value_preprocessor:
-            value = value_preprocessor(typespec, value)
-        try:
-            validate_value(typespec, value, validators,
-                           skip_missing, skip_unknown,
-                           value_preprocessor=value_preprocessor)
-        except (MissingKey, UnknownKey, TypeError) as e:
-            raise type(e)('{k}: {e}'.format(k=key, e=e))
+        rule = typespec if isinstance(typespec, Rule) else Rule(typespec)
+        if key in data_keys:
+            value = data.get(key)
+            if value_preprocessor:
+                value = value_preprocessor(typespec, value)
+            try:
+                validate_value(typespec, value, validators,
+                               skip_missing, skip_unknown,
+                               value_preprocessor=value_preprocessor)
+            except (MissingKey, UnknownKey, TypeError) as e:
+                raise type(e)('{k}: {e}'.format(k=key, e=e))
+        else:
+            if skip_missing or rule.skip_missing:
+                continue
+            raise MissingKey('{0}'.format(key))
 
 
 def validate_structure_spec(spec, validators=VALUE_VALIDATORS):
@@ -334,3 +368,18 @@ def validate_structure_spec(spec, validators=VALUE_VALIDATORS):
         return value
     validate_structure(spec, merged(spec, {}), skip_missing=True, skip_unknown=True,
                        validators=validators, value_preprocessor=dictmerger)
+
+
+class Rule:
+    "Extended specification of a field.  Allows marking it as optional."
+    def __init__(self, spec, skip_missing=False):
+        self.spec = spec
+        self.skip_missing = skip_missing
+
+    def __repr__(self):
+        return '<Rule {spec} missing:{missing}>'.format(
+            spec=str(self.spec).replace('<','[').replace('>',']'),
+            missing=self.skip_missing)
+
+
+optional = lambda x: Rule(x, skip_missing=True)
