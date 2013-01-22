@@ -35,6 +35,17 @@ Data manipulation
 import types
 
 
+__all__ = [
+    # mergers
+    'ValueMerger', 'TypeMerger', 'DictMerger', 'ListMerger', 'FuncMerger',
+    'AnyMerger',
+    # functions
+    'merge_value', 'merged',
+    # helpers
+    'unfold_list_of_dicts', 'unfold_to_list'
+]
+
+
 class ValueMerger(object):
     """ Base class for value mergers.
     """
@@ -222,3 +233,34 @@ def merged(spec, data, mergers=VALUE_MERGERS):
         result[key] = value
 
     return result
+
+
+def unfold_list_of_dicts(value, default_key):
+    """
+    [{...}] → [{...}]
+     {...}  → [{...}]
+    u'xyz'  → [{default_key: u'xyz'}]
+    """
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        return [value]
+    if isinstance(value, unicode):
+        return [{default_key: value}]
+    if isinstance(value, list):
+        if not all(isinstance(x, dict) for x in value):
+            def _fix(x):
+                return {default_key: x} if isinstance(x, unicode) else x
+            return [_fix(x) for x in value]
+    return value
+
+
+def unfold_to_list(value):
+    """
+    [x] → [x]
+     x  → [x]
+    """
+    if value and not isinstance(value, list):
+        return [value]
+    else:
+        return value
