@@ -378,7 +378,7 @@ class Rule:
 
     def __repr__(self):
         return '<Rule {spec} missing:{missing}>'.format(
-            spec=str(self.spec).replace('<','[').replace('>',']'),
+            spec=str(self.spec).replace('<','').replace('>',''),
             missing=self.skip_missing)
 
 
