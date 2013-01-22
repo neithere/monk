@@ -25,7 +25,6 @@ DB-agnostic helpers to build powerful ODMs.
 
 """
 from __future__ import unicode_literals
-from functools import partial
 
 from monk import manipulation
 from monk import validation

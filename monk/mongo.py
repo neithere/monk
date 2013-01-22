@@ -50,6 +50,8 @@ The last line is roughly equivalent to::
     collection.save(dict(item))  # also validation, transformation, etc.
 
 """
+from functools import partial
+
 from bson import DBRef
 from monk import modeling
 
