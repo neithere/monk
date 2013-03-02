@@ -170,6 +170,13 @@ class ListValidator(ValueValidator):
 
         for item in self.value:
             if item_spec == dict or isinstance(item, dict):
+
+                # value is a dict; expected something else
+                if isinstance(item, dict) and not (
+                    isinstance(item_spec, dict) or item_spec == dict):
+                    raise TypeError('expected {spec}, got a dictionary'.format(
+                        spec=item_spec))
+
                 # validate each value in the list as a separate document
                 validate_structure(item_spec, item,
                                    skip_missing=self.skip_missing,

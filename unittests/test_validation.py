@@ -215,6 +215,8 @@ class TestDocumentStructureValidation:
         validate_structure({'a': [int]}, {'a': [123, 456]})
         with pytest.raises(TypeError):
             validate_structure({'a': [int]}, {'a': ['b', 123]})
+        with pytest.raises(TypeError):
+            validate_structure({'a': [unicode]}, {'a': [{'b': 'c'}]})
 
     def test_unicode(self):
         validate_structure({'a': unicode}, {'a': None})
