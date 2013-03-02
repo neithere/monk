@@ -326,8 +326,12 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False,
 #    if missing and not skip_missing:
 #        raise MissingKey('Missing keys: {0}'.format(', '.join(missing)))
 
+    def _safe_str(text):
+        return text.encode('utf-8') if isinstance(text, unicode) else str(text)
+
     if unknown and not skip_unknown:
-        raise UnknownKey('Unknown keys: {0}'.format(', '.join(unknown)))
+        raise UnknownKey('Unknown keys: {0}'.format(
+            ', '.join(_safe_str(x) for x in unknown)))
 
     # check types and deal with nested lists
     for key in spec_keys | data_keys:

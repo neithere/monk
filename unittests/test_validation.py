@@ -157,6 +157,12 @@ class TestDocumentStructureValidation:
         with pytest.raises(UnknownKey):
             validate_structure({'a': unicode}, {'a': u'A', 'x': 123})
 
+    def test_unknown_keys_encoding(self):
+        with pytest.raises(UnknownKey):
+            validate_structure({'a': unicode}, {'привет': 1})
+        with pytest.raises(UnknownKey):
+            validate_structure({'a': unicode}, {u'привет': 1})
+
     def test_bool(self):
         validate_structure({'a': bool}, {'a': None})
         validate_structure({'a': bool}, {'a': True})
