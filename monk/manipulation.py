@@ -32,7 +32,7 @@ Data manipulation
     * :class:`AnyMerger`
 
 """
-import types
+from monk import compat
 
 
 __all__ = [
@@ -146,8 +146,7 @@ class FuncMerger(ValueMerger):
 
     """
     def check(self):
-        func_types = types.FunctionType, types.BuiltinFunctionType
-        return isinstance(self.spec, func_types)
+        return isinstance(self.spec, compat.func_types)
 
     def process(self):
         if self.value is None:

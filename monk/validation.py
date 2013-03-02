@@ -36,8 +36,7 @@ Validation
 #      that we don't pass validators/skip_missing/skip_unknown recursively to
 #      each validator.
 
-import types
-
+from monk import compat
 from manipulation import merged
 
 
@@ -236,8 +235,7 @@ class FuncValidator(ValueValidator):
 
     """
     def check(self):
-        func_types = types.FunctionType, types.BuiltinFunctionType
-        return isinstance(self.spec, func_types)
+        return isinstance(self.spec, compat.func_types)
 
     def validate(self):
         spec = self.spec()

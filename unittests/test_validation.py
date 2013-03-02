@@ -252,7 +252,35 @@ class TestDocumentStructureValidation:
         validate_structure({'a': bson.DBRef},
                            {'a': bson.DBRef('a', 'b')})
 
+    def test_callable(self):
+        def func():
+            return 1
+
+        class Obj:
+            @staticmethod
+            def smeth():
+                return 1
+
+            @classmethod
+            def cmeth(cls):
+                return 1
+
+            def ometh(self):
+                return 1
+
+        validate_structure({'a': func}, {'a': 2})
+        validate_structure({'a': Obj.smeth}, {'a': 2})
+        validate_structure({'a': Obj.cmeth}, {'a': 2})
+        validate_structure({'a': Obj().ometh}, {'a': 2})
+
         with pytest.raises(TypeError):
+            validate_structure({'a': func}, {'a': 'foo'})
+        with pytest.raises(TypeError):
+            validate_structure({'a': Obj.smeth}, {'a': 'foo'})
+        with pytest.raises(TypeError):
+            validate_structure({'a': Obj.cmeth}, {'a': 'foo'})
+        with pytest.raises(TypeError):
+            validate_structure({'a': Obj().ometh}, {'a': 'foo'})
 
     def test_valid_document(self):
         "a complex document"
