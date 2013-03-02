@@ -253,6 +253,13 @@ class TestDocumentStructureValidation:
         validate_structure({'a': bson.DBRef},
                            {'a': bson.DBRef('a', 'b')})
 
+    def test_datetime(self):
+        validate_structure({'a': datetime.datetime}, {'a': None})
+        validate_structure({'a': datetime.datetime},
+                           {'a': datetime.datetime.utcnow()})
+        with pytest.raises(TypeError):
+            validate_structure({'a': datetime.datetime}, {'a': 123})
+
     def test_valid_document(self):
         "a complex document"
         spec = {
