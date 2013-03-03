@@ -35,7 +35,7 @@ def walk_dict(data):
         therefore can be further unwrapped.
     """
     assert hasattr(data, '__getitem__')
-    for key, value in data.iteritems():
+    for key, value in data.items():
         if isinstance(value, dict):
             yield (key,), None
             for keys, value in walk_dict(value):

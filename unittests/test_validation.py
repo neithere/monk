@@ -22,9 +22,12 @@ Validation tests
 ================
 """
 import datetime
+import sys
+
 import bson
 import pytest
 
+from monk.compat import text_type, safe_unicode
 from monk.validation import (
     validate_structure_spec, validate_structure, StructureSpecificationError,
     MissingKey, UnknownKey, Rule, optional
@@ -41,7 +44,7 @@ class TestStructureSpec:
         validate_structure_spec({'foo': float})
         validate_structure_spec({'foo': int})
         validate_structure_spec({'foo': list})
-        validate_structure_spec({'foo': unicode})
+        validate_structure_spec({'foo': text_type})
         validate_structure_spec({'foo': datetime.datetime})
         validate_structure_spec({'foo': bson.Binary})
         validate_structure_spec({'foo': bson.Code})
@@ -52,7 +55,7 @@ class TestStructureSpec:
         # foo is of given type
         validate_structure_spec({'foo': int})
         # foo and bar are of given types
-        validate_structure_spec({'foo': int, 'bar': unicode})
+        validate_structure_spec({'foo': int, 'bar': text_type})
         # foo is a list of values of given type
         validate_structure_spec({'foo': [int]})
         # foo.bar is of given type
@@ -60,21 +63,21 @@ class TestStructureSpec:
         # foo.bar is a list of values of given type
         validate_structure_spec({'foo': {'bar': [int]}})
         # foo.bar is a list of mappings where each "baz" is of given type
-        validate_structure_spec({'foo': {'bar': [{'baz': [unicode]}]}})
+        validate_structure_spec({'foo': {'bar': [{'baz': [text_type]}]}})
 
     def test_malformed_lists(self):
         single_elem_err_msg = 'empty list or a list containing exactly 1 item'
 
         with pytest.raises(StructureSpecificationError) as excinfo:
-            validate_structure_spec({'foo': [unicode, unicode]})
+            validate_structure_spec({'foo': [text_type, text_type]})
         assert single_elem_err_msg in excinfo.exconly()
 
         with pytest.raises(StructureSpecificationError) as excinfo:
-            validate_structure_spec({'foo': {'bar': [unicode, unicode]}})
+            validate_structure_spec({'foo': {'bar': [text_type, text_type]}})
         assert single_elem_err_msg in excinfo.exconly()
 
         with pytest.raises(StructureSpecificationError) as excinfo:
-            validate_structure_spec({'foo': {'bar': [{'baz': [unicode, unicode]}]}})
+            validate_structure_spec({'foo': {'bar': [{'baz': [text_type, text_type]}]}})
         assert single_elem_err_msg in excinfo.exconly()
 
 
@@ -127,7 +130,7 @@ class TestDocumentStructureValidation:
         assert "a: b: expected int, got str 'bad'" in excinfo.exconly()
 
     def test_empty(self):
-        validate_structure({'a': unicode}, {'a': None})
+        validate_structure({'a': text_type}, {'a': None})
         validate_structure({'a': list}, {'a': None})
         validate_structure({'a': dict}, {'a': None})
 
@@ -136,31 +139,31 @@ class TestDocumentStructureValidation:
         validate_structure({'a': bool}, {'a': None})
         validate_structure({'a': bool}, {'a': False})
         with pytest.raises(TypeError):
-            validate_structure({'a': unicode}, {'a': False})
+            validate_structure({'a': text_type}, {'a': False})
         with pytest.raises(TypeError):
-            validate_structure({'a': unicode}, {'a': 0})
+            validate_structure({'a': text_type}, {'a': 0})
         with pytest.raises(TypeError):
-            validate_structure({'a': bool}, {'a': u''})
+            validate_structure({'a': bool}, {'a': ''})
 
     def test_missing(self):
-        validate_structure({'a': unicode}, {}, skip_missing=True)
+        validate_structure({'a': text_type}, {}, skip_missing=True)
         with pytest.raises(MissingKey):
-            validate_structure({'a': unicode}, {})
+            validate_structure({'a': text_type}, {})
         with pytest.raises(MissingKey):
-            validate_structure({'a': unicode, 'b': int}, {'b': 1})
+            validate_structure({'a': text_type, 'b': int}, {'b': 1})
 
     def test_unknown_keys(self):
         validate_structure({}, {'x': 123}, skip_unknown=True)
         with pytest.raises(UnknownKey):
             validate_structure({}, {'x': 123})
         with pytest.raises(UnknownKey):
-            validate_structure({'a': unicode}, {'a': u'A', 'x': 123})
+            validate_structure({'a': text_type}, {'a': text_type('A'), 'x': 123})
 
     def test_unknown_keys_encoding(self):
         with pytest.raises(UnknownKey):
-            validate_structure({'a': unicode}, {'привет': 1})
+            validate_structure({'a': text_type}, {'привет': 1})
         with pytest.raises(UnknownKey):
-            validate_structure({'a': unicode}, {u'привет': 1})
+            validate_structure({'a': text_type}, {safe_unicode('привет'): 1})
 
     def test_bool(self):
         validate_structure({'a': bool}, {'a': None})
@@ -215,19 +218,19 @@ class TestDocumentStructureValidation:
         with pytest.raises(TypeError):
             validate_structure({'a': [int]}, {'a': ['b', 123]})
         with pytest.raises(TypeError):
-            validate_structure({'a': [unicode]}, {'a': [{'b': 'c'}]})
+            validate_structure({'a': [text_type]}, {'a': [{'b': 'c'}]})
 
     def test_unicode(self):
-        validate_structure({'a': unicode}, {'a': None})
-        validate_structure({'a': unicode}, {'a': u'hello'})
+        validate_structure({'a': text_type}, {'a': None})
+        validate_structure({'a': text_type}, {'a': text_type('hello')})
         with pytest.raises(TypeError):
-            validate_structure({'a': unicode}, {'a': 123})
+            validate_structure({'a': text_type}, {'a': 123})
 
     def test_unicode_instance(self):
-        validate_structure({'a': u'foo'}, {'a': None})
-        validate_structure({'a': u'foo'}, {'a': u'hello'})
+        validate_structure({'a': text_type('foo')}, {'a': None})
+        validate_structure({'a': text_type('foo')}, {'a': text_type('hello')})
         with pytest.raises(TypeError):
-            validate_structure({'a': u'foo'}, {'a': 123})
+            validate_structure({'a': text_type('foo')}, {'a': 123})
 
     def test_datetime(self):
         validate_structure({'a': datetime.datetime}, {'a': None})
@@ -285,28 +288,28 @@ class TestDocumentStructureValidation:
     def test_valid_document(self):
         "a complex document"
         spec = {
-            'text': unicode,
-            'tags': [unicode],
+            'text': text_type,
+            'tags': [text_type],
             'views': int,
             'comments': [
                 {
                     'time': datetime.datetime,
-                    'text': unicode,
+                    'text': text_type,
                 },
             ]
         }
         data = {
-            'text': u'Hello world!',
-            'tags': [u'hello', u'world'],
+            'text': text_type('Hello world!'),
+            'tags': [text_type('hello'), text_type('world')],
             'views': 2,
             'comments': [
                 {
                     'time': datetime.datetime(2000,1,1),
-                    'text': u'Is there anybody out there?'
+                    'text': text_type('Is there anybody out there?')
                 },
                 {
                     'time': datetime.datetime.utcnow(),
-                    'text': u'Yes, I am, why?'
+                    'text': text_type('Yes, I am, why?')
                 },
             ],
         }
@@ -341,7 +344,8 @@ class TestValidationRules:
 
         with pytest.raises(MissingKey) as excinfo:
             validate_structure(spec, {})
-        assert excinfo.exconly() == 'MissingKey: a'
+        prefix = '' if sys.version_info < (3,0) else 'monk.validation.'
+        assert excinfo.exconly() == prefix + 'MissingKey: a'
 
         validate_structure(spec, {'a': {}})
 
@@ -360,4 +364,5 @@ class TestValidationRules:
         # empty subdict fails because only its parent is optional
         with pytest.raises(MissingKey) as excinfo:
             validate_structure(spec, {'a': {}})
-        assert excinfo.exconly() == 'MissingKey: a: b'
+        prefix = '' if sys.version_info < (3,0) else 'monk.validation.'
+        assert excinfo.exconly() == prefix + 'MissingKey: a: b'

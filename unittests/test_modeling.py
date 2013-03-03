@@ -24,6 +24,7 @@ Modeling tests
 import mock
 import pytest
 
+from monk.compat import text_type
 from monk import manipulation, modeling
 
 
@@ -54,8 +55,8 @@ def test_dot_expanded_dict():
     obj = modeling.DotExpandedDict(foo=dict(bar=123))
     assert obj.foo.bar == 123
 
-    obj.foo.bar = u'Whoa'
-    assert obj.foo.bar == u'Whoa'
+    obj.foo.bar = text_type('Whoa')
+    assert obj.foo.bar == text_type('Whoa')
     assert obj.foo.bar == obj['foo']['bar']
 
     obj = modeling.DotExpandedDict(comments=[{'text': 'hi'}])
@@ -80,7 +81,7 @@ def test_dot_expanded_dict_mixin():
 
     # setattr -> setitem  won't work if key did not exist
     #   (reason: ambiguity of intent)
-    entry.title = u'zzz'
+    entry.title = text_type('zzz')
     assert 'title' not in entry
     assert hasattr(entry, 'title')
 

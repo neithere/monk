@@ -221,7 +221,7 @@ def merged(spec, data, mergers=VALUE_MERGERS):
     if not isinstance(data, dict):
         raise TypeError('data must be a dictionary')
 
-    for key in set(spec.keys() + data.keys()):
+    for key in set(list(spec.keys()) + list(data.keys())):
         if key in spec:
             value = merge_value(spec[key], data.get(key), mergers=mergers)
         else:

@@ -23,6 +23,7 @@ Data manipulation tests
 """
 import pytest
 
+from monk.compat import text_type as t
 from monk.manipulation import merged
 
 
@@ -36,9 +37,9 @@ class TestDocumentDefaults:
         assert {'a': 1234} == merged({'a': None}, {'a': 1234})
 
     def test_type(self):
-        assert {'a': None} == merged({'a': unicode}, {})
-        assert {'a': None} == merged({'a': unicode}, {'a': None})
-        assert {'a': u'a'} == merged({'a': unicode}, {'a': u'a'})
+        assert {'a': None} == merged({'a': t}, {})
+        assert {'a': None} == merged({'a': t}, {'a': None})
+        assert {'a': t('a')} == merged({'a': t}, {'a': t('a')})
 
     def test_type_in_dict(self):
         spec = {'a': {'b': int}}
@@ -59,7 +60,7 @@ class TestDocumentDefaults:
         # key is present, value is not None; leave as is
         # (even if it won't pass validation)
         assert {'a': {'b': 1234}} == merged(spec, {'a': {'b': 1234}})
-        assert {'a': u'bogus string'} == merged(spec, {'a': u'bogus string'})
+        assert {'a': t('bogus string')} == merged(spec, {'a': t('bogus string')})
 
     def test_type_in_list(self):
         assert {'a': []} == merged({'a': [int]}, {'a': []})
@@ -117,26 +118,26 @@ class TestDocumentDefaults:
         """ Non-dictionary in spec, dict in data.
         Data is preserved though won't validate.
         """
-        assert {'a': {'b': 123}} == merged({'a': unicode}, {'a': {'b': 123}})
+        assert {'a': {'b': 123}} == merged({'a': t}, {'a': {'b': 123}})
 
     def test_unexpected_list(self):
         """ Non-list in spec, list in data.
         Data is preserved though won't validate.
         """
-        assert {'a': [123]} == merged({'a': unicode}, {'a': [123]})
+        assert {'a': [123]} == merged({'a': t}, {'a': [123]})
 
     def test_callable(self):
         """ Callable defaults.
         """
-        spec = {'text': lambda: u'hello'}
+        spec = {'text': lambda: t('hello')}
         data = {}
-        expected = {'text': u'hello'}
+        expected = {'text': t('hello')}
         assert merged(spec, data) == expected
 
     def test_callable_nested(self):
         """ Nested callable defaults.
         """
-        spec = {'content': {'text': lambda: u'hello'}}
+        spec = {'content': {'text': lambda: t('hello')}}
         data = {}
-        expected = {'content': {'text': u'hello'}}
+        expected = {'content': {'text': t('hello')}}
         assert merged(spec, data) == expected

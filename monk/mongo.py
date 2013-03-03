@@ -151,7 +151,7 @@ class MongoBoundDictMixin(object):
 
     @classmethod
     def _ensure_indexes(cls, db):
-        for field, kwargs in cls.indexes.iteritems():
+        for field, kwargs in cls.indexes.items():
             kwargs = kwargs or {}
             db[cls.collection].ensure_index(field, **kwargs)
 
@@ -252,7 +252,7 @@ class MongoBoundDictMixin(object):
 
 
 def _db_to_dict_pairs(spec, data, db):
-    for key, value in data.iteritems():
+    for key, value in data.items():
         if isinstance(value, dict):
             yield key, dict(_db_to_dict_pairs(spec.get(key, {}), value, db))
         elif isinstance(value, DBRef):
@@ -268,7 +268,7 @@ def dict_from_db(spec, data, db):
 
 
 def _dict_to_db_pairs(spec, data):
-    for key, value in data.iteritems():
+    for key, value in data.items():
         if key == '_id' and value is None:
             # let the database assign an identifier
             continue

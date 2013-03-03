@@ -27,35 +27,36 @@ import pytest
 
 from bson import DBRef, ObjectId
 from monk import mongo
+from monk.compat import text_type as t
 
 
 class TestDocumentModel:
     class Entry(mongo.Document):
         structure = {
-            'title': unicode,
+            'title': t,
             'author': {
-                'first_name': unicode,
-                'last_name': unicode,
+                'first_name': t,
+                'last_name': t,
             },
             'comments': [
                 {
-                    'text': unicode,
+                    'text': t,
                     'is_spam': False,
                 },
             ]
         }
     data = {
-        'title': u'Hello',
+        'title': t('Hello'),
         'author': {
-            'first_name': u'John',
-            'last_name': u'Doe',
+            'first_name': t('John'),
+            'last_name': t('Doe'),
         },
         'comments': [
             # XXX when do we add the default value is_spam=False?
             # anything that is inside a list (0..n) cannot be included in skel.
             # (just check or also append defaults) on (add / save / validate)?
-            {'text': u'Oh hi'},
-            {'text': u'Hi there', 'is_spam': True},
+            {'text': t('Oh hi')},
+            {'text': t('Hi there'), 'is_spam': True},
         ],
         'views_cnt': 0,
     }
@@ -76,12 +77,12 @@ class TestDocumentModel:
         assert entry['author']['first_name'] == entry.author.first_name
 
         # setattr -> setitem
-        entry.title = u'Bye!'
-        assert entry.title == u'Bye!'
+        entry.title = t('Bye!')
+        assert entry.title == t('Bye!')
         assert entry.title == entry['title']
 
-        entry.author.first_name = u'Joan'
-        assert entry.author.first_name == u'Joan'
+        entry.author.first_name = t('Joan')
+        assert entry.author.first_name == t('Joan')
         assert entry.author.first_name == entry['author']['first_name']
 
         assert entry.comments[0].text == entry['comments'][0]['text']
@@ -115,18 +116,18 @@ class TestDocumentModel:
     def test_callable_defaults_custom_func(self):
         class Event(mongo.Document):
             structure = {
-                'text': lambda: u'hello'
+                'text': lambda: t('hello')
             }
 
-        event = Event(text=u'albatross')
+        event = Event(text=t('albatross'))
         event.validate()
-        assert isinstance(event.text, unicode)
-        assert event.text == u'albatross'
+        assert isinstance(event.text, t)
+        assert event.text == t('albatross')
 
         event = Event()
         event.validate()
-        assert isinstance(event.text, unicode)
-        assert event.text == u'hello'
+        assert isinstance(event.text, t)
+        assert event.text == t('hello')
 
         with pytest.raises(TypeError):
             event = Event(text=123)
@@ -138,19 +139,19 @@ class TestDocumentModel:
         class Event(mongo.Document):
             structure = {
                 'content': {
-                    'text': lambda: u'hello'
+                    'text': lambda: t('hello')
                 }
             }
 
-        event = Event(content=dict(text=u'albatross'))
+        event = Event(content=dict(text=t('albatross')))
         event.validate()
-        assert isinstance(event.content.text, unicode)
-        assert event.content.text == u'albatross'
+        assert isinstance(event.content.text, t)
+        assert event.content.text == t('albatross')
 
         event = Event()
         event.validate()
-        assert isinstance(event.content.text, unicode)
-        assert event.content.text == u'hello'
+        assert isinstance(event.content.text, t)
+        assert event.content.text == t('hello')
 
         with pytest.raises(TypeError):
             event = Event(content=dict(text=123))
@@ -165,7 +166,7 @@ class TestMongo:
         collection = 'entries'
         structure = {
             '_id': ObjectId,
-            'title': unicode,
+            'title': t,
         }
 
     def setup_method(self, method):
@@ -174,20 +175,20 @@ class TestMongo:
         self.collection.drop()
 
     def test_query(self):
-        self.collection.insert({'title': u'Hello world!'})
-        entries = self.Entry.find(self.db, {'title': u'Hello world!'})
+        self.collection.insert({'title': t('Hello world!')})
+        entries = self.Entry.find(self.db, {'title': t('Hello world!')})
         assert entries.count() == 1
         entry = entries[0]
-        assert entry.title == u'Hello world!'
+        assert entry.title == t('Hello world!')
 
     def test_insert(self):
-        entry = self.Entry(title=u'Hello')
+        entry = self.Entry(title=t('Hello'))
         entry.save(self.db)
         assert self.collection.find().count() == 1
-        assert self.collection.find({'title': u'Hello'}).count() == 1
+        assert self.collection.find({'title': t('Hello')}).count() == 1
 
     def test_remove(self):
-        self.collection.insert({'title': u'Hello'})
+        self.collection.insert({'title': t('Hello')})
 
         entries = self.Entry.find(self.db)
         assert entries.count() == 1
@@ -199,7 +200,7 @@ class TestMongo:
         assert entries.count() == 0
 
     def test_id(self):
-        entry = self.Entry(title=u'Hello')
+        entry = self.Entry(title=t('Hello'))
         assert entry['_id'] is None
         assert entry.get_id() is None
 
@@ -210,7 +211,7 @@ class TestMongo:
         assert [entry] == list(self.Entry.find(self.db, _id=obj_id))
 
         # update
-        entry.title = u'Bye'
+        entry.title = t('Bye')
         same_id = entry.save(self.db)
         assert obj_id == same_id
         assert obj_id == entry['_id']
@@ -218,14 +219,14 @@ class TestMongo:
         assert self.Entry.find(self.db).count() == 1
 
     def test_get_ref(self):
-        entry = self.Entry(title=u'Hello')
+        entry = self.Entry(title=t('Hello'))
         assert entry.get_ref() is None
         entry.save(self.db)
         assert entry.get_ref() == DBRef(self.Entry.collection, entry.get_id())
 
     def test_result_set_ids(self):
-        self.collection.insert({'title': u'Foo'})
-        self.collection.insert({'title': u'Bar'})
+        self.collection.insert({'title': t('Foo')})
+        self.collection.insert({'title': t('Bar')})
         results = self.Entry.find(self.db)
         ids_manual = [x.get_id() for x in results]
         # new object because caching is not supported
@@ -239,8 +240,8 @@ class TestMongo:
         * both are stored in the same collection;
         * both have assigned ids and ids are equal.
         """
-        a = self.Entry(title=u'Hello')
-        b = self.Entry(title=u'Hello')
+        a = self.Entry(title=t('Hello'))
+        b = self.Entry(title=t('Hello'))
         assert a != b
         a.save(self.db)
         assert a != b
@@ -248,25 +249,25 @@ class TestMongo:
         assert a == c
         b.save(self.db)
         assert a != b
-        d = dict(title=u'Hello')
+        d = dict(title=t('Hello'))
         assert a != d
 
         class E(mongo.Document):
             structure = self.Entry.structure
-        e = E(title=u'Hello')
+        e = E(title=t('Hello'))
         assert a != e
 
         class F(mongo.Document):
             collection = 'comments'
             structure = self.Entry.structure
-        e = F(title=u'Hello')
+        e = F(title=t('Hello'))
         e.save(self.db)
         assert a != e
 
     def test_index_id(self):
         "Index for _id is created on first save to a collection"
         assert self.collection.index_information() == {}
-        self.Entry(title=u'entry').save(self.db)
+        self.Entry(title=t('entry')).save(self.db)
         assert '_id_' in self.collection.index_information()
 
     def test_index_custom(self):
@@ -274,5 +275,5 @@ class TestMongo:
         assert self.collection.index_information() == {}
         class IndexedEntry(self.Entry):
             indexes = {'title': None}
-        IndexedEntry(title=u'Hello').save(self.db)
+        IndexedEntry(title=t('Hello')).save(self.db)
         assert 'title_1' in self.collection.index_information()

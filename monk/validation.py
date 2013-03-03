@@ -36,8 +36,8 @@ Validation
 #      that we don't pass validators/skip_missing/skip_unknown recursively to
 #      each validator.
 
-from monk import compat
-from manipulation import merged
+from . import compat
+from .manipulation import merged
 
 
 __all__ = [
@@ -323,20 +323,18 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False,
     """
     # compare the two structures; nested dictionaries are included in the
     # comparison but nested lists are opaque and will be dealt with later on.
-    spec_keys = set(spec.iterkeys())
-    data_keys = set(data.iterkeys())
+    spec_keys = set(spec.keys())
+    data_keys = set(data.keys())
     missing = spec_keys - data_keys
     unknown = data_keys - spec_keys
 
 #    if missing and not skip_missing:
 #        raise MissingKey('Missing keys: {0}'.format(', '.join(missing)))
 
-    def _safe_str(text):
-        return text.encode('utf-8') if isinstance(text, unicode) else str(text)
 
     if unknown and not skip_unknown:
         raise UnknownKey('Unknown keys: {0}'.format(
-            ', '.join(_safe_str(x) for x in unknown)))
+            ', '.join(compat.safe_str(x) for x in unknown)))
 
     # check types and deal with nested lists
     for key in spec_keys | data_keys:

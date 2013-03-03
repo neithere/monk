@@ -26,8 +26,8 @@ DB-agnostic helpers to build powerful ODMs.
 """
 from __future__ import unicode_literals
 
-from monk import manipulation
-from monk import validation
+from .compat import text_type
+from . import manipulation, validation
 
 
 __all__ = ['DotExpandedDictMixin', 'DotExpandedDict', 'make_dot_expanded',
@@ -41,7 +41,7 @@ def make_dot_expanded(data):
         return data
     elif isinstance(data, dict):
         pairs = []
-        for key, value in data.iteritems():
+        for key, value in data.items():
             pairs.append((key, make_dot_expanded(value)))
         return DotExpandedDict(pairs)
     elif isinstance(data, list):
@@ -66,7 +66,7 @@ class DotExpandedDictMixin(object):
     Nested dictionaries are converted to dot-expanded ones on adding.
     """
     def _make_dot_expanded(self):
-        for key, value in self.iteritems():
+        for key, value in self.items():
             self[key] = make_dot_expanded(value)
 
     def __getattr__(self, attr):
@@ -101,10 +101,13 @@ class TypedDictReprMixin(object):
     """ Makes ``repr(self)`` depend on ``unicode(self)``.
     """
     def __repr__(self):
-        return '<{0.__class__.__name__} {1}>'.format(self, unicode(self))
+        return '<{0.__class__.__name__} {1}>'.format(self, text_type(self))
 
     def __unicode__(self):
-        return unicode(dict(self))
+        return text_type(dict(self))
+
+    def __str__(self):
+        return text_type(dict(self))
 
 
 class StructuredDictMixin(object):
@@ -130,7 +133,7 @@ class StructuredDictMixin(object):
         """
         with_defaults = manipulation.merged(self.structure, self)
 
-        for key, value in with_defaults.iteritems():
+        for key, value in with_defaults.items():
             self[key] = value
 
     def _validate_structure_spec(self):
