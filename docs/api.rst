@@ -9,3 +9,6 @@ API reference
 
 .. automodule:: monk.modeling
    :members:
+
+.. automodule:: monk.mongo
+   :members:

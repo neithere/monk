@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#    Monk is a lightweight schema/query framework for document databases.
-#    Copyright © 2011  Andrey Mikhaylenko
+#    Monk is an unobtrusive data modeling, manipulation and validation library.
+#    Copyright © 2011—2013  Andrey Mikhaylenko
 #
 #    This file is part of Monk.
 #
@@ -30,13 +30,14 @@ readme = open(os.path.join(os.path.dirname(__file__), 'README')).read()
 setup(
     # overview
     name             = 'monk',
-    description      = 'A lightweight schema/query framework for MongoDB',
+    description      = ('An unobtrusive data modeling, manipulation '
+                        'and validation library. MongoDB included.'),
     long_description = readme,
 
     # technical info
     version  = monk.__version__,
     packages = ['monk'],
-    requires = ['python (>= 2.7)'],
+    requires = ['python (>= 2.6)'],
     provides = ['monk'],
 
     # copyright
@@ -51,9 +52,9 @@ setup(
     # categorization
     keywords     = ('mongo mongodb document query database api model models '
                     'orm odm document-oriented non-relational nosql '
-                    'validation'),
+                    'validation filling'),
     classifiers  = [
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',
         'License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)',

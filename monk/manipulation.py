@@ -236,9 +236,12 @@ def merged(spec, data, mergers=VALUE_MERGERS):
 
 def unfold_list_of_dicts(value, default_key):
     """
-    [{...}] → [{...}]
-     {...}  → [{...}]
-    u'xyz'  → [{default_key: u'xyz'}]
+    Converts given value to a list of dictionaries as follows:
+
+    * ``[{...}]`` → ``[{...}]``
+    * ``{...}``   → ``[{...}]``
+    * ``'xyz'``   → ``[{default_key: 'xyz'}]``
+
     """
     if value is None:
         return []
@@ -256,8 +259,11 @@ def unfold_list_of_dicts(value, default_key):
 
 def unfold_to_list(value):
     """
-    [x] → [x]
-     x  → [x]
+    Converts given value to a list  as follows:
+
+    * ``[x]`` → ``[x]``
+    * ``x``  → ``[x]``
+
     """
     if value and not isinstance(value, list):
         return [value]

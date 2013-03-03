@@ -32,8 +32,7 @@ from . import manipulation, validation
 
 __all__ = ['DotExpandedDictMixin', 'DotExpandedDict', 'make_dot_expanded',
            'TypedDictReprMixin',
-           'StructuredDictMixin',
-           'Document']
+           'StructuredDictMixin']
 
 
 def make_dot_expanded(data):

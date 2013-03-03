@@ -1,12 +1,11 @@
-Monk
-====
+.. include:: ../README
 
-Contents:
+Details
+-------
 
 .. toctree::
    :maxdepth: 2
 
-   overview
    api
 
 Indices and tables

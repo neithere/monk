@@ -1,9 +1,9 @@
 Monk
-====
+~~~~
 
-`Monk` is a lightweight schema/query framework for MongoDB.
+An unobtrusive data modeling, manipulation and validation library.
 
-See also Doqu if you need a backend-agnostic tool.
+Supports MongoDB out of the box. Can be used for any other DB (or even without one).
 
 Installation
 ------------
@@ -15,10 +15,10 @@ Dependencies
 
 `Monk` is tested against the following versions of Python:
 
-* 2.6 
-* 2.7 (including PyPy 2.0)
-* 3.2
-* 3.3
+* CPython 2.6, 2.7, 3.2, 3.3
+* PyPy 2.0
+
+The MongoDB extension requires `pymongo`.
 
 Documentation
 -------------
@@ -26,6 +26,137 @@ Documentation
 See the `complete documentation`_ for details. 
 
 .. _complete documentation: http://packages.python.org/monk
+
+Examples
+--------
+
+Modeling
+........
+
+The schema is defined as a template using native Python data types::
+
+    # we will reuse this structure in examples below
+
+    spec = {
+        'title': 'Untitled',
+        'comments': [
+            { 'author': str,
+              'date': datetime.datetime.utcnow,
+              'text': str
+            }
+        ],
+    }
+
+You are free to design as complex a document as you need.
+The `manipulation` and `validation` functions (described below) support
+arbitrary nested structures.
+
+Manipulation
+............
+
+The schema can be used to create full documents from incomplete data:
+
+.. code-block:: python
+
+    from monk.manipulation import merged
+
+    # default values are set for missing keys
+
+    >>> merged(spec, {})
+    { 'title': 'Untitled',
+      'comments': []
+    }
+
+    # it's easy to override the defaults
+
+    >>> merged(spec, {'title': 'Hello'})
+    { 'title': 'Hello',
+      'comments': []
+    }
+
+    # nested lists of dictionaries can be auto-filled, too.
+    # by the way, note the date.
+
+    >>> merged(spec, {'comments': ['author': 'john']})
+    { 'title': 'Untitled',
+      'comments': [
+            { 'author': 'john',
+              'date': datetime.datetime(2013, 3, 3, 1, 8, 4, 152113),
+              'text': None
+            }
+        ]
+    }
+
+Validation
+..........
+
+The same schema can be used to ensure that the document has correct structure
+and the values are of correct types:
+
+.. code-block:: python
+
+    from monk.validation import validate_structure
+
+    # correct data: staying silent
+
+    >>> validate_structure(spec, data)
+
+    # a key is missing
+
+    >>> validate_structure(spec, {'title': 'Hello'})
+    Traceback (most recent call last):
+       ...
+    monk.validation.MissingKey: comments
+
+    # a key is missing in a dictionary in a nested list
+
+    >>> validate_structure(spec, {'comments': [{'author': 'john'}]}
+    Traceback (most recent call last):
+       ...
+    monk.validation.MissingKey: comments: date
+
+    # type check; also works with functions and methods (by return value)
+
+    >>> validation.validate_structure(spec, {'title': 123, 'comments': []})
+    Traceback (most recent call last):
+        ...
+    TypeError: title: expected str, got int 123
+
+Custom validators can be used.  Behaviour can be fine-tuned.
+
+The library can be also viewed as a framework for building ODMs
+(object-document mappers).  See the MongoDB extension and note how it reuses
+mixins provided by DB-agnostic modules.
+
+Here's an example of the MongoDB ODM bundled with Monk::
+
+    from monk.mongo import Document
+
+    class Item(Document):
+        structure = dict(text=unicode, slug=unicode)
+        indexes = dict(text=None, slug=dict(unique=True))
+
+    # this involves manipulation (inserting missing fields)
+    item = Item(text=u'foo', slug=u'bar')
+
+    # this involves validation
+    item.save(db)
+
+Links
+-----
+
+* `Project home page`_ (Bitbucket)
+* `Documentation`_ (Read the Docs)
+* `Package distribution`_ (PyPI)
+* Questions, requests, bug reports, etc.:
+
+  * `Issue tracker`_
+  * Direct e-mail (neithere at gmail com)
+
+.. _project home page: http://bitbucket.org/neithere/monk/
+.. _documentation: http://monk.readthedocs.org
+.. _package distribution: http://pypi.python.org/pypi/monk
+.. _issue tracker: http://bitbucket.org/neithere/monk/issues/
 
 Author
 ------
