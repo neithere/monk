@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-#    Monk is a lightweight schema/query framework for document databases.
-#    Copyright © 2011  Andrey Mikhaylenko
+#    Monk is an unobtrusive data modeling, manipulation and validation library.
+#    Copyright © 2011—2013  Andrey Mikhaylenko
 #
 #    This file is part of Monk.
 #
