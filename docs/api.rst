@@ -1,6 +1,9 @@
 API reference
 =============
 
+.. automodule:: monk.schema
+   :members:
+
 .. automodule:: monk.validation
    :members:
 

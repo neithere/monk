@@ -28,8 +28,6 @@ Validation
     * :class:`DictValidator`
     * :class:`ListValidator`
     * :class:`TypeValidator`
-    * :class:`FuncValidator`
-    * :class:`InstanceValidator`
 
 """
 # TODO yield/return subdocuments (spec and value) for external processing so
@@ -38,6 +36,7 @@ Validation
 
 from . import compat
 from .manipulation import merged
+from .schema import canonize
 
 
 __all__ = [
@@ -46,11 +45,8 @@ __all__ = [
     'UnknownKey',
     # validators
     'ValueValidator', 'DictValidator', 'ListValidator', 'TypeValidator',
-    'InstanceValidator', 'FuncValidator',
     # functions
     'validate_structure_spec', 'validate_structure', 'validate_value',
-    # helpers
-    'Rule', 'optional'
 ]
 
 
@@ -77,9 +73,9 @@ class UnknownKey(ValidationError):
 class ValueValidator(object):
     """ Base class for value validators.
     """
-    def __init__(self, spec, value, skip_missing=False, skip_unknown=False,
+    def __init__(self, rule, value, skip_missing=False, skip_unknown=False,
                  value_preprocessor=None):
-        self.spec = spec
+        self.rule = rule
         self.value = value
         self.skip_missing = skip_missing
         self.skip_unknown = skip_unknown
@@ -111,7 +107,7 @@ class DictValidator(ValueValidator):
     treated as a separate document.
     """
     def check(self):
-        return isinstance(self.spec, dict)
+        return self.rule.datatype == dict
 
     def validate(self):
         if not isinstance(self.value, dict):
@@ -120,15 +116,36 @@ class DictValidator(ValueValidator):
                             spec=dict, valtype=type(self.value),
                             value=self.value))
 
-        if not self.spec:
+        if not self.rule.inner_spec:
             # spec is {} which means "a dict of anything"
             return
 
+        # compare the two structures; nested dictionaries are included in the
+        # comparison but nested lists are opaque and will be dealt with later on.
+        spec_keys = set(self.rule.inner_spec.keys() if self.rule.inner_spec else [])
+        data_keys = set(self.value.keys() if self.value else [])
+        unknown = data_keys - spec_keys
+
+        if unknown and not self.rule.skip_unknown:
+            raise UnknownKey('Unknown keys: {0}'.format(
+                ', '.join(compat.safe_str(x) for x in unknown)))
+
+        # check types and deal with nested lists
+        for key in spec_keys | data_keys:
+            rule = canonize(self.rule.inner_spec.get(key))
+            if key in data_keys:
+                value = self.value.get(key)
+                try:
+                    validate_structure(rule, value)
+                except (MissingKey, UnknownKey, TypeError) as e:
+                    raise type(e)('{k}: {e}'.format(k=key, e=e))
+            else:
+                if rule.skip_missing:
+                    continue
+                raise MissingKey('{0}'.format(key))
+
+
         # validate value as a separate document
-        validate_structure(self.spec, self.value,
-                           skip_missing=self.skip_missing,
-                           skip_unknown=self.skip_unknown,
-                           value_preprocessor=self.value_preprocessor)
 
 
 
@@ -147,7 +164,7 @@ class ListValidator(ValueValidator):
 
     """
     def check(self):
-        return isinstance(self.spec, list)
+        return self.rule.datatype == list
 
     def validate(self):
         if not isinstance(self.value, list):
@@ -156,31 +173,30 @@ class ListValidator(ValueValidator):
                             spec=list, valtype=type(self.value),
                             value=self.value))
 
-        if 1 < len(self.spec):
+        if 1 < len(self.rule.inner_spec):
             raise StructureSpecificationError(
                 'Expected an empty list or a list containing exactly 1 item; '
-                'got {cnt}: {spec}'.format(cnt=len(self.spec), spec=self.spec))
+                'got {cnt}: {spec}'.format(cnt=len(self.rule.inner_spec), spec=self.rule.inner_spec))
 
-        if not self.spec:
+        if not self.rule.inner_spec:
             # spec is [] which means "a list of anything"
             return
 
-        item_spec = self.spec[0]
+        # FIXME this belongs to the internals of canonize()
+        #       and the "first item as spec for inner collection" thing
+        #       should go to a special Rule attribute
+        item_spec = canonize(self.rule.inner_spec[0])
 
         for item in self.value:
             if item_spec == dict or isinstance(item, dict):
 
                 # value is a dict; expected something else
-                if isinstance(item, dict) and not (
-                    isinstance(item_spec, dict) or item_spec == dict):
+                if isinstance(item, dict) and not item_spec.datatype == dict:
                     raise TypeError('expected {spec}, got a dictionary'.format(
                         spec=item_spec))
 
                 # validate each value in the list as a separate document
-                validate_structure(item_spec, item,
-                                   skip_missing=self.skip_missing,
-                                   skip_unknown=self.skip_unknown,
-                                   value_preprocessor=self.value_preprocessor)
+                validate_structure(item_spec, item)
             else:
                 validate_value(item_spec, item, [TypeValidator])
 
@@ -189,66 +205,22 @@ class TypeValidator(ValueValidator):
     """ Simple type check.
     """
     def check(self):
-        return isinstance(self.spec, type)
+        return isinstance(self.rule.datatype, type)
 
     def validate(self):
-        if not isinstance(self.value, self.spec):
+        if not isinstance(self.value, self.rule.datatype):
             raise TypeError('expected {typespec.__name__}, got '
                             '{valtype.__name__} {value!r}'.format(
-                            typespec=self.spec, valtype=type(self.value),
+                            typespec=self.rule.datatype, valtype=type(self.value),
                             value=self.value))
 
 
-class InstanceValidator(ValueValidator):
-    """ Type check against an instance: both instances must be of the same
-    type. Example::
-
-        >>> InstanceValidator(1, 2).validate()
-        >>> InstanceValidator(1, 'a').validate()
-        TypeError: ...
-
-    """
-    def check(self):
-        # NOTE: greedy!
-        return not isinstance(self.spec, type)
-
-    def validate(self):
-        spec = type(self.spec)
-        validate_value(spec, self.value, [TypeValidator])
-
-
-class FuncValidator(ValueValidator):
-    """ Default value is obtained from a function with no arguments;
-    then check type against what the callable returns. (It is expected
-    that the callable does not have side effects.)
-    Example::
-
-        >>> FuncValidator(lambda: int, 2).validate()
-        >>> FuncValidator(lambda: int, 'a').validate()
-        TypeError: ...
-
-    Instances are also supported::
-
-        >>> FuncValidator(lambda: 1, 2).validate()
-        >>> FuncValidator(lambda: 1, 'a').validate()
-        TypeError: ...
-
-    """
-    def check(self):
-        return isinstance(self.spec, compat.func_types)
-
-    def validate(self):
-        spec = self.spec()
-        validate_value(spec, self.value, [TypeValidator, InstanceValidator])
-
-
 VALUE_VALIDATORS = (
-    DictValidator, ListValidator, TypeValidator, FuncValidator,
-    InstanceValidator
+    DictValidator, ListValidator, TypeValidator,
 )
 
 
-def validate_value(spec, value, validators,
+def validate_value(rule, value, validators,
                    skip_missing=False, skip_unknown=False,
                    value_preprocessor=None):
     """ Checks if given `value` is valid for given `spec`, using given sequence
@@ -262,29 +234,21 @@ def validate_value(spec, value, validators,
         # empty value, ok unless required
         return
 
-    if spec is None:
+    if not rule:
+        # no rule defined at all
+        return
+
+    if rule.datatype is None:
         # any value is acceptable
         return
 
-    if isinstance(spec, Rule):
-        rule = spec
-    else:
-        rule = Rule(spec)
-
     for validator_class in validators:
-        validator = validator_class(rule.spec, value, skip_missing, skip_unknown,
+        validator = validator_class(rule, value, skip_missing, skip_unknown,
                    value_preprocessor=value_preprocessor)
         if validator.check():
             return validator.validate()
     else:
         pass  # for test coverage
-
-
-#def canonize(spec):
-#    canonic = {}
-#    for key, value in spec.iteritems():
-#        canonic[key] = value if isinstance(value, Rule) else Rule(value)
-#    return canonic
 
 
 def validate_structure(spec, data, skip_missing=False, skip_unknown=False,
@@ -321,39 +285,17 @@ def validate_structure(spec, data, skip_missing=False, skip_unknown=False,
         if a value in `data` does not belong to the designated type.
 
     """
-    # compare the two structures; nested dictionaries are included in the
-    # comparison but nested lists are opaque and will be dealt with later on.
-    spec_keys = set(spec.keys())
-    data_keys = set(data.keys())
-    missing = spec_keys - data_keys
-    unknown = data_keys - spec_keys
-
-#    if missing and not skip_missing:
-#        raise MissingKey('Missing keys: {0}'.format(', '.join(missing)))
+    rule_kwargs = dict(skip_missing=skip_missing, skip_unknown=skip_unknown)
+    spec = canonize(spec, rule_kwargs)    # → Rule instance
 
 
-    if unknown and not skip_unknown:
-        raise UnknownKey('Unknown keys: {0}'.format(
-            ', '.join(compat.safe_str(x) for x in unknown)))
-
-    # check types and deal with nested lists
-    for key in spec_keys | data_keys:
-        typespec = spec.get(key)
-        rule = typespec if isinstance(typespec, Rule) else Rule(typespec)
-        if key in data_keys:
-            value = data.get(key)
-            if value_preprocessor:
-                value = value_preprocessor(typespec, value)
-            try:
-                validate_value(typespec, value, validators,
-                               skip_missing, skip_unknown,
-                               value_preprocessor=value_preprocessor)
-            except (MissingKey, UnknownKey, TypeError) as e:
-                raise type(e)('{k}: {e}'.format(k=key, e=e))
-        else:
-            if skip_missing or rule.skip_missing:
-                continue
-            raise MissingKey('{0}'.format(key))
+    if spec.datatype == dict:
+        validate_value(spec, data, [DictValidator])
+    elif spec.datatype == list:
+        validate_value(spec, data, validators)
+    else:
+        assert not spec.inner_spec
+        validate_value(spec, data, validators)
 
 
 def validate_structure_spec(spec, validators=VALUE_VALIDATORS):
@@ -375,18 +317,3 @@ def validate_structure_spec(spec, validators=VALUE_VALIDATORS):
         return value
     validate_structure(spec, merged(spec, {}), skip_missing=True, skip_unknown=True,
                        validators=validators, value_preprocessor=dictmerger)
-
-
-class Rule:
-    "Extended specification of a field.  Allows marking it as optional."
-    def __init__(self, spec, skip_missing=False):
-        self.spec = spec
-        self.skip_missing = skip_missing
-
-    def __repr__(self):
-        return '<Rule {spec} missing:{missing}>'.format(
-            spec=str(self.spec).replace('<','').replace('>',''),
-            missing=self.skip_missing)
-
-
-optional = lambda x: Rule(x, skip_missing=True)

@@ -7,6 +7,7 @@ Details
    :maxdepth: 2
 
    api
+   glossary
 
 Indices and tables
 ------------------
