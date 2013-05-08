@@ -27,6 +27,14 @@ import pytest
 from monk.schema import Rule, canonize
 
 
+class TestRule:
+    def test_rule_as_datatype(self):
+        rule = Rule(None)
+        with pytest.raises(ValueError) as excinfo:
+            Rule(rule)
+        assert 'Cannot use a Rule instance as datatype' in excinfo.exconly()
+
+
 class TestCanonization:
 
     def test_none(self):
@@ -65,4 +73,4 @@ class TestCanonization:
 
     def test_rule(self):
         rule = Rule(str, default='abc', skip_missing=True)
-        assert canonize(rule) == Rule(rule)
+        assert rule == canonize(rule)
