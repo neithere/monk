@@ -220,9 +220,9 @@ VALUE_VALIDATORS = (
 )
 
 
-def validate_value(rule, value, validators,
-                   skip_missing=False, skip_unknown=False,
-                   value_preprocessor=None):
+def validate(rule, value, validators=VALUE_VALIDATORS,
+             skip_missing=False, skip_unknown=False,
+             value_preprocessor=None):
     """ Checks if given `value` is valid for given `spec`, using given sequence
     of `validators`.
 
@@ -234,6 +234,9 @@ def validate_value(rule, value, validators,
         # empty value, ok unless required
         return
 
+    rule_kwargs = dict(skip_missing=skip_missing, skip_unknown=skip_unknown)
+    rule = canonize(rule, rule_kwargs)    # → Rule instance
+
     if not rule:
         # no rule defined at all
         return
@@ -241,6 +244,13 @@ def validate_value(rule, value, validators,
     if rule.datatype is None:
         # any value is acceptable
         return
+
+    if rule.datatype == dict:
+        validators = [DictValidator]
+    elif rule.datatype == list:
+        validators = [ListValidator]
+    else:
+        assert not rule.inner_spec
 
     for validator_class in validators:
         validator = validator_class(rule, value, skip_missing, skip_unknown,
@@ -251,51 +261,7 @@ def validate_value(rule, value, validators,
         pass  # for test coverage
 
 
-def validate_structure(spec, data, skip_missing=False, skip_unknown=False,
-                       validators=VALUE_VALIDATORS, value_preprocessor=None):
-                       #this_level_skip_missing=None,
-                       #this_level_skip_unknown=None):
-    """ Validates given document against given structure specification.
-    Always returns ``None``.
-
-    :param spec:
-        `dict`; document structure specification.
-    :param data:
-        `dict`; document to be validated against the spec.
-    :param skip_missing:
-        ``bool``; if ``True``, :class:`MissingKey` is never raised.
-        Default is ``False``.
-    :param skip_unknown:
-        ``bool``; if ``True``, :class:`UnknownKey` is never raised.
-        Default is ``False``.
-    :param validators:
-        `sequence`. An ordered series of :class:`ValueValidator` subclasses.
-        Default is :attr:`VALUE_VALIDATORS`. The validators are passed to
-        :func:`validate_value`.
-
-    Can raise:
-
-    :class:`MissingKey`
-        if a key is in `spec` but not in `data`.
-    :class:`UnknownKey`
-        if a key is in `data` but not in `spec`.
-    :class:`StructureSpecificationError`
-        if errors were found in `spec`.
-    :class:`TypeError`
-        if a value in `data` does not belong to the designated type.
-
-    """
-    rule_kwargs = dict(skip_missing=skip_missing, skip_unknown=skip_unknown)
-    spec = canonize(spec, rule_kwargs)    # → Rule instance
-
-
-    if spec.datatype == dict:
-        validate_value(spec, data, [DictValidator])
-    elif spec.datatype == list:
-        validate_value(spec, data, validators)
-    else:
-        assert not spec.inner_spec
-        validate_value(spec, data, validators)
+validate_value = validate_structure = validate
 
 
 def validate_structure_spec(spec, validators=VALUE_VALIDATORS):
