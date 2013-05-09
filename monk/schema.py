@@ -28,7 +28,25 @@ __all__ = ['Rule', 'canonize', 'optional']
 
 
 class Rule:
-    "Extended specification of a field.  Allows marking it as optional."
+    """
+    Extended specification of a field.  Allows marking it as optional.
+
+    :param spec:
+        `dict`; document structure specification.
+    :param data:
+        `dict`; document to be validated against the spec.
+    :param optional:
+        ``bool``; if ``True``, :class:`MissingKey` is never raised.
+        Default is ``False``.
+    :param skip_unknown:
+        ``bool``; if ``True``, :class:`UnknownKey` is never raised.
+        Default is ``False``.
+    :param validators:
+       `sequence`. An ordered series of :class:`ValueValidator` subclasses.
+        Default is :attr:`VALUE_VALIDATORS`. The validators are passed to
+        :func:`validate_value`.
+
+    """
     def __init__(self, datatype, inner_spec=None, skip_missing=False, skip_unknown=False, default=None):
         if isinstance(datatype, type(self)):
             raise ValueError('Cannot use a Rule instance as datatype')

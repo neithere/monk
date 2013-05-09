@@ -21,10 +21,6 @@
 Validation
 ~~~~~~~~~~
 """
-# TODO yield/return subdocuments (spec and value) for external processing so
-#      that we don't pass validators/skip_missing/skip_unknown recursively to
-#      each validator.
-
 from . import compat
 from .manipulation import merged
 from .schema import canonize
@@ -144,12 +140,28 @@ def validate_type(rule, value):
 
 
 def validate(rule, value):
-    """ Checks if given `value` is valid for given `spec`, using given sequence
-    of `validators`.
+    """
+    Validates given value against given specification.
+    Raises an exception if the value is invalid.
+    Always returns ``None``.
 
-    The validators are expected to be subclasses of :class:`ValueValidator`.
-    They are polled one by one; the first one that agrees to process given
-    value is used to validate the value.
+    :rule:
+        a :class:`~monk.schema.Rule` instance.
+    :value:
+        any value including complex structures.
+
+    Can raise:
+
+    :class:`MissingKey`
+        if a dictionary key is in the spec but not in the value.
+        This applies to root and nested dictionaries.
+    :class:`UnknownKey`
+        if a dictionary key is the value but not not in the spec.
+    :class:`StructureSpecificationError`
+        if errors were found in spec.
+    :class:`TypeError`
+        if the value (or a nested value) does not belong to the designated type.
+
     """
     if value is None:
         # empty value, ok unless required
