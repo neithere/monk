@@ -35,60 +35,6 @@ from monk.validation import (
 )
 
 
-# FIXME decide if this is still needed
-validate_spec = NotImplemented
-
-
-class TestStructureSpec:
-
-    @pytest.mark.xfail
-    def test_correct_types(self):
-        '`None` stands for "any value".'
-        validate_spec({'foo': None})
-        validate_spec({'foo': bool})
-        validate_spec({'foo': dict})
-        validate_spec({'foo': float})
-        validate_spec({'foo': int})
-        validate_spec({'foo': list})
-        validate_spec({'foo': text_type})
-        validate_spec({'foo': datetime.datetime})
-        validate_spec({'foo': bson.Binary})
-        validate_spec({'foo': bson.Code})
-        validate_spec({'foo': bson.ObjectId})
-        validate_spec({'foo': bson.DBRef})
-
-    @pytest.mark.xfail
-    def test_correct_structures(self):
-        # foo is of given type
-        validate_spec({'foo': int})
-        # foo and bar are of given types
-        validate_spec({'foo': int, 'bar': text_type})
-        # foo is a list of values of given type
-        validate_spec({'foo': [int]})
-        # foo.bar is of given type
-        validate_spec({'foo': {'bar': int}})
-        # foo.bar is a list of values of given type
-        validate_spec({'foo': {'bar': [int]}})
-        # foo.bar is a list of mappings where each "baz" is of given type
-        validate_spec({'foo': {'bar': [{'baz': [text_type]}]}})
-
-    @pytest.mark.xfail
-    def test_malformed_lists(self):
-        single_elem_err_msg = 'empty list or a list containing exactly 1 item'
-
-        with pytest.raises(StructureSpecificationError) as excinfo:
-            validate_spec({'foo': [text_type, text_type]})
-        assert single_elem_err_msg in excinfo.exconly()
-
-        with pytest.raises(StructureSpecificationError) as excinfo:
-            validate_spec({'foo': {'bar': [text_type, text_type]}})
-        assert single_elem_err_msg in excinfo.exconly()
-
-        with pytest.raises(StructureSpecificationError) as excinfo:
-            validate_spec({'foo': {'bar': [{'baz': [text_type, text_type]}]}})
-        assert single_elem_err_msg in excinfo.exconly()
-
-
 class TestNaturalValidation:
 
     def test_correct_structures(self):

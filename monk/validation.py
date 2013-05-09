@@ -22,7 +22,6 @@ Validation
 ~~~~~~~~~~
 """
 from . import compat
-from .manipulation import merged
 from .schema import canonize
 
 
@@ -189,40 +188,12 @@ def validate(rule, value):
 
     if rule.datatype is None:
         # any value is acceptable
-        return
-
-    if rule.datatype == dict:
-        return validate_dict(rule, value)
-
-    if rule.datatype == list:
-        return validate_list(rule, value)
-
-    assert not rule.inner_spec
-    if isinstance(rule.datatype, type):
-        validate_type(rule, value)
-
-    return None
-
-
-validate_value = validate_structure = validate
-
-
-def validate_structure_spec(spec):
-    # this is a pretty dumb function that simply populates the data when normal
-    # manipulation function fails to do that because of ambiguity.
-    # The dictionaries are created even within lists; missing keys are created
-    # with None values.
-    # This enables validate_structure() to peek into nested levels (by default
-    # it bails out when a key is missing).
-    def dictmerger(typespec, value):
-        if value == [] and typespec:
-            for elem in typespec:
-                if isinstance(elem, type):
-                    # [int] -> [None]
-                    value.append(None)
-                elif isinstance(elem, dict):
-                    # [{'a': int}] -> [{'a': None}]
-                    value.append(merged(elem, {}))
-        return value
-    validate_structure(spec, merged(spec, {}), optional=True, skip_unknown_keys=True,
-                       value_preprocessor=dictmerger)
+        pass
+    elif rule.datatype == dict:
+        validate_dict(rule, value)
+    elif rule.datatype == list:
+        validate_list(rule, value)
+    else:
+        assert not rule.inner_spec
+        if isinstance(rule.datatype, type):
+            validate_type(rule, value)

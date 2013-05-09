@@ -307,8 +307,6 @@ class Document(
     """
     def __init__(self, *args, **kwargs):
         super(Document, self).__init__(*args, **kwargs)
-# TODO
-#        self._validate_structure_spec()
         self._insert_defaults()
         self._make_dot_expanded()
 

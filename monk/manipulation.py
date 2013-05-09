@@ -221,7 +221,7 @@ def merged(spec, data, mergers=VALUE_MERGERS):
 
     Does not validate values. If `data` overrides a default value, it is
     trusted. The result can be validated later with
-    :func:`~monk.validation.validate_structure`.
+    :func:`~monk.validation.validate`.
 
     Note that a key/value pair is added from `spec` either if `data` does not
     define this key at all, or if the value is ``None``. This behaviour may not

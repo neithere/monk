@@ -28,6 +28,7 @@ from monk.schema import Rule, canonize
 
 
 class TestRule:
+
     def test_rule_as_datatype(self):
         rule = Rule(None)
         with pytest.raises(ValueError) as excinfo:
