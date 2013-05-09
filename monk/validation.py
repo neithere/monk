@@ -76,6 +76,7 @@ def validate_dict(rule, value):
     spec_keys = set(rule.inner_spec.keys() if rule.inner_spec else [])
     data_keys = set(value.keys() if value else [])
     unknown = data_keys - spec_keys
+    missing = spec_keys - data_keys
 
     if unknown and not rule.dict_skip_unknown_keys:
         raise UnknownKey('Unknown keys: {0}'.format(
@@ -87,7 +88,7 @@ def validate_dict(rule, value):
             value_ = value.get(key)
             try:
                 validate(subrule, value_)
-            except (MissingKey, UnknownKey, TypeError) as e:
+            except (ValidationError, TypeError) as e:
                 raise type(e)('{k}: {e}'.format(k=key, e=e))
         else:
             if subrule.optional:
@@ -128,8 +129,13 @@ def validate_list(rule, value):
             'got {cnt}: {spec}'.format(cnt=len(rule.inner_spec), spec=rule.inner_spec))
     item_spec = canonize(rule.inner_spec[0])
 
-    for item in value:
-        validate(item_spec, item)
+    # XXX custom validation stuff can be inserted here, e.g. min/max items
+
+    for i, item in enumerate(value):
+        try:
+            validate(item_spec, item)
+        except (ValidationError, TypeError) as e:
+            raise type(e)('#{i}: {e}'.format(i=i, e=e))
 
 
 def validate_type(rule, value):

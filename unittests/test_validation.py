@@ -22,16 +22,14 @@ Validation tests
 ================
 """
 import datetime
-import sys
 
 import bson
 import pytest
 
 from monk.compat import text_type, safe_unicode
-from monk.schema import Rule, canonize, optional, any_value, any_or_none
+from monk.schema import Rule, optional, any_value, any_or_none
 from monk.validation import (
-    validate, StructureSpecificationError,
-    MissingValue, MissingKey, UnknownKey
+    validate, MissingValue, MissingKey, UnknownKey
 )
 
 
@@ -69,7 +67,7 @@ class TestNaturalValidation:
 
         with pytest.raises(TypeError) as excinfo:
             validate({'a': [int]}, {'a': ['bad']})
-        assert "a: expected int, got str 'bad'" in excinfo.exconly()
+        assert "a: #0: expected int, got str 'bad'" in excinfo.exconly()
 
         with pytest.raises(TypeError) as excinfo:
             validate({'a': {'b': int}}, {'a': 'bad'})
@@ -81,7 +79,7 @@ class TestNaturalValidation:
 
         with pytest.raises(TypeError) as excinfo:
             validate({'a': [{'b': [int]}]}, {'a': [{'b': ['bad']}]})
-        assert "a: b: expected int, got str 'bad'" in excinfo.exconly()
+        assert "a: #0: b: #0: expected int, got str 'bad'" in excinfo.exconly()
 
     def test_empty(self):
 
@@ -282,7 +280,7 @@ class TestNaturalValidation:
 
 class TestValidationRules:
 
-    def test_any_value(self):
+    def test_any_required(self):
         "A value of any type"
 
         # value is present
@@ -293,7 +291,7 @@ class TestValidationRules:
             validate(Rule(datatype=None), None)
         assert "MissingValue: expected a value, got None" in excinfo.exconly()
 
-    def test_any_or_none(self):
+    def test_any_optional(self):
         "A value of any type or no value"
 
         # value is present
@@ -302,7 +300,7 @@ class TestValidationRules:
         # value is missing
         validate(Rule(datatype=None, optional=True), None)
 
-    def test_typed_strict(self):
+    def test_typed_required(self):
         "A value of given type"
 
         # value is present and matches datatype
@@ -332,7 +330,7 @@ class TestValidationRules:
         # value is missing
         validate(Rule(int, optional=True), None)
 
-    def test_typed_strict_dict(self):
+    def test_typed_required_dict(self):
         "A value of given type (dict)"
 
         # value is present
@@ -352,15 +350,7 @@ class TestValidationRules:
         # value is missing
         validate(Rule(datatype=dict, optional=True), None)
 
-    @pytest.mark.xfail
-    def test_typed_strict_dict_nested(self):
-        raise NotImplementedError
-
-    @pytest.mark.xfail
-    def test_typed_strict_dict_nested_in_optional_dict(self):
-        raise NotImplementedError
-
-    def test_typed_strict_list(self):
+    def test_typed_required_list(self):
         "A value of given type (list)"
 
         # value is present
@@ -380,78 +370,202 @@ class TestValidationRules:
         # value is missing
         validate(Rule(datatype=list, optional=True), None)
 
-    @pytest.mark.xfail
-    def test_error_nesting(self):
-        raise NotImplementedError
-        # "ErrType: foo: bar: quux: error message"
 
+class TestValidationRulesNested:
 
-    #------------------------------------------------------------
-    def test_datatype(self):
-        validate(Rule(int), 1)
+    def test_int_in_dict(self):
+        "A required int nested in a required dict"
 
-        spec = Rule(int)
+        spec = Rule(datatype=dict, inner_spec={'foo': int})
 
-        # simple rule behaves as the spec within it
-        spec = {
-            'a': Rule(int),
-        }
-        validate(spec, {'a': 1})
-        with pytest.raises(MissingKey):
+        # key is missing
+
+        with pytest.raises(MissingKey) as excinfo:
             validate(spec, {})
-        with pytest.raises(TypeError):
-            validate(spec, {'a': 'bogus'})
+        assert "MissingKey: foo" in excinfo.exconly()
 
-    def test_optional(self):
-        assert optional(int) == Rule(int, optional=True)
-
-        # the rule modifies behaviour of nested validator
-        spec = {
-            'a': optional(int),
-        }
-        validate(spec, {})
-
-    def test_optional_nested(self):
-        spec = {
-            'a': {'b': optional(int)},
-        }
-
-        validate(spec, {'a': {}})
-        validate(spec, {'a': {'b': None}})
+        # key is present, value is missing
 
         with pytest.raises(MissingValue) as excinfo:
-            validate(spec, {'a': None})
-        assert 'expected dict, got None' in excinfo.exconly()
+            validate(spec, {'foo': None})
+        assert "MissingValue: foo: expected int, got None" in excinfo.exconly()
+
+        # key is present, value is present
+
+        validate(spec, {'foo': 1})
+
+    def test_dict_in_dict(self):
+        "A required dict nested in another required dict"
+
+        spec = Rule(datatype=dict, inner_spec={'foo': dict})
+
+        # key is missing
 
         with pytest.raises(MissingKey) as excinfo:
             validate(spec, {})
-        assert 'MissingKey: a' in excinfo.exconly()
+        assert "MissingKey: foo" in excinfo.exconly()
 
-        validate(spec, {'a': {}})
+        # key is present, value is missing
 
-    def test_optional_nested_required(self):
-        "optional dict contains a dict with required values"
-        spec = {
-            'a': optional({
-                'b': int}),
-        }
-        verbose_spec = Rule(dict, inner_spec={
-            'a': Rule(dict, optional=True, inner_spec={
-                'b': int})})
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': None})
+        assert "MissingValue: foo: expected dict, got None" in excinfo.exconly()
 
-        assert canonize(spec) == verbose_spec
+        # value is present
 
-        # None is OK (optional)
-        validate(spec, {'a': None})
+        validate(spec, {'foo': {}})
 
-        # empty dict is OK (optional)
-        validate(spec, {})
+    def test_int_in_dict_in_dict(self):
+        "A required int nested in a required dict nested in another required dict"
 
-        # empty subdict fails because only its parent is optional
+        spec = Rule(datatype=dict, inner_spec={
+            'foo': Rule(datatype=dict, inner_spec={
+                'bar': int})})
+
+        # inner key is missing
+
         with pytest.raises(MissingKey) as excinfo:
-            validate(spec, {'a': {}})
-        prefix = '' if sys.version_info < (3,0) else 'monk.validation.'
-        assert excinfo.exconly() == prefix + 'MissingKey: a: b'
+            validate(spec, {'foo': {}})
+        assert "MissingKey: foo: bar" in excinfo.exconly()
+
+        # inner key is present, inner value is missing
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': {'bar': None}})
+        assert "MissingValue: foo: bar: expected int, got None" in excinfo.exconly()
+
+        # inner value is present
+
+        validate(spec, {'foo': {'bar': 123}})
+
+    def test_int_in_optional_dict(self):
+        "A required int nested in an optional dict"
+
+        spec = Rule(datatype=dict, optional=True, inner_spec={'foo': int})
+
+        # outer optional value is missing
+
+        validate(spec, None)
+
+        # outer optional value is present, inner key is missing
+
+        with pytest.raises(MissingKey) as excinfo:
+            validate(spec, {})
+        assert "MissingKey: foo" in excinfo.exconly()
+
+        # inner key is present, inner value is missing
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': None})
+        assert "MissingValue: foo: expected int, got None" in excinfo.exconly()
+
+        # inner value is present
+
+        validate(spec, {'foo': 123})
+
+    def test_int_in_list(self):
+        spec = Rule(datatype=list, inner_spec=[int])
+
+        # outer value is missing
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, None)
+        assert "MissingValue: expected list, got None" in excinfo.exconly()
+
+        # outer value is present, inner value is missing
+
+        validate(spec, [])
+
+        # inner value is present but is None
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, [None])
+        assert "MissingValue: #0: expected int, got None" in excinfo.exconly()
+
+        # inner value is present
+
+        validate(spec, [123])
+
+        # multiple inner values are present
+
+        validate(spec, [123, 456])
+
+        # one of the inner values is of a wrong type
+
+        with pytest.raises(TypeError) as excinfo:
+            validate(spec, [123, 'bogus'])
+        assert "TypeError: #1: expected int, got str 'bogus'" in excinfo.exconly()
+
+    def test_freeform_dict_in_list(self):
+        spec = Rule(datatype=list, inner_spec=[dict])
+
+        # inner value is present
+
+        validate(spec, [{}])
+        validate(spec, [{'foo': 123}])
+
+        # multiple inner values are present
+
+        validate(spec, [{'foo': 123}, {'bar': 456}])
+
+        # one of the inner values is of a wrong type
+
+        with pytest.raises(TypeError) as excinfo:
+            validate(spec, [{}, 'bogus'])
+        assert "TypeError: #1: expected dict, got str 'bogus'" in excinfo.exconly()
+
+    def test_schemed_dict_in_list(self):
+        spec = Rule(datatype=list, inner_spec=[{'foo': int}])
+
+        # dict in list: missing key
+
+        with pytest.raises(MissingKey) as excinfo:
+            validate(spec, [{}])
+
+        with pytest.raises(MissingKey) as excinfo:
+            validate(spec, [{'foo': 123}, {}])
+        assert "MissingKey: #1: foo" in excinfo.exconly()
+
+        # dict in list: missing value
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, [{'foo': None}])
+        assert "MissingValue: #0: foo: expected int, got None" in excinfo.exconly()
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, [{'foo': 123}, {'foo': None}])
+        assert "MissingValue: #1: foo: expected int, got None" in excinfo.exconly()
+
+        # multiple innermost values are present
+
+        validate(spec, [{'foo': 123}])
+        validate(spec, [{'foo': 123}, {'foo': 456}])
+
+        # one of the innermost values is of a wrong type
+
+        with pytest.raises(TypeError) as excinfo:
+            validate(spec, [{'foo': 123}, {'foo': 456}, {'foo': 'bogus'}])
+        assert "TypeError: #2: foo: expected int, got str 'bogus'" in excinfo.exconly()
+
+    def test_int_in_list_in_dict_in_list_in_dict(self):
+        spec = Rule(datatype=dict, inner_spec={'foo': [{'bar': [int]}]})
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': None})
+        assert "MissingValue: foo: expected list, got None" in excinfo.exconly()
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': [{'bar': None}]})
+        assert "MissingValue: foo: #0: bar: expected list, got None" in excinfo.exconly()
+
+        validate(spec, {'foo': []})
+        validate(spec, {'foo': [{'bar': []}]})
+        validate(spec, {'foo': [{'bar': [1]}]})
+        validate(spec, {'foo': [{'bar': [1, 2]}]})
+
+        with pytest.raises(TypeError) as excinfo:
+            validate(spec, {'foo': [{'bar': [1, 'bogus']}]})
+        assert "TypeError: foo: #0: bar: #1: expected int, got str 'bogus'" in excinfo.exconly()
 
 
 class TestRuleShortcuts:
