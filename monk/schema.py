@@ -27,7 +27,7 @@ from . import compat
 __all__ = [
     'Rule', 'canonize',
     # shortcuts:
-    'any_value', 'optional'
+    'any_value', 'any_or_none', 'optional'
 ]
 
 
@@ -53,14 +53,23 @@ class Rule:
         or something that :func:`canonize` can convert to one).
 
     :param optional:
-        ``bool``; if ``True``, :class:`MissingValue` is never raised.
-        Default is ``False``.
+        ``bool``; if ``True``, :class:`~monk.validation.MissingValue`
+        is never raised.  Default is ``False``.
 
     :param skip_unknown_keys:
-        ``bool``; if ``True``, :class:`UnknownKey` is never raised.
-        Default is ``False``.
+        ``bool``; if ``True``, :class:`~monk.validation.UnknownKey`
+        is never raised.  Default is ``False``.
 
-    .. note:: Missing Key vs. Unknown Key
+    .. note:: Missing Value vs. Missing Key vs. Unknown Key
+
+       :MissingValue:
+            Applies: to any value on any level.
+
+            Trigger: the value is `None` and the rule neither allows this
+            (i.e. a `datatype` is defined) nor provides a `default` value.
+
+            Suppress: turn the `optional` setting on.
+            This allows the value to be `None` even if a `datatype` is defined.
 
        :MissingKey:
             Applies: to a dictionary key.
@@ -87,20 +96,24 @@ class Rule:
         self.inner_spec = inner_spec
         self.optional = optional
         self.skip_unknown_keys = skip_unknown_keys
-        if default is not None and not isinstance(default, self.datatype):
-            raise ValueError('Default value must match datatype {0} (got {1})'.format(
-                self.datatype, default))
         self.default = default
 
         # sanity checks
-        if self.inner_spec:
-            assert isinstance(self.inner_spec, self.datatype)
+
+        if default is not None and self.datatype and not isinstance(default, self.datatype):
+            raise ValueError('Default value must match datatype {0} (got {1})'.format(
+                self.datatype, default))
+
+        if self.inner_spec and not isinstance(self.inner_spec, self.datatype):
+            raise ValueError('Inner spec must match datatype {0} (got {1})'.format(
+                self.datatype, inner_spec))
 
     def __repr__(self):
-        return '<Rule {datatype} {policy}{default}{inner_spec}>'.format(
+        return '<Rule {datatype}{optional}{default}{inner_spec}{skip_unknown_keys}>'.format(
             datatype=('any' if self.datatype is None else
                 str(self.datatype).replace('<','').replace('>','')),
-            policy=('optional' if self.skip_missing else 'required'),
+            optional=(' optional' if self.optional else ' required'),
+            skip_unknown_keys=(' skip-unknown-keys' if self.skip_unknown_keys else ''),
             default=(' default={0}'.format(self.default)
                      if self.default is not None else ''),
             inner_spec=(' inner_spec={0}'.format(self.inner_spec)

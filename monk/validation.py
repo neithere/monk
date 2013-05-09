@@ -43,17 +43,22 @@ class StructureSpecificationError(ValidationError):
     "Raised when malformed document structure is detected."
 
 
+class MissingValue(ValidationError):
+    """ Raised when the value is `None` and the rule neither allows this
+    (i.e. a `datatype` is defined) nor provides a `default` value.
+    """
+
+
 class MissingKey(ValidationError):
-    """ Raised when a key is defined in the structure spec but is missing from
-    a data dictionary.
+    """ Raised when a dictionary key is defined in :attr:`Rule.inner_spec`
+    but is missing from the value.
     """
 
 
 class UnknownKey(ValidationError):
-    """ Raised when a key in data dictionary is missing from the corresponding
-    structure spec.
+    """ Raised whan the value dictionary contains a key which is not
+    in the dictionary's :attr:`Rule.inner_spec`.
     """
-
 
 
 def validate_dict(rule, value):
@@ -152,27 +157,35 @@ def validate(rule, value):
 
     Can raise:
 
+    :class:`MissingValue`
+        if a dictionary key is in the spec but not in the value.
+        This applies to root and nested dictionaries.
+
     :class:`MissingKey`
         if a dictionary key is in the spec but not in the value.
         This applies to root and nested dictionaries.
+
     :class:`UnknownKey`
         if a dictionary key is the value but not not in the spec.
+
     :class:`StructureSpecificationError`
         if errors were found in spec.
+
     :class:`TypeError`
         if the value (or a nested value) does not belong to the designated type.
 
     """
+    rule = canonize(rule)
 
     if value is None:
         # empty value, ok unless required
-        return
+        if rule.optional:
+            return
 
-    rule = canonize(rule)
-
-    if not rule:
-        # no rule defined at all
-        return
+        if rule.datatype is None:
+            raise MissingValue('expected a value, got None')
+        else:
+            raise MissingValue('expected {0}, got None'.format(rule.datatype.__name__))
 
     if rule.datatype is None:
         # any value is acceptable

@@ -31,7 +31,7 @@ from monk.compat import text_type, safe_unicode
 from monk.schema import Rule, canonize, optional, any_value, any_or_none
 from monk.validation import (
     validate, StructureSpecificationError,
-    MissingKey, UnknownKey
+    MissingValue, MissingKey, UnknownKey
 )
 
 
@@ -89,7 +89,7 @@ class TestStructureSpec:
         assert single_elem_err_msg in excinfo.exconly()
 
 
-class TestDocumentStructureValidation:
+class TestNaturalValidation:
 
     def test_correct_structures(self):
         '''
@@ -138,14 +138,29 @@ class TestDocumentStructureValidation:
         assert "a: b: expected int, got str 'bad'" in excinfo.exconly()
 
     def test_empty(self):
-        validate({'a': text_type}, {'a': None})
-        validate({'a': list}, {'a': None})
-        validate({'a': dict}, {'a': None})
 
-        # None is allowed to represent empty value, but bool(value)==False
-        # is not (unless bool is the correct type for this value)
-        validate({'a': bool}, {'a': None})
+        # MISSING VALUE
+
+        validate({'a': optional(text_type)}, {'a': ''})
+        with pytest.raises(MissingValue):
+            validate({'a': text_type}, {'a': None})
+
+        validate({'a': optional(dict)}, {'a': {}})
+        with pytest.raises(MissingValue):
+            validate({'a': dict}, {'a': None})
+
+        validate({'a': optional(list)}, {'a': []})
+        with pytest.raises(MissingValue):
+            validate({'a': list}, {'a': None})
+
+        validate({'a': bool}, {'a': True})
         validate({'a': bool}, {'a': False})
+        validate({'a': optional(bool)}, {'a': None})
+        with pytest.raises(MissingValue):
+            validate({'a': bool}, {'a': None})
+
+        # TYPE ERROR
+
         with pytest.raises(TypeError):
             validate({'a': text_type}, {'a': False})
         with pytest.raises(TypeError):
@@ -154,6 +169,9 @@ class TestDocumentStructureValidation:
             validate({'a': bool}, {'a': ''})
 
     def test_missing(self):
+
+        # MISSING KEY
+
         validate({'a': Rule(text_type, optional=True)}, {})
         with pytest.raises(MissingKey):
             validate({'a': text_type}, {})
@@ -183,52 +201,41 @@ class TestDocumentStructureValidation:
             validate({'a': text_type}, {safe_unicode('привет'): 1})
 
     def test_bool(self):
-        validate({'a': bool}, {'a': None})
         validate({'a': bool}, {'a': True})
         validate({'a': bool}, {'a': False})
 
     def test_bool_instance(self):
-        validate({'a': True}, {'a': None})
         validate({'a': True}, {'a': True})
         validate({'a': True}, {'a': False})
 
     def test_dict(self):
-        validate({'a': dict}, {'a': None})
         validate({'a': dict}, {'a': {}})
         validate({'a': dict}, {'a': {'b': 'c'}})
 
     def test_dict_instance(self):
-        validate({'a': {}}, {'a': None})
         validate({'a': {}}, {'a': {}})
         validate({'a': {}}, {'a': {'b': 123}})
 
     def test_float(self):
-        validate({'a': float}, {'a': None})
         validate({'a': float}, {'a': .5})
 
     def test_float_instance(self):
-        validate({'a': .2}, {'a': None})
         validate({'a': .2}, {'a': .5})
 
     def test_int(self):
-        validate({'a': int}, {'a': None})
         validate({'a': int}, {'a': 123})
 
     def test_int_instance(self):
-        validate({'a': 1}, {'a': None})
         validate({'a': 1}, {'a': 123})
 
     def test_list(self):
-        validate({'a': list}, {'a': None})
         validate({'a': list}, {'a': []})
         validate({'a': list}, {'a': ['b', 123]})
 
     def test_list_instance(self):
-        validate({'a': []}, {'a': None})
         validate({'a': []}, {'a': []})
         validate({'a': []}, {'a': ['b', 123]})
 
-        validate({'a': [int]}, {'a': None})
         validate({'a': [int]}, {'a': []})
         validate({'a': [int]}, {'a': [123]})
         validate({'a': [int]}, {'a': [123, 456]})
@@ -238,37 +245,31 @@ class TestDocumentStructureValidation:
             validate({'a': [text_type]}, {'a': [{'b': 'c'}]})
 
     def test_unicode(self):
-        validate({'a': text_type}, {'a': None})
         validate({'a': text_type}, {'a': text_type('hello')})
         with pytest.raises(TypeError):
             validate({'a': text_type}, {'a': 123})
 
     def test_unicode_instance(self):
-        validate({'a': text_type('foo')}, {'a': None})
         validate({'a': text_type('foo')}, {'a': text_type('hello')})
         with pytest.raises(TypeError):
             validate({'a': text_type('foo')}, {'a': 123})
 
     def test_datetime(self):
-        validate({'a': datetime.datetime}, {'a': None})
         validate({'a': datetime.datetime},
-                           {'a': datetime.datetime.utcnow()})
+                 {'a': datetime.datetime.utcnow()})
         with pytest.raises(TypeError):
             validate({'a': datetime.datetime}, {'a': 123})
 
     def test_datetime_instance(self):
-        validate({'a': datetime.datetime(1900, 1, 1)}, {'a': None})
         validate({'a': datetime.datetime(1900, 1, 1)},
-                           {'a': datetime.datetime.utcnow()})
+                 {'a': datetime.datetime.utcnow()})
         with pytest.raises(TypeError):
             validate({'a': datetime.datetime}, {'a': 123})
 
     def test_objectid(self):
-        validate({'a': bson.ObjectId}, {'a': None})
         validate({'a': bson.ObjectId}, {'a': bson.ObjectId()})
 
     def test_dbref(self):
-        validate({'a': bson.DBRef}, {'a': None})
         validate({'a': bson.DBRef},
                            {'a': bson.DBRef('a', 'b')})
 
@@ -334,7 +335,117 @@ class TestDocumentStructureValidation:
 
 
 class TestValidationRules:
-    def test_simple(self):
+
+    def test_any_value(self):
+        "A value of any type"
+
+        # value is present
+        validate(Rule(datatype=None), 1)
+
+        # value is missing
+        with pytest.raises(MissingValue) as excinfo:
+            validate(Rule(datatype=None), None)
+        assert "MissingValue: expected a value, got None" in excinfo.exconly()
+
+    def test_any_or_none(self):
+        "A value of any type or no value"
+
+        # value is present
+        validate(Rule(datatype=None, optional=True), 1)
+
+        # value is missing
+        validate(Rule(datatype=None, optional=True), None)
+
+    def test_typed_strict(self):
+        "A value of given type"
+
+        # value is present and matches datatype
+        validate(Rule(int), 1)
+
+        # value is present but does not match datatype
+        with pytest.raises(TypeError) as excinfo:
+            validate(Rule(int), 'bogus')
+        assert "TypeError: expected int, got str 'bogus'" in excinfo.exconly()
+
+        # value is missing
+        with pytest.raises(MissingValue) as excinfo:
+            validate(Rule(int), None)
+        assert "MissingValue: expected int, got None" in excinfo.exconly()
+
+    def test_typed_optional(self):
+        "A value of given type or no value"
+
+        # value is present and matches datatype
+        validate(Rule(int, optional=True), 1)
+
+        # value is present but does not match datatype
+        with pytest.raises(TypeError) as excinfo:
+            validate(Rule(int), 'bogus')
+        assert "TypeError: expected int, got str 'bogus'" in excinfo.exconly()
+
+        # value is missing
+        validate(Rule(int, optional=True), None)
+
+    def test_typed_strict_dict(self):
+        "A value of given type (dict)"
+
+        # value is present
+        validate(Rule(datatype=dict), {})
+
+        # value is missing
+        with pytest.raises(MissingValue) as excinfo:
+            validate(Rule(datatype=dict), None)
+        assert "MissingValue: expected dict, got None" in excinfo.exconly()
+
+    def test_typed_optional_dict(self):
+        "A value of given type (dict) or no value"
+
+        # value is present
+        validate(Rule(datatype=dict, optional=True), {})
+
+        # value is missing
+        validate(Rule(datatype=dict, optional=True), None)
+
+    @pytest.mark.xfail
+    def test_typed_strict_dict_nested(self):
+        raise NotImplementedError
+
+    @pytest.mark.xfail
+    def test_typed_strict_dict_nested_in_optional_dict(self):
+        raise NotImplementedError
+
+    def test_typed_strict_list(self):
+        "A value of given type (list)"
+
+        # value is present
+        validate(Rule(datatype=list), [])
+
+        # value is missing
+        with pytest.raises(MissingValue) as excinfo:
+            validate(Rule(datatype=list), None)
+        assert "MissingValue: expected list, got None" in excinfo.exconly()
+
+    def test_typed_optional_list(self):
+        "A value of given type (list) or no value"
+
+        # value is present
+        validate(Rule(datatype=list, optional=True), [])
+
+        # value is missing
+        validate(Rule(datatype=list, optional=True), None)
+
+    @pytest.mark.xfail
+    def test_error_nesting(self):
+        raise NotImplementedError
+        # "ErrType: foo: bar: quux: error message"
+
+
+    #------------------------------------------------------------
+    def test_datatype(self):
+        validate(Rule(int), 1)
+
+        spec = Rule(int)
+
         # simple rule behaves as the spec within it
         spec = {
             'a': Rule(int),
@@ -359,12 +470,16 @@ class TestValidationRules:
             'a': {'b': optional(int)},
         }
 
-        validate(spec, {'a': None})
+        validate(spec, {'a': {}})
+        validate(spec, {'a': {'b': None}})
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'a': None})
+        assert 'expected dict, got None' in excinfo.exconly()
 
         with pytest.raises(MissingKey) as excinfo:
             validate(spec, {})
-        prefix = '' if sys.version_info < (3,0) else 'monk.validation.'
-        assert excinfo.exconly() == prefix + 'MissingKey: a'
+        assert 'MissingKey: a' in excinfo.exconly()
 
         validate(spec, {'a': {}})
 
