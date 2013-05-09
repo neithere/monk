@@ -94,13 +94,10 @@ def validate_list(rule, value):
 
     item_spec = canonize(rule.inner_spec)
     assert item_spec
-    print('canonize', rule.inner_spec, '->', item_spec)
 
     # XXX custom validation stuff can be inserted here, e.g. min/max items
 
-    print('value:', value)
     for i, item in enumerate(value):
-        print('  item #', i,  'spec:', item_spec, 'item:', item)
         try:
             validate(item_spec, item)
         except (errors.ValidationError, TypeError) as e:
