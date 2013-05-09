@@ -73,7 +73,7 @@ def validate_dict(rule, value):
     data_keys = set(value.keys() if value else [])
     unknown = data_keys - spec_keys
 
-    if unknown and not rule.skip_unknown:
+    if unknown and not rule.skip_unknown_keys:
         raise UnknownKey('Unknown keys: {0}'.format(
             ', '.join(compat.safe_str(x) for x in unknown)))
 
@@ -86,7 +86,7 @@ def validate_dict(rule, value):
             except (MissingKey, UnknownKey, TypeError) as e:
                 raise type(e)('{k}: {e}'.format(k=key, e=e))
         else:
-            if subrule.skip_missing:
+            if subrule.optional:
                 continue
             raise MissingKey('{0}'.format(key))
 
@@ -163,6 +163,7 @@ def validate(rule, value):
         if the value (or a nested value) does not belong to the designated type.
 
     """
+
     if value is None:
         # empty value, ok unless required
         return
@@ -210,5 +211,5 @@ def validate_structure_spec(spec):
                     # [{'a': int}] -> [{'a': None}]
                     value.append(merged(elem, {}))
         return value
-    validate_structure(spec, merged(spec, {}), skip_missing=True, skip_unknown=True,
+    validate_structure(spec, merged(spec, {}), optional=True, skip_unknown_keys=True,
                        value_preprocessor=dictmerger)

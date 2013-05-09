@@ -94,17 +94,17 @@ class TestDocumentStructureValidation:
     def test_correct_structures(self):
         '''
         # foo is of given type
-        validate({'foo': int}, {}, skip_missing=True)
+        validate({'foo': int}, {}, optional=True)
         # foo and bar are of given types
-        validate({'foo': int, 'bar': unicode}, {}, skip_missing=True)
+        validate({'foo': int, 'bar': unicode}, {}, optional=True)
         # foo is a list of values of given type
-        validate({'foo': [int]}, {}, skip_missing=True)
+        validate({'foo': [int]}, {}, optional=True)
         # foo.bar is of given type
-        validate({'foo': {'bar': int}}, {}, skip_missing=True)
+        validate({'foo': {'bar': int}}, {}, optional=True)
         # foo.bar is a list of values of given type
-        validate({'foo': {'bar': [int]}}, {}, skip_missing=True)
+        validate({'foo': {'bar': [int]}}, {}, optional=True)
         # foo.bar is a list of mappings where each "baz" is of given type
-        validate({'foo': {'bar': [{'baz': [unicode]}]}}, {}, skip_missing=True)
+        validate({'foo': {'bar': [{'baz': [unicode]}]}}, {}, optional=True)
         '''
 
     def test_malformed_lists(self):
@@ -154,7 +154,7 @@ class TestDocumentStructureValidation:
             validate({'a': bool}, {'a': ''})
 
     def test_missing(self):
-        validate({'a': Rule(text_type, skip_missing=True)}, {})
+        validate({'a': Rule(text_type, optional=True)}, {})
         with pytest.raises(MissingKey):
             validate({'a': text_type}, {})
         with pytest.raises(MissingKey):
@@ -162,7 +162,7 @@ class TestDocumentStructureValidation:
 
     def test_unknown_keys(self):
         # verbose notation
-        validate(Rule(dict, skip_unknown=True), {'x': 123})
+        validate(Rule(dict, skip_unknown_keys=True), {'x': 123})
 
         # special behaviour: missing/empty inner_spec means "a dict of anything"
         validate(Rule(dict), {'x': 123})
@@ -345,8 +345,8 @@ class TestValidationRules:
         with pytest.raises(TypeError):
             validate(spec, {'a': 'bogus'})
 
-    def test_skip_missing(self):
-        assert optional(int) == Rule(int, skip_missing=True)
+    def test_optional(self):
+        assert optional(int) == Rule(int, optional=True)
 
         # the rule modifies behaviour of nested validator
         spec = {
@@ -354,7 +354,7 @@ class TestValidationRules:
         }
         validate(spec, {})
 
-    def test_skip_missing_nested(self):
+    def test_optional_nested(self):
         spec = {
             'a': {'b': optional(int)},
         }
@@ -368,14 +368,14 @@ class TestValidationRules:
 
         validate(spec, {'a': {}})
 
-    def test_skip_missing_nested_required(self):
+    def test_optional_nested_required(self):
         "optional dict contains a dict with required values"
         spec = {
             'a': optional({
                 'b': int}),
         }
         verbose_spec = Rule(dict, inner_spec={
-            'a': Rule(dict, skip_missing=True, inner_spec={
+            'a': Rule(dict, optional=True, inner_spec={
                 'b': int})})
 
         assert canonize(spec) == verbose_spec

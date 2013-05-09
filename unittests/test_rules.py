@@ -72,5 +72,5 @@ class TestCanonization:
         assert canonize('foo') == Rule(str, default='foo')
 
     def test_rule(self):
-        rule = Rule(str, default='abc', skip_missing=True)
+        rule = Rule(str, default='abc', optional=True)
         assert rule == canonize(rule)

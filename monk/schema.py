@@ -31,29 +31,57 @@ class Rule:
     """
     Extended specification of a field.  Allows marking it as optional.
 
-    :param spec:
-        `dict`; document structure specification.
-    :param data:
-        `dict`; document to be validated against the spec.
+    :param datatype:
+        one of:
+
+        * a type/class (stands for "an instance of this type/class")
+        * `None` (stands for "any value of any kind or no value at all")
+
+    :param default:
+        an instance of `datatype` to be used in the absence of a value.
+
+    :param inner_spec:
+        a spec for nested data (can be another :class:`Rule` instance
+        or something that :func:`canonize` can convert to one).
+
     :param optional:
-        ``bool``; if ``True``, :class:`MissingKey` is never raised.
+        ``bool``; if ``True``, :class:`MissingValue` is never raised.
         Default is ``False``.
-    :param skip_unknown:
+
+    :param skip_unknown_keys:
         ``bool``; if ``True``, :class:`UnknownKey` is never raised.
         Default is ``False``.
-    :param validators:
-       `sequence`. An ordered series of :class:`ValueValidator` subclasses.
-        Default is :attr:`VALUE_VALIDATORS`. The validators are passed to
-        :func:`validate_value`.
+
+    .. note:: Missing Key vs. Unknown Key
+
+       :MissingKey:
+            Applies: to a dictionary key.
+
+            Trigger: a key is missing from the dictionary.
+
+            Suppress: turn the `optional` setting on.
+            This allows the key to be completely missing from an outer dictionary.
+
+       :UnknownKey:
+            Applies: to a dictionary key.
+
+            Trigger: the dictionary contains a key which is not in
+            the dictionary's `inner_spec`.
+
+            Suppress: turn the `skip_unknown_keys` setting on
+            (of course on dictionary level).
 
     """
-    def __init__(self, datatype, inner_spec=None, skip_missing=False, skip_unknown=False, default=None):
+    def __init__(self, datatype, inner_spec=None, optional=False, skip_unknown_keys=False, default=None):
         if isinstance(datatype, type(self)):
             raise ValueError('Cannot use a Rule instance as datatype')
         self.datatype = datatype
         self.inner_spec = inner_spec
-        self.skip_missing = skip_missing
-        self.skip_unknown = skip_unknown
+        self.optional = optional
+        self.skip_unknown_keys = skip_unknown_keys
+        if default is not None and not isinstance(default, self.datatype):
+            raise ValueError('Default value must match datatype {0} (got {1})'.format(
+                self.datatype, default))
         self.default = default
 
         # sanity checks
@@ -75,7 +103,7 @@ class Rule:
             return True
 
 
-optional = lambda x:  canonize(x, {'skip_missing': True})
+optional = lambda x: canonize(x, rule_kwargs={'optional': True})
 
 
 def canonize(spec, rule_kwargs={}):
