@@ -28,7 +28,7 @@ import bson
 import pytest
 
 from monk.compat import text_type, safe_unicode
-from monk.schema import Rule, canonize, optional
+from monk.schema import Rule, canonize, optional, any_value, any_or_none
 from monk.validation import (
     validate, StructureSpecificationError,
     MissingKey, UnknownKey
@@ -391,3 +391,17 @@ class TestValidationRules:
             validate(spec, {'a': {}})
         prefix = '' if sys.version_info < (3,0) else 'monk.validation.'
         assert excinfo.exconly() == prefix + 'MissingKey: a: b'
+
+
+class TestRuleShortcuts:
+
+    def test_any_value(self):
+        assert any_value == Rule(None)
+
+    def test_any_or_none(self):
+        assert any_or_none == Rule(None, optional=True)
+        assert any_or_none == optional(any_value)
+
+    def test_optional(self):
+        assert optional(str) == Rule(str, optional=True)
+        assert optional(Rule(str)) == Rule(str, optional=True)

@@ -24,8 +24,16 @@ Schema Definition
 from . import compat
 
 
-__all__ = ['Rule', 'canonize', 'optional']
+__all__ = [
+    'Rule', 'canonize',
+    # shortcuts:
+    'any_value', 'optional'
+]
 
+
+#-------------------------------------------
+# Classes
+#
 
 class Rule:
     """
@@ -103,8 +111,9 @@ class Rule:
             return True
 
 
-optional = lambda x: canonize(x, rule_kwargs={'optional': True})
-
+#-------------------------------------------
+# Functions
+#
 
 def canonize(spec, rule_kwargs={}):
     """
@@ -134,3 +143,31 @@ def canonize(spec, rule_kwargs={}):
         rule = Rule(type(value), **kwargs)
 
     return rule
+
+
+#-------------------------------------------
+# Shortcuts
+#
+
+def optional(spec):
+    """
+    Returns a canonized `spec` marked as optional.
+    ::
+
+        >>> optional(str) == Rule(datatype=str, optional=True)
+        True
+
+    """
+    if isinstance(spec, Rule):
+        spec.optional = True
+        return spec
+    else:
+        return canonize(spec, rule_kwargs={'optional': True})
+
+
+any_value = Rule(None)
+"A shortcut for ``Rule(None)``"
+
+
+any_or_none = Rule(None, optional=True)
+"A shortcut for ``Rule(None, optional=True)"
