@@ -95,29 +95,29 @@ and the values are of correct types:
 
 .. code-block:: python
 
-    from monk.validation import validate_structure
+    from monk.validation import validate
 
     # correct data: staying silent
 
-    >>> validate_structure(spec, data)
+    >>> validate(spec, data)
 
     # a key is missing
 
-    >>> validate_structure(spec, {'title': 'Hello'})
+    >>> validate(spec, {'title': 'Hello'})
     Traceback (most recent call last):
        ...
-    monk.validation.MissingKey: comments
+    monk.errors.MissingKey: comments
 
     # a key is missing in a dictionary in a nested list
 
-    >>> validate_structure(spec, {'comments': [{'author': 'john'}]}
+    >>> validate(spec, {'comments': [{'author': 'john'}]}
     Traceback (most recent call last):
        ...
-    monk.validation.MissingKey: comments: date
+    monk.errors.MissingKey: comments: #0: date
 
     # type check; also works with functions and methods (by return value)
 
-    >>> validation.validate_structure(spec, {'title': 123, 'comments': []})
+    >>> validation.validate(spec, {'title': 123, 'comments': []})
     Traceback (most recent call last):
         ...
     TypeError: title: expected str, got int 123
