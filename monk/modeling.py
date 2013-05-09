@@ -115,8 +115,7 @@ class StructuredDictMixin(object):
     .. attribute:: structure
 
         The document structure specification. For details see
-        :func:`monk.validation.validate_structure_spec` and
-        :func:`monk.validation.validate_structure`.
+        :func:`monk.validation.validate`.
 
     """
     structure = {}
@@ -135,8 +134,5 @@ class StructuredDictMixin(object):
         for key, value in with_defaults.items():
             self[key] = value
 
-    def _validate_structure_spec(self):
-        validation.validate_structure_spec(self.structure)
-
     def validate(self):
-        validation.validate_structure(self.structure, self)
+        validation.validate(self.structure, self)

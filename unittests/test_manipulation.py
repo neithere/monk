@@ -24,6 +24,7 @@ Data manipulation tests
 import pytest
 
 from monk.compat import text_type as t
+from monk.schema import Rule
 from monk.manipulation import merged
 
 
@@ -140,4 +141,10 @@ class TestDocumentDefaults:
         spec = {'content': {'text': lambda: t('hello')}}
         data = {}
         expected = {'content': {'text': t('hello')}}
+        assert merged(spec, data) == expected
+
+    def test_rule_merger(self):
+        spec = {'foo': Rule(str, default='bar')}
+        data = {}
+        expected = {'foo': 'bar'}
         assert merged(spec, data) == expected

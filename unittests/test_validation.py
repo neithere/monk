@@ -22,237 +22,155 @@ Validation tests
 ================
 """
 import datetime
-import sys
 
 import bson
 import pytest
 
 from monk.compat import text_type, safe_unicode
-from monk.validation import (
-    validate_structure_spec, validate_structure, StructureSpecificationError,
-    MissingKey, UnknownKey, Rule, optional
-)
+from monk.errors import MissingKey, MissingValue, UnknownKey
+from monk.schema import Rule, optional, any_value, any_or_none
+from monk.validation import validate
 
 
-class TestStructureSpec:
-
-    def test_correct_types(self):
-        '`None` stands for "any value".'
-        validate_structure_spec({'foo': None})
-        validate_structure_spec({'foo': bool})
-        validate_structure_spec({'foo': dict})
-        validate_structure_spec({'foo': float})
-        validate_structure_spec({'foo': int})
-        validate_structure_spec({'foo': list})
-        validate_structure_spec({'foo': text_type})
-        validate_structure_spec({'foo': datetime.datetime})
-        validate_structure_spec({'foo': bson.Binary})
-        validate_structure_spec({'foo': bson.Code})
-        validate_structure_spec({'foo': bson.ObjectId})
-        validate_structure_spec({'foo': bson.DBRef})
-
-    def test_correct_structures(self):
-        # foo is of given type
-        validate_structure_spec({'foo': int})
-        # foo and bar are of given types
-        validate_structure_spec({'foo': int, 'bar': text_type})
-        # foo is a list of values of given type
-        validate_structure_spec({'foo': [int]})
-        # foo.bar is of given type
-        validate_structure_spec({'foo': {'bar': int}})
-        # foo.bar is a list of values of given type
-        validate_structure_spec({'foo': {'bar': [int]}})
-        # foo.bar is a list of mappings where each "baz" is of given type
-        validate_structure_spec({'foo': {'bar': [{'baz': [text_type]}]}})
-
-    def test_malformed_lists(self):
-        single_elem_err_msg = 'empty list or a list containing exactly 1 item'
-
-        with pytest.raises(StructureSpecificationError) as excinfo:
-            validate_structure_spec({'foo': [text_type, text_type]})
-        assert single_elem_err_msg in excinfo.exconly()
-
-        with pytest.raises(StructureSpecificationError) as excinfo:
-            validate_structure_spec({'foo': {'bar': [text_type, text_type]}})
-        assert single_elem_err_msg in excinfo.exconly()
-
-        with pytest.raises(StructureSpecificationError) as excinfo:
-            validate_structure_spec({'foo': {'bar': [{'baz': [text_type, text_type]}]}})
-        assert single_elem_err_msg in excinfo.exconly()
-
-
-class TestDocumentStructureValidation:
-
-    def test_correct_structures(self):
-        '''
-        # foo is of given type
-        validate_structure({'foo': int}, {}, skip_missing=True)
-        # foo and bar are of given types
-        validate_structure({'foo': int, 'bar': unicode}, {}, skip_missing=True)
-        # foo is a list of values of given type
-        validate_structure({'foo': [int]}, {}, skip_missing=True)
-        # foo.bar is of given type
-        validate_structure({'foo': {'bar': int}}, {}, skip_missing=True)
-        # foo.bar is a list of values of given type
-        validate_structure({'foo': {'bar': [int]}}, {}, skip_missing=True)
-        # foo.bar is a list of mappings where each "baz" is of given type
-        validate_structure({'foo': {'bar': [{'baz': [unicode]}]}}, {}, skip_missing=True)
-        '''
-
-    def test_malformed_lists(self):
-        pass
-
-    #---
-
-    def test_bad_types(self):
-        with pytest.raises(TypeError) as excinfo:
-            validate_structure({'a': int}, {'a': 'bad'})
-        assert "a: expected int, got str 'bad'" in excinfo.exconly()
-
-        with pytest.raises(TypeError) as excinfo:
-            validate_structure({'a': [int]}, {'a': 'bad'})
-        assert "a: expected list, got str 'bad'" in excinfo.exconly()
-
-        with pytest.raises(TypeError) as excinfo:
-            validate_structure({'a': [int]}, {'a': ['bad']})
-        assert "a: expected int, got str 'bad'" in excinfo.exconly()
-
-        with pytest.raises(TypeError) as excinfo:
-            validate_structure({'a': {'b': int}}, {'a': 'bad'})
-        assert "a: expected dict, got str 'bad'" in excinfo.exconly()
-
-        with pytest.raises(TypeError) as excinfo:
-            validate_structure({'a': {'b': int}}, {'a': {'b': 'bad'}})
-        assert "a: b: expected int, got str 'bad'" in excinfo.exconly()
-
-        with pytest.raises(TypeError) as excinfo:
-            validate_structure({'a': [{'b': [int]}]}, {'a': [{'b': ['bad']}]})
-        assert "a: b: expected int, got str 'bad'" in excinfo.exconly()
+class TestOverall:
 
     def test_empty(self):
-        validate_structure({'a': text_type}, {'a': None})
-        validate_structure({'a': list}, {'a': None})
-        validate_structure({'a': dict}, {'a': None})
 
-        # None is allowed to represent empty value, but bool(value)==False
-        # is not (unless bool is the correct type for this value)
-        validate_structure({'a': bool}, {'a': None})
-        validate_structure({'a': bool}, {'a': False})
+        # MISSING VALUE
+
+        validate({'a': optional(text_type)}, {'a': text_type('')})
+        with pytest.raises(MissingValue):
+            validate({'a': text_type}, {'a': None})
+
+        validate({'a': optional(dict)}, {'a': {}})
+        with pytest.raises(MissingValue):
+            validate({'a': dict}, {'a': None})
+
+        validate({'a': optional(list)}, {'a': []})
+        with pytest.raises(MissingValue):
+            validate({'a': list}, {'a': None})
+
+        validate({'a': bool}, {'a': True})
+        validate({'a': bool}, {'a': False})
+        validate({'a': optional(bool)}, {'a': None})
+        with pytest.raises(MissingValue):
+            validate({'a': bool}, {'a': None})
+
+        # TYPE ERROR
+
         with pytest.raises(TypeError):
-            validate_structure({'a': text_type}, {'a': False})
+            validate({'a': text_type}, {'a': False})
         with pytest.raises(TypeError):
-            validate_structure({'a': text_type}, {'a': 0})
+            validate({'a': text_type}, {'a': 0})
         with pytest.raises(TypeError):
-            validate_structure({'a': bool}, {'a': ''})
+            validate({'a': bool}, {'a': ''})
 
     def test_missing(self):
-        validate_structure({'a': text_type}, {}, skip_missing=True)
+
+        # MISSING KEY
+
+        validate({'a': Rule(text_type, optional=True)}, {})
         with pytest.raises(MissingKey):
-            validate_structure({'a': text_type}, {})
+            validate({'a': text_type}, {})
         with pytest.raises(MissingKey):
-            validate_structure({'a': text_type, 'b': int}, {'b': 1})
+            validate({'a': text_type, 'b': int}, {'b': 1})
 
     def test_unknown_keys(self):
-        validate_structure({}, {'x': 123}, skip_unknown=True)
+        # verbose notation
+        validate(Rule(dict, dict_skip_unknown_keys=True), {'x': 123})
+
+        # special behaviour: missing/empty inner_spec means "a dict of anything"
+        validate(Rule(dict), {'x': 123})
+
+        # inner_spec not empty, value matches it
+        validate({'x': None}, {'x': 123})
+
         with pytest.raises(UnknownKey):
-            validate_structure({}, {'x': 123})
+            validate({'x': None}, {'y': 123})
+
         with pytest.raises(UnknownKey):
-            validate_structure({'a': text_type}, {'a': text_type('A'), 'x': 123})
+            validate({'x': None}, {'x': 123, 'y': 456})
 
     def test_unknown_keys_encoding(self):
         with pytest.raises(UnknownKey):
-            validate_structure({'a': text_type}, {'привет': 1})
+            validate({'a': text_type}, {'привет': 1})
         with pytest.raises(UnknownKey):
-            validate_structure({'a': text_type}, {safe_unicode('привет'): 1})
+            validate({'a': text_type}, {safe_unicode('привет'): 1})
+
+
+class TestDataTypes:
 
     def test_bool(self):
-        validate_structure({'a': bool}, {'a': None})
-        validate_structure({'a': bool}, {'a': True})
-        validate_structure({'a': bool}, {'a': False})
+        validate({'a': bool}, {'a': True})
+        validate({'a': bool}, {'a': False})
 
     def test_bool_instance(self):
-        validate_structure({'a': True}, {'a': None})
-        validate_structure({'a': True}, {'a': True})
-        validate_structure({'a': True}, {'a': False})
+        validate({'a': True}, {'a': True})
+        validate({'a': True}, {'a': False})
 
     def test_dict(self):
-        validate_structure({'a': dict}, {'a': None})
-        validate_structure({'a': dict}, {'a': {}})
-        validate_structure({'a': dict}, {'a': {'b': 'c'}})
+        validate({'a': dict}, {'a': {}})
+        validate({'a': dict}, {'a': {'b': 'c'}})
 
     def test_dict_instance(self):
-        validate_structure({'a': {}}, {'a': None})
-        validate_structure({'a': {}}, {'a': {}})
-        validate_structure({'a': {}}, {'a': {'b': 123}})
+        validate({'a': {}}, {'a': {}})
+        validate({'a': {}}, {'a': {'b': 123}})
 
     def test_float(self):
-        validate_structure({'a': float}, {'a': None})
-        validate_structure({'a': float}, {'a': .5})
+        validate({'a': float}, {'a': .5})
 
     def test_float_instance(self):
-        validate_structure({'a': .2}, {'a': None})
-        validate_structure({'a': .2}, {'a': .5})
+        validate({'a': .2}, {'a': .5})
 
     def test_int(self):
-        validate_structure({'a': int}, {'a': None})
-        validate_structure({'a': int}, {'a': 123})
+        validate({'a': int}, {'a': 123})
 
     def test_int_instance(self):
-        validate_structure({'a': 1}, {'a': None})
-        validate_structure({'a': 1}, {'a': 123})
+        validate({'a': 1}, {'a': 123})
 
     def test_list(self):
-        validate_structure({'a': list}, {'a': None})
-        validate_structure({'a': list}, {'a': []})
-        validate_structure({'a': list}, {'a': ['b', 123]})
+        validate({'a': list}, {'a': []})
+        validate({'a': list}, {'a': ['b', 123]})
 
     def test_list_instance(self):
-        validate_structure({'a': []}, {'a': None})
-        validate_structure({'a': []}, {'a': []})
-        validate_structure({'a': []}, {'a': ['b', 123]})
+        validate({'a': []}, {'a': []})
+        validate({'a': []}, {'a': ['b', 123]})
 
-        validate_structure({'a': [int]}, {'a': None})
-        validate_structure({'a': [int]}, {'a': []})
-        validate_structure({'a': [int]}, {'a': [123]})
-        validate_structure({'a': [int]}, {'a': [123, 456]})
+        validate({'a': [int]}, {'a': []})
+        validate({'a': [int]}, {'a': [123]})
+        validate({'a': [int]}, {'a': [123, 456]})
         with pytest.raises(TypeError):
-            validate_structure({'a': [int]}, {'a': ['b', 123]})
+            validate({'a': [int]}, {'a': ['b', 123]})
         with pytest.raises(TypeError):
-            validate_structure({'a': [text_type]}, {'a': [{'b': 'c'}]})
+            validate({'a': [text_type]}, {'a': [{'b': 'c'}]})
 
     def test_unicode(self):
-        validate_structure({'a': text_type}, {'a': None})
-        validate_structure({'a': text_type}, {'a': text_type('hello')})
+        validate({'a': text_type}, {'a': text_type('hello')})
         with pytest.raises(TypeError):
-            validate_structure({'a': text_type}, {'a': 123})
+            validate({'a': text_type}, {'a': 123})
 
     def test_unicode_instance(self):
-        validate_structure({'a': text_type('foo')}, {'a': None})
-        validate_structure({'a': text_type('foo')}, {'a': text_type('hello')})
+        validate({'a': text_type('foo')}, {'a': text_type('hello')})
         with pytest.raises(TypeError):
-            validate_structure({'a': text_type('foo')}, {'a': 123})
+            validate({'a': text_type('foo')}, {'a': 123})
 
     def test_datetime(self):
-        validate_structure({'a': datetime.datetime}, {'a': None})
-        validate_structure({'a': datetime.datetime},
-                           {'a': datetime.datetime.utcnow()})
+        validate({'a': datetime.datetime},
+                 {'a': datetime.datetime.utcnow()})
         with pytest.raises(TypeError):
-            validate_structure({'a': datetime.datetime}, {'a': 123})
+            validate({'a': datetime.datetime}, {'a': 123})
 
     def test_datetime_instance(self):
-        validate_structure({'a': datetime.datetime(1900, 1, 1)}, {'a': None})
-        validate_structure({'a': datetime.datetime(1900, 1, 1)},
-                           {'a': datetime.datetime.utcnow()})
+        validate({'a': datetime.datetime(1900, 1, 1)},
+                 {'a': datetime.datetime.utcnow()})
         with pytest.raises(TypeError):
-            validate_structure({'a': datetime.datetime}, {'a': 123})
+            validate({'a': datetime.datetime}, {'a': 123})
 
     def test_objectid(self):
-        validate_structure({'a': bson.ObjectId}, {'a': None})
-        validate_structure({'a': bson.ObjectId}, {'a': bson.ObjectId()})
+        validate({'a': bson.ObjectId}, {'a': bson.ObjectId()})
 
     def test_dbref(self):
-        validate_structure({'a': bson.DBRef}, {'a': None})
-        validate_structure({'a': bson.DBRef},
+        validate({'a': bson.DBRef},
                            {'a': bson.DBRef('a', 'b')})
 
     def test_callable(self):
@@ -271,19 +189,19 @@ class TestDocumentStructureValidation:
             def ometh(self):
                 return 1
 
-        validate_structure({'a': func}, {'a': 2})
-        validate_structure({'a': Obj.smeth}, {'a': 2})
-        validate_structure({'a': Obj.cmeth}, {'a': 2})
-        validate_structure({'a': Obj().ometh}, {'a': 2})
+        validate({'a': func}, {'a': 2})
+        validate({'a': Obj.smeth}, {'a': 2})
+        validate({'a': Obj.cmeth}, {'a': 2})
+        validate({'a': Obj().ometh}, {'a': 2})
 
         with pytest.raises(TypeError):
-            validate_structure({'a': func}, {'a': 'foo'})
+            validate({'a': func}, {'a': 'foo'})
         with pytest.raises(TypeError):
-            validate_structure({'a': Obj.smeth}, {'a': 'foo'})
+            validate({'a': Obj.smeth}, {'a': 'foo'})
         with pytest.raises(TypeError):
-            validate_structure({'a': Obj.cmeth}, {'a': 'foo'})
+            validate({'a': Obj.cmeth}, {'a': 'foo'})
         with pytest.raises(TypeError):
-            validate_structure({'a': Obj().ometh}, {'a': 'foo'})
+            validate({'a': Obj().ometh}, {'a': 'foo'})
 
     def test_valid_document(self):
         "a complex document"
@@ -313,56 +231,312 @@ class TestDocumentStructureValidation:
                 },
             ],
         }
-        validate_structure(spec, data)
+        validate(spec, data)
 
 
-class TestValidationRules:
-    def test_simple(self):
-        # simple rule behaves as the spec within it
-        spec = {
-            'a': Rule(int),
-        }
-        validate_structure(spec, {'a': 1})
-        with pytest.raises(MissingKey):
-            validate_structure(spec, {})
-        with pytest.raises(TypeError):
-            validate_structure(spec, {'a': 'bogus'})
+class TestRuleSettings:
 
-    def test_skip_missing(self):
-        # the rule modifies behaviour of nested validator
-        spec = {
-            'a': optional(int),
-        }
-        validate_structure(spec, {})
+    def test_any_required(self):
+        "A value of any type"
 
-    def test_skip_missing_nested(self):
-        spec = {
-            'a': {'b': optional(int)},
-        }
+        # value is present
+        validate(Rule(datatype=None), 1)
 
-        validate_structure(spec, {'a': None})
+        # value is missing
+        with pytest.raises(MissingValue) as excinfo:
+            validate(Rule(datatype=None), None)
+        assert "MissingValue: expected a value, got None" in excinfo.exconly()
+
+    def test_any_optional(self):
+        "A value of any type or no value"
+
+        # value is present
+        validate(Rule(datatype=None, optional=True), 1)
+
+        # value is missing
+        validate(Rule(datatype=None, optional=True), None)
+
+    def test_typed_required(self):
+        "A value of given type"
+
+        # value is present and matches datatype
+        validate(Rule(int), 1)
+
+        # value is present but does not match datatype
+        with pytest.raises(TypeError) as excinfo:
+            validate(Rule(int), 'bogus')
+        assert "TypeError: expected int, got str 'bogus'" in excinfo.exconly()
+
+        # value is missing
+        with pytest.raises(MissingValue) as excinfo:
+            validate(Rule(int), None)
+        assert "MissingValue: expected int, got None" in excinfo.exconly()
+
+    def test_typed_optional(self):
+        "A value of given type or no value"
+
+        # value is present and matches datatype
+        validate(Rule(int, optional=True), 1)
+
+        # value is present but does not match datatype
+        with pytest.raises(TypeError) as excinfo:
+            validate(Rule(int), 'bogus')
+        assert "TypeError: expected int, got str 'bogus'" in excinfo.exconly()
+
+        # value is missing
+        validate(Rule(int, optional=True), None)
+
+    def test_typed_required_dict(self):
+        "A value of given type (dict)"
+
+        # value is present
+        validate(Rule(datatype=dict), {})
+
+        # value is missing
+        with pytest.raises(MissingValue) as excinfo:
+            validate(Rule(datatype=dict), None)
+        assert "MissingValue: expected dict, got None" in excinfo.exconly()
+
+    def test_typed_optional_dict(self):
+        "A value of given type (dict) or no value"
+
+        # value is present
+        validate(Rule(datatype=dict, optional=True), {})
+
+        # value is missing
+        validate(Rule(datatype=dict, optional=True), None)
+
+    def test_typed_required_list(self):
+        "A value of given type (list)"
+
+        # value is present
+        validate(Rule(datatype=list), [])
+
+        with pytest.raises(TypeError) as excinfo:
+            validate(Rule(datatype=list), 'bogus')
+        assert "TypeError: expected list, got str 'bogus'" in excinfo.exconly()
+
+        # value is missing
+        with pytest.raises(MissingValue) as excinfo:
+            validate(Rule(datatype=list), None)
+        assert "MissingValue: expected list, got None" in excinfo.exconly()
+
+    def test_typed_optional_list(self):
+        "A value of given type (list) or no value"
+
+        # value is present
+        validate(Rule(datatype=list, optional=True), [])
+
+        # value is missing
+        validate(Rule(datatype=list, optional=True), None)
+
+
+class TestNested:
+
+    def test_int_in_dict(self):
+        "A required int nested in a required dict"
+
+        spec = Rule(datatype=dict, inner_spec={'foo': int})
+
+        # key is missing
 
         with pytest.raises(MissingKey) as excinfo:
-            validate_structure(spec, {})
-        prefix = '' if sys.version_info < (3,0) else 'monk.validation.'
-        assert excinfo.exconly() == prefix + 'MissingKey: a'
+            validate(spec, {})
+        assert "MissingKey: foo" in excinfo.exconly()
 
-        validate_structure(spec, {'a': {}})
+        # key is present, value is missing
 
-    def test_skip_missing_nested_required(self):
-        "optional dict contains a dict with required values"
-        spec = {
-            'a': optional({'b': int}),
-        }
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': None})
+        assert "MissingValue: foo: expected int, got None" in excinfo.exconly()
 
-        # None is OK (optional)
-        validate_structure(spec, {'a': None})
+        # key is present, value is present
 
-        # empty dict is OK (optional)
-        validate_structure(spec, {})
+        validate(spec, {'foo': 1})
 
-        # empty subdict fails because only its parent is optional
+    def test_dict_in_dict(self):
+        "A required dict nested in another required dict"
+
+        spec = Rule(datatype=dict, inner_spec={'foo': dict})
+
+        # key is missing
+
         with pytest.raises(MissingKey) as excinfo:
-            validate_structure(spec, {'a': {}})
-        prefix = '' if sys.version_info < (3,0) else 'monk.validation.'
-        assert excinfo.exconly() == prefix + 'MissingKey: a: b'
+            validate(spec, {})
+        assert "MissingKey: foo" in excinfo.exconly()
+
+        # key is present, value is missing
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': None})
+        assert "MissingValue: foo: expected dict, got None" in excinfo.exconly()
+
+        # value is present
+
+        validate(spec, {'foo': {}})
+
+    def test_int_in_dict_in_dict(self):
+        "A required int nested in a required dict nested in another required dict"
+
+        spec = Rule(datatype=dict, inner_spec={
+            'foo': Rule(datatype=dict, inner_spec={
+                'bar': int})})
+
+        # inner key is missing
+
+        with pytest.raises(MissingKey) as excinfo:
+            validate(spec, {'foo': {}})
+        assert "MissingKey: foo: bar" in excinfo.exconly()
+
+        # inner key is present, inner value is missing
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': {'bar': None}})
+        assert "MissingValue: foo: bar: expected int, got None" in excinfo.exconly()
+
+        # inner value is present
+
+        validate(spec, {'foo': {'bar': 123}})
+
+    def test_int_in_optional_dict(self):
+        "A required int nested in an optional dict"
+
+        spec = Rule(datatype=dict, optional=True, inner_spec={'foo': int})
+
+        # outer optional value is missing
+
+        validate(spec, None)
+
+        # outer optional value is present, inner key is missing
+
+        with pytest.raises(MissingKey) as excinfo:
+            validate(spec, {})
+        assert "MissingKey: foo" in excinfo.exconly()
+
+        # inner key is present, inner value is missing
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': None})
+        assert "MissingValue: foo: expected int, got None" in excinfo.exconly()
+
+        # inner value is present
+
+        validate(spec, {'foo': 123})
+
+    def test_int_in_list(self):
+        spec = Rule(datatype=list, inner_spec=int)
+
+        # outer value is missing
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, None)
+        assert "MissingValue: expected list, got None" in excinfo.exconly()
+
+        # outer value is present, inner value is missing
+
+        validate(spec, [])
+
+        # inner value is present but is None
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, [None])
+        assert "MissingValue: #0: expected int, got None" in excinfo.exconly()
+
+        # inner value is present
+
+        validate(spec, [123])
+
+        # multiple inner values are present
+
+        validate(spec, [123, 456])
+
+        # one of the inner values is of a wrong type
+
+        with pytest.raises(TypeError) as excinfo:
+            validate(spec, [123, 'bogus'])
+        assert "TypeError: #1: expected int, got str 'bogus'" in excinfo.exconly()
+
+    def test_freeform_dict_in_list(self):
+        spec = Rule(datatype=list, inner_spec=dict)
+
+        # inner value is present
+
+        validate(spec, [{}])
+        validate(spec, [{'foo': 123}])
+
+        # multiple inner values are present
+
+        validate(spec, [{'foo': 123}, {'bar': 456}])
+
+        # one of the inner values is of a wrong type
+
+        with pytest.raises(TypeError) as excinfo:
+            validate(spec, [{}, 'bogus'])
+        assert "TypeError: #1: expected dict, got str 'bogus'" in excinfo.exconly()
+
+    def test_schemed_dict_in_list(self):
+        spec = Rule(datatype=list, inner_spec={'foo': int})
+
+        # dict in list: missing key
+
+        with pytest.raises(MissingKey) as excinfo:
+            validate(spec, [{}])
+
+        with pytest.raises(MissingKey) as excinfo:
+            validate(spec, [{'foo': 123}, {}])
+        assert "MissingKey: #1: foo" in excinfo.exconly()
+
+        # dict in list: missing value
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, [{'foo': None}])
+        assert "MissingValue: #0: foo: expected int, got None" in excinfo.exconly()
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, [{'foo': 123}, {'foo': None}])
+        assert "MissingValue: #1: foo: expected int, got None" in excinfo.exconly()
+
+        # multiple innermost values are present
+
+        validate(spec, [{'foo': 123}])
+        validate(spec, [{'foo': 123}, {'foo': 456}])
+
+        # one of the innermost values is of a wrong type
+
+        with pytest.raises(TypeError) as excinfo:
+            validate(spec, [{'foo': 123}, {'foo': 456}, {'foo': 'bogus'}])
+        assert "TypeError: #2: foo: expected int, got str 'bogus'" in excinfo.exconly()
+
+    def test_int_in_list_in_dict_in_list_in_dict(self):
+        spec = Rule(datatype=dict, inner_spec={'foo': [{'bar': [int]}]})
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': None})
+        assert "MissingValue: foo: expected list, got None" in excinfo.exconly()
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': [{'bar': None}]})
+        assert "MissingValue: foo: #0: bar: expected list, got None" in excinfo.exconly()
+
+        validate(spec, {'foo': []})
+        validate(spec, {'foo': [{'bar': []}]})
+        validate(spec, {'foo': [{'bar': [1]}]})
+        validate(spec, {'foo': [{'bar': [1, 2]}]})
+
+        with pytest.raises(TypeError) as excinfo:
+            validate(spec, {'foo': [{'bar': [1, 'bogus']}]})
+        assert "TypeError: foo: #0: bar: #1: expected int, got str 'bogus'" in excinfo.exconly()
+
+
+class TestRuleShortcuts:
+
+    def test_any_value(self):
+        assert any_value == Rule(None)
+
+    def test_any_or_none(self):
+        assert any_or_none == Rule(None, optional=True)
+        assert any_or_none == optional(any_value)
+
+    def test_optional(self):
+        assert optional(str) == Rule(str, optional=True)
+        assert optional(Rule(str)) == Rule(str, optional=True)

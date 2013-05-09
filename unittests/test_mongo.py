@@ -27,6 +27,7 @@ import pytest
 
 from bson import DBRef, ObjectId
 from monk import mongo
+from monk.schema import optional
 from monk.compat import text_type as t
 
 
@@ -165,7 +166,7 @@ class TestMongo:
     class Entry(mongo.Document):
         collection = 'entries'
         structure = {
-            '_id': ObjectId,
+            '_id': optional(ObjectId),
             'title': t,
         }
 

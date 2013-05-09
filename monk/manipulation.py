@@ -25,6 +25,7 @@ Data manipulation
 
     Default sequence of mergers:
 
+    * :class:`RuleMerger`
     * :class:`TypeMerger`
     * :class:`DictMerger`
     * :class:`ListMerger`
@@ -33,12 +34,13 @@ Data manipulation
 
 """
 from monk import compat
+from monk.schema import Rule
 
 
 __all__ = [
     # mergers
     'ValueMerger', 'TypeMerger', 'DictMerger', 'ListMerger', 'FuncMerger',
-    'AnyMerger',
+    'AnyMerger', 'RuleMerger',
     # functions
     'merge_value', 'merged',
     # helpers
@@ -67,6 +69,26 @@ class ValueMerger(object):
         Subclasses must overload this method.
         """
         raise NotImplementedError  # pragma: nocover
+
+
+class RuleMerger(ValueMerger):
+    """ Rule. Uses defaults, if any.
+    Example::
+
+        >>> TypeMerger(int, None).process()
+        None
+        >>> TypeMerger(int, 123).process()
+        123
+
+    """
+    def check(self):
+        return isinstance(self.spec, Rule)
+
+    def process(self):
+        if self.value is None:
+            return self.spec.default
+        else:
+            return self.value
 
 
 class TypeMerger(ValueMerger):
@@ -168,7 +190,7 @@ class AnyMerger(ValueMerger):
             return self.value
 
 
-VALUE_MERGERS = TypeMerger, DictMerger, ListMerger, FuncMerger, AnyMerger
+VALUE_MERGERS = RuleMerger, TypeMerger, DictMerger, ListMerger, FuncMerger, AnyMerger
 
 
 def merge_value(spec, value, mergers):
@@ -199,7 +221,7 @@ def merged(spec, data, mergers=VALUE_MERGERS):
 
     Does not validate values. If `data` overrides a default value, it is
     trusted. The result can be validated later with
-    :func:`~monk.validation.validate_structure`.
+    :func:`~monk.validation.validate`.
 
     Note that a key/value pair is added from `spec` either if `data` does not
     define this key at all, or if the value is ``None``. This behaviour may not

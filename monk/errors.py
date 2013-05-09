@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 #
 #    Monk is an unobtrusive data modeling, manipulation and validation library.
 #    Copyright © 2011—2013  Andrey Mikhaylenko
@@ -18,18 +18,30 @@
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with Monk.  If not, see <http://gnu.org/licenses/>.
 """
-Monk
-====
-
-A simple schema validation layer for pymongo_. Inspired by MongoKit and Doqu.
-
-.. _pymongo: http://api.mongodb.org/python/current/
-
+Exceptions
+~~~~~~~~~~
 """
-__version__ = '0.7.0'
-# remember to also update:
-#
-# * PKGBUILD
-#   * version
-# * hg tag
-#
+class ValidationError(Exception):
+    "Raised when a document or its part cannot pass validation."
+
+
+class StructureSpecificationError(ValidationError):
+    "Raised when malformed document structure is detected."
+
+
+class MissingValue(ValidationError):
+    """ Raised when the value is `None` and the rule neither allows this
+    (i.e. a `datatype` is defined) nor provides a `default` value.
+    """
+
+
+class MissingKey(ValidationError):
+    """ Raised when a dictionary key is defined in :attr:`Rule.inner_spec`
+    but is missing from the value.
+    """
+
+
+class UnknownKey(ValidationError):
+    """ Raised whan the value dictionary contains a key which is not
+    in the dictionary's :attr:`Rule.inner_spec`.
+    """
