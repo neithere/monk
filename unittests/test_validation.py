@@ -313,6 +313,10 @@ class TestRuleSettings:
         # value is present
         validate(Rule(datatype=list), [])
 
+        with pytest.raises(TypeError) as excinfo:
+            validate(Rule(datatype=list), 'bogus')
+        assert "TypeError: expected list, got str 'bogus'" in excinfo.exconly()
+
         # value is missing
         with pytest.raises(MissingValue) as excinfo:
             validate(Rule(datatype=list), None)
