@@ -67,18 +67,12 @@ def validate_dict(rule, value):
     The specification can be any dictionary, whether empty or not. It will be
     treated as a separate document.
     """
-    if not isinstance(value, dict):
-        raise TypeError('expected {spec.__name__}, got '
-                        '{valtype.__name__} {value!r}'.format(
-                        spec=dict, valtype=type(value),
-                        value=value))
+    validate_type(rule, value)
 
     if not rule.inner_spec:
         # spec is {} which means "a dict of anything"
         return
 
-    # compare the two structures; nested dictionaries are included in the
-    # comparison but nested lists are opaque and will be dealt with later on.
     spec_keys = set(rule.inner_spec.keys() if rule.inner_spec else [])
     data_keys = set(value.keys() if value else [])
     unknown = data_keys - spec_keys
@@ -87,7 +81,6 @@ def validate_dict(rule, value):
         raise UnknownKey('Unknown keys: {0}'.format(
             ', '.join(compat.safe_str(x) for x in unknown)))
 
-    # check types and deal with nested lists
     for key in spec_keys | data_keys:
         subrule = canonize(rule.inner_spec.get(key))
         if key in data_keys:
@@ -136,17 +129,7 @@ def validate_list(rule, value):
     item_spec = canonize(rule.inner_spec[0])
 
     for item in value:
-        if item_spec == dict or isinstance(item, dict):
-
-            # value is a dict; expected something else
-            if isinstance(item, dict) and not item_spec.datatype == dict:
-                raise TypeError('expected {spec}, got a dictionary'.format(
-                    spec=item_spec))
-
-            # validate each value in the list as a separate document
-            validate(item_spec, item)
-        else:
-            validate_type(item_spec, item)
+        validate(item_spec, item)
 
 
 def validate_type(rule, value):
