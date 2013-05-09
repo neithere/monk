@@ -101,17 +101,17 @@ class Rule:
         # sanity checks
 
         if default is not None and self.datatype and not isinstance(default, self.datatype):
-            raise ValueError('Default value must match datatype {0} (got {1})'.format(
-                self.datatype, default))
+            raise TypeError('Default value must match datatype {0} (got {1})'.format(
+                self.datatype.__name__, default))
 
         if self.inner_spec and not isinstance(self.inner_spec, self.datatype):
-            raise ValueError('Inner spec must match datatype {0} (got {1})'.format(
-                self.datatype, inner_spec))
+            raise TypeError('Inner spec must match datatype {0} (got {1})'.format(
+                self.datatype.__name__, inner_spec))
 
     def __repr__(self):
         return '<Rule {datatype}{optional}{default}{inner_spec}{skip_unknown_keys}>'.format(
             datatype=('any' if self.datatype is None else
-                str(self.datatype).replace('<','').replace('>','')),
+                self.datatype.__name__),
             optional=(' optional' if self.optional else ' required'),
             skip_unknown_keys=(' skip-unknown-keys' if self.skip_unknown_keys else ''),
             default=(' default={0}'.format(self.default)
