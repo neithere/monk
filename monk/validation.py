@@ -23,41 +23,13 @@ Validation
 """
 from . import compat
 from .schema import canonize
-
+from . import errors
 
 __all__ = [
-    # errors
-    'ValidationError', 'StructureSpecificationError', 'MissingKey',
-    'UnknownKey',
     # functions
     'validate'
 ]
 
-
-class ValidationError(Exception):
-    "Raised when a document or its part cannot pass validation."
-
-
-class StructureSpecificationError(ValidationError):
-    "Raised when malformed document structure is detected."
-
-
-class MissingValue(ValidationError):
-    """ Raised when the value is `None` and the rule neither allows this
-    (i.e. a `datatype` is defined) nor provides a `default` value.
-    """
-
-
-class MissingKey(ValidationError):
-    """ Raised when a dictionary key is defined in :attr:`Rule.inner_spec`
-    but is missing from the value.
-    """
-
-
-class UnknownKey(ValidationError):
-    """ Raised whan the value dictionary contains a key which is not
-    in the dictionary's :attr:`Rule.inner_spec`.
-    """
 
 
 def validate_dict(rule, value):
@@ -76,10 +48,10 @@ def validate_dict(rule, value):
     spec_keys = set(rule.inner_spec.keys() if rule.inner_spec else [])
     data_keys = set(value.keys() if value else [])
     unknown = data_keys - spec_keys
-    missing = spec_keys - data_keys
+    #missing = spec_keys - data_keys
 
     if unknown and not rule.dict_skip_unknown_keys:
-        raise UnknownKey('Unknown keys: {0}'.format(
+        raise errors.UnknownKey('Unknown keys: {0}'.format(
             ', '.join(compat.safe_str(x) for x in unknown)))
 
     for key in spec_keys | data_keys:
@@ -88,12 +60,12 @@ def validate_dict(rule, value):
             value_ = value.get(key)
             try:
                 validate(subrule, value_)
-            except (ValidationError, TypeError) as e:
+            except (errors.ValidationError, TypeError) as e:
                 raise type(e)('{k}: {e}'.format(k=key, e=e))
         else:
             if subrule.optional:
                 continue
-            raise MissingKey('{0}'.format(key))
+            raise errors.MissingKey('{0}'.format(key))
 
 
 def validate_list(rule, value):
@@ -120,21 +92,18 @@ def validate_list(rule, value):
         # spec is [] which means "a list of anything"
         return
 
-    # FIXME this belongs to the internals of canonize()
-    #       and the "first item as spec for inner collection" thing
-    #       should go to a special Rule attribute
-    if 1 < len(rule.inner_spec):
-        raise StructureSpecificationError(
-            'Expected an empty list or a list containing exactly 1 item; '
-            'got {cnt}: {spec}'.format(cnt=len(rule.inner_spec), spec=rule.inner_spec))
-    item_spec = canonize(rule.inner_spec[0])
+    item_spec = canonize(rule.inner_spec)
+    assert item_spec
+    print('canonize', rule.inner_spec, '->', item_spec)
 
     # XXX custom validation stuff can be inserted here, e.g. min/max items
 
+    print('value:', value)
     for i, item in enumerate(value):
+        print('  item #', i,  'spec:', item_spec, 'item:', item)
         try:
             validate(item_spec, item)
-        except (ValidationError, TypeError) as e:
+        except (errors.ValidationError, TypeError) as e:
             raise type(e)('#{i}: {e}'.format(i=i, e=e))
 
 
@@ -188,9 +157,9 @@ def validate(rule, value):
             return
 
         if rule.datatype is None:
-            raise MissingValue('expected a value, got None')
+            raise errors.MissingValue('expected a value, got None')
         else:
-            raise MissingValue('expected {0}, got None'.format(rule.datatype.__name__))
+            raise errors.MissingValue('expected {0}, got None'.format(rule.datatype.__name__))
 
     if rule.datatype is None:
         # any value is acceptable

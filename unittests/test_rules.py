@@ -24,6 +24,7 @@ Schema Rules Tests
 import datetime
 import pytest
 
+from monk import errors
 from monk.schema import Rule, canonize
 
 
@@ -48,12 +49,18 @@ class TestRule:
             Rule(str, default=123)
         assert excinfo.exconly() == 'TypeError: Default value must match datatype str (got 123)'
 
+    @pytest.mark.xfail
     def test_sanity_inner_spec(self):
+        #
+        # this won't work because only dict wants a dict as its inner_spec;
+        # a list doesn't need this duplication.
+        #
         Rule(dict)
         Rule(dict, inner_spec={})
         with pytest.raises(TypeError) as excinfo:
             Rule(dict, inner_spec=123)
         assert excinfo.exconly() == 'TypeError: Inner spec must match datatype dict (got 123)'
+
 
 class TestCanonization:
 
@@ -85,7 +92,13 @@ class TestCanonization:
 
     def test_list(self):
         assert canonize(list) == Rule(list)
-        assert canonize([1,2]) == Rule(list, inner_spec=[1,2])
+
+        assert canonize([]) == Rule(list, default=[])
+
+        with pytest.raises(errors.StructureSpecificationError) as excinfo:
+            canonize([1,2])
+        assert ("StructureSpecificationError: Expected a list "
+                "containing exactly 1 item; got 2: [1, 2]") in excinfo.exconly()
 
     def test_string(self):
         assert canonize(str) == Rule(str)

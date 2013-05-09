@@ -21,7 +21,7 @@
 Schema Definition
 ~~~~~~~~~~~~~~~~~
 """
-from . import compat
+from . import compat, errors
 
 
 __all__ = [
@@ -104,9 +104,9 @@ class Rule:
             raise TypeError('Default value must match datatype {0} (got {1})'.format(
                 self.datatype.__name__, default))
 
-        if self.inner_spec and not isinstance(self.inner_spec, self.datatype):
-            raise TypeError('Inner spec must match datatype {0} (got {1})'.format(
-                self.datatype.__name__, inner_spec))
+#        if self.inner_spec and not isinstance(self.inner_spec, self.datatype):
+#            raise TypeError('Inner spec must match datatype {0} (got {1})'.format(
+#                self.datatype.__name__, inner_spec))
 
     def __repr__(self):
         return '<Rule {datatype}{optional}{default}{inner_spec}{skip_unknown_keys}>'.format(
@@ -147,13 +147,26 @@ def canonize(spec, rule_kwargs={}):
     elif type(value) in compat.func_types:
         real_value = value()
         kwargs = dict(rule_kwargs, default=real_value)
-        rule = Rule(type(real_value), **kwargs)
-    elif type(value) in (dict, list):
+        rule = Rule(datatype=type(real_value), **kwargs)
+    elif isinstance(value, list):
+        if value == []:
+            # no inner spec, just an empty list as the default value
+            kwargs = dict(rule_kwargs, default=value)
+            rule = Rule(datatype=list, **kwargs)
+        elif len(value) == 1:
+            # the only item as spec for each item of the collection
+            kwargs = dict(rule_kwargs, inner_spec=value[0])
+            rule = Rule(datatype=list, **kwargs)
+        else:
+            raise errors.StructureSpecificationError(
+                'Expected a list containing exactly 1 item; '
+                'got {cnt}: {spec}'.format(cnt=len(value), spec=value))
+    elif isinstance(value, dict):
         kwargs = dict(rule_kwargs, inner_spec=value)
-        rule = Rule(type(value), **kwargs)
+        rule = Rule(datatype=dict, **kwargs)
     else:
         kwargs = dict(rule_kwargs, default=value)
-        rule = Rule(type(value), **kwargs)
+        rule = Rule(datatype=type(value), **kwargs)
 
     return rule
 

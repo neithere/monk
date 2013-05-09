@@ -27,10 +27,9 @@ import bson
 import pytest
 
 from monk.compat import text_type, safe_unicode
+from monk.errors import MissingKey, MissingValue, UnknownKey
 from monk.schema import Rule, optional, any_value, any_or_none
-from monk.validation import (
-    validate, MissingValue, MissingKey, UnknownKey
-)
+from monk.validation import validate
 
 
 class TestOverall:
@@ -425,7 +424,7 @@ class TestNested:
         validate(spec, {'foo': 123})
 
     def test_int_in_list(self):
-        spec = Rule(datatype=list, inner_spec=[int])
+        spec = Rule(datatype=list, inner_spec=int)
 
         # outer value is missing
 
@@ -458,7 +457,7 @@ class TestNested:
         assert "TypeError: #1: expected int, got str 'bogus'" in excinfo.exconly()
 
     def test_freeform_dict_in_list(self):
-        spec = Rule(datatype=list, inner_spec=[dict])
+        spec = Rule(datatype=list, inner_spec=dict)
 
         # inner value is present
 
@@ -476,7 +475,7 @@ class TestNested:
         assert "TypeError: #1: expected dict, got str 'bogus'" in excinfo.exconly()
 
     def test_schemed_dict_in_list(self):
-        spec = Rule(datatype=list, inner_spec=[{'foo': int}])
+        spec = Rule(datatype=list, inner_spec={'foo': int})
 
         # dict in list: missing key
 
