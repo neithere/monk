@@ -33,53 +33,7 @@ from monk.validation import (
 )
 
 
-class TestNaturalValidation:
-
-    def test_correct_structures(self):
-        '''
-        # foo is of given type
-        validate({'foo': int}, {}, optional=True)
-        # foo and bar are of given types
-        validate({'foo': int, 'bar': unicode}, {}, optional=True)
-        # foo is a list of values of given type
-        validate({'foo': [int]}, {}, optional=True)
-        # foo.bar is of given type
-        validate({'foo': {'bar': int}}, {}, optional=True)
-        # foo.bar is a list of values of given type
-        validate({'foo': {'bar': [int]}}, {}, optional=True)
-        # foo.bar is a list of mappings where each "baz" is of given type
-        validate({'foo': {'bar': [{'baz': [unicode]}]}}, {}, optional=True)
-        '''
-
-    def test_malformed_lists(self):
-        pass
-
-    #---
-
-    def test_bad_types(self):
-        with pytest.raises(TypeError) as excinfo:
-            validate({'a': int}, {'a': 'bad'})
-        assert "a: expected int, got str 'bad'" in excinfo.exconly()
-
-        with pytest.raises(TypeError) as excinfo:
-            validate({'a': [int]}, {'a': 'bad'})
-        assert "a: expected list, got str 'bad'" in excinfo.exconly()
-
-        with pytest.raises(TypeError) as excinfo:
-            validate({'a': [int]}, {'a': ['bad']})
-        assert "a: #0: expected int, got str 'bad'" in excinfo.exconly()
-
-        with pytest.raises(TypeError) as excinfo:
-            validate({'a': {'b': int}}, {'a': 'bad'})
-        assert "a: expected dict, got str 'bad'" in excinfo.exconly()
-
-        with pytest.raises(TypeError) as excinfo:
-            validate({'a': {'b': int}}, {'a': {'b': 'bad'}})
-        assert "a: b: expected int, got str 'bad'" in excinfo.exconly()
-
-        with pytest.raises(TypeError) as excinfo:
-            validate({'a': [{'b': [int]}]}, {'a': [{'b': ['bad']}]})
-        assert "a: #0: b: #0: expected int, got str 'bad'" in excinfo.exconly()
+class TestOverall:
 
     def test_empty(self):
 
@@ -143,6 +97,9 @@ class TestNaturalValidation:
             validate({'a': text_type}, {'привет': 1})
         with pytest.raises(UnknownKey):
             validate({'a': text_type}, {safe_unicode('привет'): 1})
+
+
+class TestDataTypes:
 
     def test_bool(self):
         validate({'a': bool}, {'a': True})
@@ -278,7 +235,7 @@ class TestNaturalValidation:
         validate(spec, data)
 
 
-class TestValidationRules:
+class TestRuleSettings:
 
     def test_any_required(self):
         "A value of any type"
@@ -371,7 +328,7 @@ class TestValidationRules:
         validate(Rule(datatype=list, optional=True), None)
 
 
-class TestValidationRulesNested:
+class TestNested:
 
     def test_int_in_dict(self):
         "A required int nested in a required dict"
