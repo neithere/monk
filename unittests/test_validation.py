@@ -141,7 +141,7 @@ class TestNaturalValidation:
 
         # MISSING VALUE
 
-        validate({'a': optional(text_type)}, {'a': ''})
+        validate({'a': optional(text_type)}, {'a': text_type('')})
         with pytest.raises(MissingValue):
             validate({'a': text_type}, {'a': None})
 
