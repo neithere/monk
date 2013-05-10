@@ -196,4 +196,4 @@ any_value = Rule(None)
 
 
 any_or_none = Rule(None, optional=True)
-"A shortcut for ``Rule(None, optional=True)"
+"A shortcut for ``Rule(None, optional=True)``"

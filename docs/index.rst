@@ -8,6 +8,7 @@ Details
 
    api
    glossary
+   faq
 
 Indices and tables
 ------------------
