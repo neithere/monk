@@ -50,7 +50,7 @@ def validate_dict(rule, value):
     unknown = data_keys - spec_keys
     #missing = spec_keys - data_keys
 
-    if unknown and not rule.dict_skip_unknown_keys:
+    if unknown and not rule.dict_allow_unknown_keys:
         raise errors.UnknownKey('Unknown keys: {0}'.format(
             ', '.join(compat.safe_str(x) for x in unknown)))
 

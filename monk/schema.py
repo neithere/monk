@@ -56,7 +56,7 @@ class Rule:
         ``bool``; if ``True``, :class:`~monk.validation.MissingValue`
         is never raised.  Default is ``False``.
 
-    :param dict_skip_unknown_keys:
+    :param dict_allow_unknown_keys:
         ``bool``; if ``True``, :class:`~monk.validation.UnknownKey`
         is never raised.  Default is ``False``.
 
@@ -85,17 +85,17 @@ class Rule:
             Trigger: the dictionary contains a key which is not in
             the dictionary's `inner_spec`.
 
-            Suppress: turn the `dict_skip_unknown_keys` setting on
+            Suppress: turn the `dict_allow_unknown_keys` setting on
             (of course on dictionary level).
 
     """
-    def __init__(self, datatype, inner_spec=None, optional=False, dict_skip_unknown_keys=False, default=None):
+    def __init__(self, datatype, inner_spec=None, optional=False, dict_allow_unknown_keys=False, default=None):
         if isinstance(datatype, type(self)):
             raise ValueError('Cannot use a Rule instance as datatype')
         self.datatype = datatype
         self.inner_spec = inner_spec
         self.optional = optional
-        self.dict_skip_unknown_keys = dict_skip_unknown_keys
+        self.dict_allow_unknown_keys = dict_allow_unknown_keys
         self.default = default
 
         # sanity checks
@@ -109,11 +109,11 @@ class Rule:
 #                self.datatype.__name__, inner_spec))
 
     def __repr__(self):
-        return '<Rule {datatype}{optional}{default}{inner_spec}{skip_unknown_keys}>'.format(
+        return '<Rule {datatype}{optional}{default}{inner_spec}{allow_unknown_keys}>'.format(
             datatype=('any' if self.datatype is None else
                 self.datatype.__name__),
             optional=(' optional' if self.optional else ' required'),
-            skip_unknown_keys=(' dict:skip-unknown-keys' if self.dict_skip_unknown_keys else ''),
+            allow_unknown_keys=(' dict:allow-unknown-keys' if self.dict_allow_unknown_keys else ''),
             default=(' default={0}'.format(self.default)
                      if self.default is not None else ''),
             inner_spec=(' inner_spec={0}'.format(self.inner_spec)

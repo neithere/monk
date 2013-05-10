@@ -77,7 +77,7 @@ class TestOverall:
 
     def test_unknown_keys(self):
         # verbose notation
-        validate(Rule(dict, dict_skip_unknown_keys=True), {'x': 123})
+        validate(Rule(dict, dict_allow_unknown_keys=True), {'x': 123})
 
         # special behaviour: missing/empty inner_spec means "a dict of anything"
         validate(Rule(dict), {'x': 123})
