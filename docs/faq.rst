@@ -88,9 +88,15 @@ Monk comes with a MongoDB extension but since v.0.6 the dependency is optional.
 Is Monk stable enough?
 ----------------------
 
+**It depends** on requirements.  Feel free to use Monk in personal apps and
+prototypes.  Avoid using it in production until v.1.0 is out (or expect minor
+changes in the API and therefore ensure good coverage of your code).
+
 :quality:
     More than 90% of code is covered by tests.  The key modules are fully
     covered.
 
 :stability:
-    The API is still not very stable.
+    The API is still evolving but the core is considered stable since v.0.7.
+    Even serious changes under the hood barely affect the public interface.
+
