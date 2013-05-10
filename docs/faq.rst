@@ -19,8 +19,8 @@ What problems does Monk solve?
 * Defining schemata in a universal way for different backends
 * Keeping it simple
 
-What does Monk do?
-------------------
+How does Monk solve these problems?
+-----------------------------------
 
 1. defines two mutually complementary schema conventions:
 
@@ -32,11 +32,6 @@ What does Monk do?
 3. manipulates data with regard to specs;
 
 4. provides an optional ODM for MongoDB based on the above-mentioned features.
-
-What are the downsides of Monk?
--------------------------------
-
-* Monk API is still not very stable.
 
 Is Monk a standalone tool or a building block for ODMs?
 -------------------------------------------------------
@@ -53,8 +48,8 @@ Is Monk validation usable only for documents?
 ---------------------------------------------
 
 **No.**
-It is possible to validate any value, be it a string, a number
-or a full-blown document with multiple nested dictionaries.
+It is possible to validate any value, be it a string, a number, a custom class
+instance or a full-blown document with multiple nested dictionaries.
 
 Why are there two ways of schema declaration?
 ---------------------------------------------
@@ -89,3 +84,13 @@ Do I need MongoDB to use Monk?
 
 **No.**
 Monk comes with a MongoDB extension but since v.0.6 the dependency is optional.
+
+Is Monk stable enough?
+----------------------
+
+:quality:
+    More than 90% of code is covered by tests.  The key modules are fully
+    covered.
+
+:stability:
+    The API is still not very stable.
