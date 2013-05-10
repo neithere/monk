@@ -4,8 +4,20 @@ Frequently Asked Questions
 What are the primary use cases of Monk?
 ---------------------------------------
 
+…
+
 Why would I want to use Monk?
 -----------------------------
+
+…
+
+What problems does Monk solve?
+------------------------------
+
+* Validation of arbitrary data
+* Populating incomplete documents with regard to a schema
+* Defining schemata in a universal way for different backends
+* Keeping it simple
 
 What does Monk do?
 ------------------
@@ -21,8 +33,13 @@ What does Monk do?
 
 4. provides an optional ODM for MongoDB based on the above-mentioned features.
 
-Is Monk a usable library or a building block for ODMs?
-------------------------------------------------------
+What are the downsides of Monk?
+-------------------------------
+
+* Monk API is still not very stable.
+
+Is Monk a standalone tool or a building block for ODMs?
+-------------------------------------------------------
 
 **Both.**
 
@@ -72,10 +89,3 @@ Do I need MongoDB to use Monk?
 
 **No.**
 Monk comes with a MongoDB extension but since v.0.6 the dependency is optional.
-
-What problems does Monk solve?
-------------------------------
-
-What are the downsides of Monk?
--------------------------------
-
