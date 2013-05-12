@@ -85,6 +85,12 @@ Do I need MongoDB to use Monk?
 **No.**
 Monk comes with a MongoDB extension but since v.0.6 the dependency is optional.
 
+Does Monk support DBRefs and other MongoDB features?
+----------------------------------------------------
+
+**Yes.**
+However, there's room for improvement.  Feel free to submit your use cases.
+
 Is Monk stable enough?
 ----------------------
 

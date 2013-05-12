@@ -122,7 +122,8 @@ def validate(rule, value):
     Always returns ``None``.
 
     :rule:
-        a :class:`~monk.schema.Rule` instance.
+        a :class:`~monk.schema.Rule` instance or any other value digestible
+        by :func:`canonize`.
     :value:
         any value including complex structures.
 
