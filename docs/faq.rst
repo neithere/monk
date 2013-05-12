@@ -100,3 +100,7 @@ changes in the API and therefore ensure good coverage of your code).
     The API is still evolving but the core is considered stable since v.0.7.
     Even serious changes under the hood barely affect the public interface.
 
+What are the alternatives?
+--------------------------
+
+See :doc:`similar`.

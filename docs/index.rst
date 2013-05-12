@@ -9,6 +9,7 @@ Details
    api
    glossary
    faq
+   similar
 
 Indices and tables
 ------------------
