@@ -82,19 +82,19 @@ MongoEngine_
 
   Semantically equivalent schema in Monk (without classes)::
 
-      user = {'name': str}
+      user_schema = {'name': str}
 
-      comment = {
+      comment_schema = {
           'author': ObjectId,   # see monk.modeling; still needs work
           'content': str,
           'added': datetime.datetime.utcnow,
       }
 
-      post = {
+      post_schema = {
           'title': str,
           'author': ObjectId,
           'tag': [ optional(str) ],
-          'comments': [ optional(comment) ]
+          'comments': [ optional(comment_schema) ]
       }
 
   MongoEngine allows things like ``StringField(max_length=30)`` (traditional
@@ -105,6 +105,67 @@ MongoEngine_
   MongoEngine is tightly bound to MongoDB and provides many database-specific
   features which are not present in Monk (e.g. defining deletion policy of
   referred documents).
+
+Colander_
+  Declarative and imperative schema declaration (for "static" and dynamically
+  generated data models).  Very verbose, class-based.  Similar to traditional
+  ORMs but more flexible and generalized: there are tuple/mapping/sequence
+  schemata with nested "schema nodes" and/or other schemata.  Supports
+  inheritance.
+
+  Colander example (from tutorial)::
+
+      import colander
+
+      class Friend(colander.TupleSchema):
+          rank = colander.SchemaNode(colander.Int(),
+                                     validator=colander.Range(0, 9999))
+          name = colander.SchemaNode(colander.String())
+
+      class Phone(colander.MappingSchema):
+          location = colander.SchemaNode(colander.String(),
+                                         validator=colander.OneOf(['home', 'work']))
+          number = colander.SchemaNode(colander.String())
+
+      class Friends(colander.SequenceSchema):
+          friend = Friend()
+
+      class Phones(colander.SequenceSchema):
+          phone = Phone()
+
+      class Person(colander.MappingSchema):
+          name = colander.SchemaNode(colander.String())
+          age = colander.SchemaNode(colander.Int(),
+                                    validator=colander.Range(0, 200))
+          friends = Friends()
+          phones = Phones()
+
+  Semantically equivalent schema in Monk (without classes)::
+
+      from monk import Rule
+      from monk import validators
+
+      friend_schema = {
+          'rank': Rule(int, validators=[validators.range(0, 9999)]),
+          'name': str
+      }
+      phone_schema = {
+          'location': Rule(str, validators=[validators.choice('home', 'work')]),
+          'number': str,
+      }
+      person_schema = {
+          'name': str,
+          'age': Rule(int, validators=[validators.range(0, 200)]),
+          'friends': [ friend_schema ],
+          'phones': [ phone_schema ],
+      }
+
+  .. warning::
+
+     At the moment Monk does not support `Rule(validators=...)`.
+     See issue8_
+
+  .. _issue8: https://bitbucket.org/neithere/monk/issue/8/user-can-pass-a-list-of-custom-validators
 
 Validation
 ----------
@@ -129,6 +190,15 @@ MongoEngine_
   Only very basic validators (required, unique, choices) are tunable. Custom
   validation implies custom field classes.  For each field.  Ouch.
 
+Colander_
+  A `SchemaNode` instance validates a value by a) the `SchemaType` bound
+  to its class, and b) by an optional validator passed to the constructor
+  (a selection of common validators is bundled in the `colander` module).
+
+  It takes time to even grasp the terminology, not to mention the code (which
+  is very clean and well-documented but presented as a 2K+ LOC module that
+  handles all flavours of schema declaration + validation + serialization).
+
 Manipulation
 ------------
 
@@ -148,6 +218,40 @@ MongoEngine_
   validation.
 
   Supports callable defaults.
+
+Colander_
+  Focused on (de)serialization (which is closer to normalization)::
+
+      >>> class MySchema(colander.MappingSchema):
+      ...     age = colander.SchemaNode(colander.Int())
+      ...
+      >>> schema = MySchema()
+      >>> schema.deserialize({'age': '20'})
+      {'age': 20}
+
+  Supports optional `preparer functions`_ per node to prepare deserialized data
+  for validation (e.g. strip whitespace, etc.).
+
+  In general, this functionality is very useful (and not bound to a concrete
+  storage backend).  Not sure if Monk should embrace it, though.
+
+  `SchemaNode` also contains `utility functions`_ to manipulate an `appstruct`
+  or a `cstruct`:
+
+  * (un)flattening a data structure::
+
+        >>> schema.flatten({'a': [{'b': 123}]})
+        {'a.0.b': 123}
+
+  * accessing and mutating nodes in a data structure::
+
+        rank = schema.get_value(appstruct, 'friends.2.rank')
+        schema.set_value(appstruct, 'friends.2.rank', rank + 5000)
+
+    (which resembles the MongoDB document updating API)
+
+  .. _preparer functions: http://docs.pylonsproject.org/projects/colander/en/latest/basics.html#preparing-deserialized-data-for-validation
+  .. _utility functions: http://docs.pylonsproject.org/projects/colander/en/latest/manipulation.html
 
 Modeling
 --------
@@ -197,6 +301,9 @@ MongoEngine_
   :polymorphism (document inheritance):
     Yes.
 
+Colander_
+  No modeling as such.
+
 MongoDB extension
 -----------------
 
@@ -217,4 +324,5 @@ MongoEngine_
 
 .. _MongoKit: http://namlook.github.io/mongokit/
 .. _MongoEngine: https://mongoengine-odm.readthedocs.org
+.. _Colander: http://docs.pylonsproject.org/projects/colander/en/latest/basics.html
 
