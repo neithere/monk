@@ -160,7 +160,14 @@ Colander_
           'phones': [ phone_schema ],
       }
 
-  .. warning::
+  .. note:: Tuples
+
+     Monk does not support fixed-size tuples with named arguments.
+     It is possible to specify `tuple` as the datatype but you'll need
+     to subclass `Rule` in order to combine this datatype with an `inner_spec`
+     in a meaningful manner.
+
+  .. warning:: Validators
 
      At the moment Monk does not support `Rule(validators=...)`.
      See issue8_
