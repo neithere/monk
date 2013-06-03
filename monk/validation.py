@@ -51,8 +51,8 @@ def validate_dict(rule, value):
     #missing = spec_keys - data_keys
 
     if unknown and not rule.dict_allow_unknown_keys:
-        raise errors.UnknownKey('Unknown keys: {0}'.format(
-            ', '.join(compat.safe_str(x) for x in unknown)))
+        raise errors.UnknownKey('"{0}"'.format(
+            '", "'.join(compat.safe_str(x) for x in unknown)))
 
     for key in spec_keys | data_keys:
         subrule = canonize(rule.inner_spec.get(key))
