@@ -21,7 +21,7 @@
 Schema Definition
 ~~~~~~~~~~~~~~~~~
 """
-from . import compat, errors
+from . import compat, errors, validators
 
 
 __all__ = [
@@ -60,6 +60,9 @@ class Rule:
         ``bool``; if ``True``, :class:`~monk.validation.UnknownKey`
         is never raised.  Default is ``False``.
 
+    :param validators:
+        a list of callables.
+
     .. note:: Missing Value vs. Missing Key vs. Unknown Key
 
        :MissingValue:
@@ -89,7 +92,8 @@ class Rule:
             (of course on dictionary level).
 
     """
-    def __init__(self, datatype, inner_spec=None, optional=False, dict_allow_unknown_keys=False, default=None):
+    def __init__(self, datatype, inner_spec=None, optional=False,
+                 dict_allow_unknown_keys=False, default=None, validators=None):
         if isinstance(datatype, type(self)):
             raise ValueError('Cannot use a Rule instance as datatype')
         self.datatype = datatype
@@ -97,6 +101,7 @@ class Rule:
         self.optional = optional
         self.dict_allow_unknown_keys = dict_allow_unknown_keys
         self.default = default
+        self.validators = validators or []
 
         # sanity checks
 
@@ -197,3 +202,63 @@ any_value = Rule(None)
 
 any_or_none = Rule(None, optional=True)
 "A shortcut for ``Rule(None, optional=True)``"
+
+
+def one_of(choices, first_is_default=False):
+    """
+    A shortcut::
+
+        choices = ['foo', 'bar']
+
+        # these expressions are equal:
+
+        one_of(choices)
+
+        Rule(str, validators=[monk.validators.validate_choice(choices)])
+
+        # default value can be taken from the first choice:
+
+        one_of(choices, first_is_default=True)
+
+        Rule(str, default=choices[0],
+             validators=[monk.validators.choice(choices)])
+
+    """
+    assert choices
+
+    if first_is_default:
+        default_choice = choices[0]
+    else:
+        default_choice = None
+
+    return Rule(datatype=type(default_choice),
+                default=default_choice,
+                validators=[validators.validate_choice(choices)])
+
+
+def in_range(start, stop, first_is_default=False):
+    """
+    A shortcut::
+
+        # these expressions are equal:
+
+        in_range(0, 200)
+
+        Rule(str, validators=[monk.validators.validate_range(0, 200)])
+
+        # default value can be taken from the first choice:
+
+        in_range(0, 200, first_is_default=True)
+
+        Rule(str, default=0,
+             validators=[monk.validators.validate_range(0, 200)])
+
+    """
+    if first_is_default:
+        default_value = start
+    else:
+        default_value = None
+
+    return Rule(datatype=int,
+                default=default_value,
+                validators=[validators.validate_range(start, stop)])

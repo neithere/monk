@@ -167,13 +167,6 @@ Colander_
      to subclass `Rule` in order to combine this datatype with an `inner_spec`
      in a meaningful manner.
 
-  .. warning:: Validators
-
-     At the moment Monk does not support `Rule(validators=...)`.
-     See issue8_
-
-  .. _issue8: https://bitbucket.org/neithere/monk/issue/8/user-can-pass-a-list-of-custom-validators
-
 Validation
 ----------
 

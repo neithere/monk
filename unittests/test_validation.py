@@ -27,7 +27,7 @@ import bson
 import pytest
 
 from monk.compat import text_type, safe_unicode
-from monk.errors import MissingKey, MissingValue, UnknownKey
+from monk.errors import MissingKey, MissingValue, UnknownKey, ValidationError
 from monk.schema import Rule, optional, any_value, any_or_none
 from monk.validation import validate
 
@@ -540,3 +540,45 @@ class TestRuleShortcuts:
     def test_optional(self):
         assert optional(str) == Rule(str, optional=True)
         assert optional(Rule(str)) == Rule(str, optional=True)
+
+
+class TestCustomValidators:
+
+    def test_single(self):
+        def validate_foo(value):
+            if value != 'foo':
+                raise ValidationError('value must be "foo"')
+
+        spec = Rule(str, validators=[validate_foo])
+
+        validate(spec, 'foo')
+
+        with pytest.raises(ValidationError) as excinfo:
+            validate(spec, 'bar')
+        assert 'value must be "foo"' in excinfo.exconly()
+
+    def test_multiple(self):
+
+        def validate_gt_2(value):
+            if value <= 2:
+                raise ValidationError('value must be greater than 2')
+
+        def validate_lt_5(value):
+            if 5 <= value:
+                raise ValidationError('value must be lesser than 5')
+
+        spec = Rule(int, validators=[validate_gt_2, validate_lt_5])
+
+        # first validator fails
+        with pytest.raises(ValidationError) as excinfo:
+            validate(spec, 1)
+        assert 'value must be greater than 2' in excinfo.exconly()
+
+        # both validators ok
+        validate(spec, 3)
+
+        # second validator fails
+        with pytest.raises(ValidationError) as excinfo:
+            validate(spec, 6)
+        assert 'value must be lesser than 5' in excinfo.exconly()
+

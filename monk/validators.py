@@ -18,18 +18,29 @@
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with Monk.  If not, see <http://gnu.org/licenses/>.
 """
-Monk
-====
-
-A simple schema validation layer for pymongo_. Inspired by MongoKit and Doqu.
-
-.. _pymongo: http://api.mongodb.org/python/current/
-
+Validators
+~~~~~~~~~~
 """
-__version__ = '0.8.0'
-# remember to also update:
-#
-# * PKGBUILD
-#   * version
-# * hg tag
-#
+from monk.errors import ValidationError
+
+
+def validate_choice(choices):
+    def _validate_choice(value):
+        if value not in choices:
+            raise ValidationError('expected one of {0}, got {1!r}'.format(choices, value))
+    return _validate_choice
+
+
+def validate_range(start, stop):
+    def _validate_range(value):
+        if not start <= value <= stop:
+            raise ValidationError('expected value in range {0}..{1}, got {2!r}'.format(start, stop, value))
+    return _validate_range
+
+
+def validate_length(expected):
+    def _validate_length(value):
+        if len(value) != expected:
+            raise ValidationError('expected value of length {0}, got {1!r}'.format(expected, value))
+    return _validate_length
+

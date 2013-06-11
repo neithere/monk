@@ -170,3 +170,6 @@ def validate(rule, value):
         assert not rule.inner_spec
         if isinstance(rule.datatype, type):
             validate_type(rule, value)
+
+    for validator in rule.validators:
+        validator(value)
