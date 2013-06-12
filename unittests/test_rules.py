@@ -25,7 +25,7 @@ import datetime
 import pytest
 
 from monk import errors
-from monk.schema import Rule, canonize
+from monk.schema import Rule, canonize, one_of, any_value, any_or_none
 
 
 class TestRule:
@@ -107,3 +107,31 @@ class TestCanonization:
     def test_rule(self):
         rule = Rule(str, default='abc', optional=True)
         assert rule == canonize(rule)
+
+
+class TestShortcuts:
+
+    def test_any_value(self):
+        assert any_value == Rule(None)
+
+    def test_any_or_none(self):
+        assert any_or_none == Rule(None, optional=True)
+
+    def test_one_of(self):
+        shortcut_rule = one_of(['foo', 'bar'])
+        # in this case the custom validator is an ad-hoc function
+        # so two otherwise identical rules with such semantically equivalent
+        # validators will always be considered different; we just strip this
+        # function to compare the rest
+        shortcut_rule.validators = []
+        verbose_rule = Rule(datatype=str, default=None)
+        assert shortcut_rule == verbose_rule
+
+        assert 1 == len(one_of(['foo', 'bar']).validators)
+
+        v = one_of(['foo', 'bar']).validators[0]
+        v('foo')
+        with pytest.raises(errors.ValidationError) as excinfo:
+            v('quux')
+        assert "expected one of ['foo', 'bar']" in excinfo.exconly()
+

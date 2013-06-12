@@ -231,7 +231,7 @@ def one_of(choices, first_is_default=False):
     else:
         default_choice = None
 
-    return Rule(datatype=type(default_choice),
+    return Rule(datatype=type(choices[0]),
                 default=default_choice,
                 validators=[validators.validate_choice(choices)])
 
