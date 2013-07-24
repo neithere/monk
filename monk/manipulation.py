@@ -62,6 +62,8 @@ def merge_dict_value(spec, value):
     if value is not None and not isinstance(value, dict):
         # bogus value; will not pass validation but should be preserved
         return value
+    if spec.optional and value is None:
+        return None
     return merged(spec.inner_spec or {}, value or {})
 
 

@@ -24,7 +24,7 @@ Data manipulation tests
 import pytest
 
 from monk.compat import text_type as t
-from monk.schema import Rule
+from monk.schema import Rule, optional
 from monk.manipulation import merged
 
 
@@ -152,4 +152,27 @@ class TestDocumentDefaults:
         spec = {'foo': Rule(str, default='bar')}
         data = {}
         expected = {'foo': 'bar'}
+        assert merged(spec, data) == expected
+
+    def test_required_inside_optional_dict(self):
+        spec = {'foo': optional({'a': 1, 'b': optional(2)})}
+
+        data = {}
+        expected = {'foo': None}
+        assert merged(spec, data) == expected
+
+        data = {'foo': None}
+        expected = {'foo': None}
+        assert merged(spec, data) == expected
+
+        data = {'foo': {}}
+        expected = {'foo': {'a': 1, 'b': 2}}
+        assert merged(spec, data) == expected
+
+        data = {'foo': {'a': 3}}
+        expected = {'foo': {'a': 3, 'b': 2}}
+        assert merged(spec, data) == expected
+
+        data = {'foo': {'b': 3}}
+        expected = {'foo': {'a': 1, 'b': 3}}
         assert merged(spec, data) == expected
