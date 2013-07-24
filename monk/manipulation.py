@@ -25,7 +25,7 @@ Data manipulation
 
     Default sequence of mergers:
 
-    * :class:`RuleMerger`
+    * :class:`ExplicitDefaultMerger`
     * :class:`TypeMerger`
     * :class:`DictMerger`
     * :class:`ListMerger`
@@ -34,13 +34,13 @@ Data manipulation
 
 """
 from monk import compat
-from monk.schema import Rule, canonize
+from monk.schema import canonize
 
 
 __all__ = [
     # mergers
     'ValueMerger', 'TypeMerger', 'DictMerger', 'ListMerger', 'FuncMerger',
-    'AnyMerger', 'RuleMerger',
+    'AnyMerger', 'ExplicitDefaultMerger',
     # functions
     'merge_value', 'merged',
     # helpers
@@ -52,7 +52,7 @@ class ValueMerger(object):
     """ Base class for value mergers.
     """
     def __init__(self, spec, value):
-        self.spec = spec
+        self.spec = canonize(spec)
         self.value = value
 
     def check(self):
@@ -71,7 +71,7 @@ class ValueMerger(object):
         raise NotImplementedError  # pragma: nocover
 
 
-class RuleMerger(ValueMerger):
+class ExplicitDefaultMerger(ValueMerger):
     """ Rule. Uses defaults, if any.
     Example::
 
@@ -82,13 +82,34 @@ class RuleMerger(ValueMerger):
 
     """
     def check(self):
-        return isinstance(self.spec, Rule)
+        return self.spec.default
 
     def process(self):
         if self.value is None:
             return self.spec.default
         else:
             return self.value
+
+
+class AnyMerger(ValueMerger):
+    """ The "any value" merger.
+
+    Example::
+
+        >>> AnyMerger(None, None).process()
+        None
+        >>> AnyMerger(None, 123).process()
+        123
+
+    """
+    def check(self):
+        return (self.spec.datatype is None
+            and self.spec.default is None
+            and not self.spec.inner_spec)
+
+    def process(self):
+        # there's no default value for this key, just a restriction on type
+        return self.value
 
 
 class TypeMerger(ValueMerger):
@@ -102,7 +123,7 @@ class TypeMerger(ValueMerger):
 
     """
     def check(self):
-        return isinstance(self.spec, type)
+        return self.spec.datatype is not None
 
     def process(self):
         # there's no default value for this key, just a restriction on type
@@ -120,36 +141,35 @@ class DictMerger(ValueMerger):
 
     """
     def check(self):
-        return self.spec == dict or isinstance(self.spec, dict)
+        return self.spec.datatype == dict
 
     def process(self):
         if self.value is not None and not isinstance(self.value, dict):
             # bogus value; will not pass validation but should be preserved
             return self.value
-        return merged(self.spec or {}, self.value or {})
+        return merged(self.spec.inner_spec or {}, self.value or {})
 
 
 class ListMerger(ValueMerger):
     """ Nested list.
     """
     def check(self):
-        return self.spec == list or isinstance(self.spec, list)
+        return self.spec.datatype == list
 
     def process(self):
-        spec = self.spec[0] if self.spec else None
-        rule = canonize(spec)
+        item_spec = self.spec.inner_spec or None
+        item_rule = canonize(item_spec)
 
         if not self.value:
             return []
 
-        if rule.datatype is None:
+        if item_rule.datatype is None:
             # any value is accepted as list item
             return self.value
-        elif rule.inner_spec:
-            return [merged(rule.inner_spec, item) for item in self.value]
+        elif item_rule.inner_spec:
+            return [merged(item_rule.inner_spec, item) for item in self.value]
         else:
-            if len(self.spec) == 1:
-                return self.value
+            return self.value
 
 
 class FuncMerger(ValueMerger):
@@ -173,20 +193,17 @@ class FuncMerger(ValueMerger):
             return self.value
 
 
-class AnyMerger(ValueMerger):
-    """ Any value from spec that can be checked for type.
+class PassThroughMerger(ValueMerger):
+    """ Lets any value pass.
     """
     def check(self):
         return True
 
     def process(self):
-        if self.value is None:
-            return self.spec
-        else:
-            return self.value
+        return self.value
 
 
-VALUE_MERGERS = RuleMerger, TypeMerger, DictMerger, ListMerger, FuncMerger, AnyMerger
+VALUE_MERGERS = ExplicitDefaultMerger, AnyMerger, DictMerger, ListMerger, FuncMerger, TypeMerger, PassThroughMerger
 
 
 def merge_value(spec, value, mergers):
