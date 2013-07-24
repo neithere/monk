@@ -130,9 +130,7 @@ class StructuredDictMixin(object):
         (see :func:`monk.manipulation.merged`).
         """
         with_defaults = manipulation.merged(self.structure, self)
-
-        for key, value in with_defaults.items():
-            self[key] = value
+        self.update(with_defaults)
 
     def validate(self):
         validation.validate(self.structure, self)
