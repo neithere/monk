@@ -34,7 +34,7 @@ Data manipulation
 
 """
 from monk import compat
-from monk.schema import Rule
+from monk.schema import Rule, canonize
 
 
 __all__ = [
@@ -136,24 +136,20 @@ class ListMerger(ValueMerger):
         return self.spec == list or isinstance(self.spec, list)
 
     def process(self):
-        item_spec = self.spec[0] if self.spec else None
-        if isinstance(item_spec, type):
-            if self.value and len(self.spec) == 1:
-                return self.value
-            else:
-                return []
-        elif isinstance(item_spec, dict):
-            # list of dictionaries
-            if self.value:
-                return [merged(item_spec, item) for item in self.value]
-            else:
-                return []
-        elif item_spec == None:
+        spec = self.spec[0] if self.spec else None
+        rule = canonize(spec)
+
+        if not self.value:
+            return []
+
+        if rule.datatype is None:
             # any value is accepted as list item
             return self.value
+        elif rule.inner_spec:
+            return [merged(rule.inner_spec, item) for item in self.value]
         else:
-            # probably default list item like [1]
-            return self.value
+            if len(self.spec) == 1:
+                return self.value
 
 
 class FuncMerger(ValueMerger):
@@ -275,7 +271,7 @@ def unfold_list_of_dicts(value, default_key):
         if not all(isinstance(x, dict) for x in value):
             def _fix(x):
                 return {default_key: x} if isinstance(x, unicode) else x
-            return [_fix(x) for x in value]
+            return map(_fix, value)
     return value
 
 

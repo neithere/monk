@@ -68,6 +68,11 @@ class TestDocumentDefaults:
         assert {'a': [123]} == merged({'a': [int]}, {'a': [123]})
         assert {'a': [123, 456]} == merged({'a': [int]}, {'a': [123, 456]})
 
+    def test_rule_in_list(self):
+        assert {'a': []} == merged({'a': [Rule(datatype=int)]}, {'a': []})
+        assert {'a': []} == merged({'a': [Rule(datatype=int)]}, {'a': None})
+        assert {'a': []} == merged({'a': [Rule(datatype=int)]}, {})
+
     def test_instance(self):
         assert {'a': 1} == merged({'a': 1}, {})
 
