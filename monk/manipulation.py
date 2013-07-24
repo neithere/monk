@@ -19,28 +19,14 @@
 #    along with Monk.  If not, see <http://gnu.org/licenses/>.
 """
 Data manipulation
-=================
-
-.. attribute:: VALUE_MERGERS
-
-    Default sequence of mergers:
-
-    * :class:`ExplicitDefaultMerger`
-    * :class:`TypeMerger`
-    * :class:`DictMerger`
-    * :class:`ListMerger`
-    * :class:`FuncMerger`
-    * :class:`AnyMerger`
-
+~~~~~~~~~~~~~~~~~
 """
-from monk import compat
 from monk.schema import canonize
 
 
 __all__ = [
-    # mergers
-    'ValueMerger', 'TypeMerger', 'DictMerger', 'ListMerger', 'FuncMerger',
-    'AnyMerger', 'ExplicitDefaultMerger',
+    # merger functions
+    'merge_any_value', 'merge_dict_value', 'merge_list_value',
     # functions
     'merge_value', 'merged',
     # helpers
@@ -48,188 +34,98 @@ __all__ = [
 ]
 
 
-class ValueMerger(object):
-    """ Base class for value mergers.
-    """
-    def __init__(self, spec, value):
-        self.spec = canonize(spec)
-        self.value = value
-
-    def check(self):
-        """ Returns ``True`` if this merger can handle given spec/value pair,
-        otherwise returns ``False``.
-
-        Subclasses must overload this method.
-        """
-        raise NotImplementedError  # pragma: nocover
-
-    def process(self):
-        """ Returns a merged version or `self.spec` and `self.value`.
-
-        Subclasses must overload this method.
-        """
-        raise NotImplementedError  # pragma: nocover
-
-
-class ExplicitDefaultMerger(ValueMerger):
-    """ Rule. Uses defaults, if any.
-    Example::
-
-        >>> TypeMerger(int, None).process()
-        None
-        >>> TypeMerger(int, 123).process()
-        123
-
-    """
-    def check(self):
-        return self.spec.default
-
-    def process(self):
-        if self.value is None:
-            return self.spec.default
-        else:
-            return self.value
-
-
-class AnyMerger(ValueMerger):
+def merge_any_value(spec, value):
     """ The "any value" merger.
 
     Example::
 
-        >>> AnyMerger(None, None).process()
+        >>> merge_any_value(None, None)
         None
-        >>> AnyMerger(None, 123).process()
+        >>> merge_any_value(None, 123)
         123
 
     """
-    def check(self):
-        return (self.spec.datatype is None
-            and self.spec.default is None
-            and not self.spec.inner_spec)
-
-    def process(self):
-        # there's no default value for this key, just a restriction on type
-        return self.value
-
-
-class TypeMerger(ValueMerger):
-    """ Type definition. Preserves empty values.
-    Example::
-
-        >>> TypeMerger(int, None).process()
-        None
-        >>> TypeMerger(int, 123).process()
-        123
-
-    """
-    def check(self):
-        return self.spec.datatype is not None
-
-    def process(self):
-        # there's no default value for this key, just a restriction on type
-        return self.value
-
-
-class DictMerger(ValueMerger):
-    """ Nested dictionary.
-    Example::
-
-        >>> DictMerger({'a': 123}, {}).process()
-        {'a': 123}
-        >>> DictMerger({'a': 123}, {'a': 456}).process()
-        {'a': 456}
-
-    """
-    def check(self):
-        return self.spec.datatype == dict
-
-    def process(self):
-        if self.value is not None and not isinstance(self.value, dict):
-            # bogus value; will not pass validation but should be preserved
-            return self.value
-        return merged(self.spec.inner_spec or {}, self.value or {})
-
-
-class ListMerger(ValueMerger):
-    """ Nested list.
-    """
-    def check(self):
-        return self.spec.datatype == list
-
-    def process(self):
-        item_spec = self.spec.inner_spec or None
-        item_rule = canonize(item_spec)
-
-        if not self.value:
-            return []
-
-        if item_rule.datatype is None:
-            # any value is accepted as list item
-            return self.value
-        elif item_rule.inner_spec:
-            return [merged(item_rule.inner_spec, item) for item in self.value]
-        else:
-            return self.value
-
-
-class FuncMerger(ValueMerger):
-    """ Default value is obtained from a function with no arguments.
-    It is expected that the callable does not have side effects.
-    Example::
-
-        >>> FuncMerger(lambda: 123, None).process()
-        123
-        >>> FuncMerger(lambda: 123, 456).process()
-        456
-
-    """
-    def check(self):
-        return isinstance(self.spec, compat.func_types)
-
-    def process(self):
-        if self.value is None:
-            return self.spec()
-        else:
-            return self.value
-
-
-class PassThroughMerger(ValueMerger):
-    """ Lets any value pass.
-    """
-    def check(self):
-        return True
-
-    def process(self):
-        return self.value
-
-
-VALUE_MERGERS = ExplicitDefaultMerger, AnyMerger, DictMerger, ListMerger, FuncMerger, TypeMerger, PassThroughMerger
-
-
-def merge_value(spec, value, mergers):
-    """ Returns a merged value based on given spec and data, using given
-    sequence of mergers.
-
-    The mergers are expected to be subclasses of :class:`ValueMerger`.
-    They are polled one by one; the first one that agrees to process given
-    value is used to produce the result.
-
-    Example::
-
-        >>> merge_value({'a': 123}, {}, [DictMerger])
-        {'a': 123}
-        >>> merge_value({'a': 123}, {'a': 456}, [DictMerger])
-        {'a': 456}
-
-    """
-    for merger_class in mergers:
-        merger = merger_class(spec, value)
-        if merger.check():
-            return merger.process()
+    # there's no default value for this key, just a restriction on type
     return value
 
 
-def merged(spec, data, mergers=VALUE_MERGERS):
+def merge_dict_value(spec, value):
+    """ Nested dictionary.
+    Example::
+
+        >>> merge_dict_value({'a': 123}, {})
+        {'a': 123}
+        >>> merge_dict_value({'a': 123}, {'a': 456})
+        {'a': 456}
+
+    """
+    if value is not None and not isinstance(value, dict):
+        # bogus value; will not pass validation but should be preserved
+        return value
+    return merged(spec.inner_spec or {}, value or {})
+
+
+def merge_list_value(spec, value):
+    """ Nested list.
+    """
+    item_spec = spec.inner_spec or None
+    item_rule = canonize(item_spec)
+
+    if not value:
+        return []
+
+    if item_rule.datatype is None:
+        # any value is accepted as list item
+        return value
+    elif item_rule.inner_spec:
+        return [merged(item_rule.inner_spec, item) for item in value]
+    else:
+        return value
+
+
+DATATYPE_MERGERS = {
+    dict: merge_dict_value,
+    list: merge_list_value,
+}
+"The default set of type-specific value mergers"
+
+
+def merge_value(spec, value, datatype_mergers,
+                fallback_merger=merge_any_value):
+    """ Returns a merged value based on given spec and data, using given
+    set of mergers.
+
+    If `value` is empty and `spec` has a default value, the default is used.
+
+    If spec datatype is present as a key in `datatype_mergers`,
+    the respective merger function is used to obtain the value.
+    If no merger is assigned to the datatype, `fallback_merger` is used.
+
+    :datatype_mergers:
+        A list of merger functions assigned to specific types of values.
+
+        A merger function should accept two arguments: `spec`
+        (a :class:`~monk.schema.Rule` instance) and `value`.
+
+    Example::
+
+        >>> merge_value({'a': 123}, {}, [merge_dict_value])
+        {'a': 123}
+        >>> merge_value({'a': 123}, {'a': 456}, [merge_dict_value])
+        {'a': 456}
+
+    """
+    rule = canonize(spec)
+
+    if value is None and rule.default is not None:
+        return rule.default
+
+    merger = datatype_mergers.get(rule.datatype, fallback_merger)
+
+    return merger(rule, value)
+
+
+def merged(spec, data, datatype_mergers=DATATYPE_MERGERS):
     """ Returns a dictionary based on `spec` + `data`.
 
     Does not validate values. If `data` overrides a default value, it is
@@ -258,7 +154,8 @@ def merged(spec, data, mergers=VALUE_MERGERS):
 
     for key in set(list(spec.keys()) + list(data.keys())):
         if key in spec:
-            value = merge_value(spec[key], data.get(key), mergers=mergers)
+            value = merge_value(spec[key], data.get(key),
+                                datatype_mergers=datatype_mergers)
         else:
             # never mind if there are nested structures: anyway we cannot check
             # them as they aren't in the spec
