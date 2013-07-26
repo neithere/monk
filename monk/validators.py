@@ -25,6 +25,18 @@ from monk.errors import ValidationError
 
 
 def validate_choice(choices):
+    """
+    Checks whether the value belongs to given set of choices
+    ::
+
+        >>> check = validate_choice(['a', 'c'])
+        >>> check('a')
+        >>> check('b')
+        Traceback (most recent call last):
+        ...
+        monk.errors.ValidationError: expected one of ['a', 'c'], got 'b'
+
+    """
     def _validate_choice(value):
         if value not in choices:
             raise ValidationError('expected one of {0}, got {1!r}'.format(choices, value))
@@ -32,6 +44,19 @@ def validate_choice(choices):
 
 
 def validate_range(start, stop):
+    """
+    Checks whether the numeric value belongs to given range
+    ::
+
+        >>> check = validate_range(0,1)
+        >>> check(0)
+        >>> check(1)
+        >>> check(2)
+        Traceback (most recent call last):
+        ...
+        monk.errors.ValidationError: expected value in range 0..1, got 2
+
+    """
     def _validate_range(value):
         if not start <= value <= stop:
             raise ValidationError('expected value in range {0}..{1}, got {2!r}'.format(start, stop, value))
@@ -39,6 +64,19 @@ def validate_range(start, stop):
 
 
 def validate_length(expected):
+    """
+    Checks whether the value is of given length
+    ::
+
+        >>> check = validate_length(2)
+        >>> check('ab')
+        >>> check([1, 2])
+        >>> check('abc')
+        Traceback (most recent call last):
+        ...
+        monk.errors.ValidationError: expected value of length 2, got 'abc'
+
+    """
     def _validate_length(value):
         if len(value) != expected:
             raise ValidationError('expected value of length {0}, got {1!r}'.format(expected, value))

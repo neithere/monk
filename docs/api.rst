@@ -7,6 +7,9 @@ API reference
 .. automodule:: monk.validation
    :members:
 
+.. automodule:: monk.validators
+   :members:
+
 .. automodule:: monk.manipulation
    :members:
 

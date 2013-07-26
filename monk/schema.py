@@ -27,7 +27,7 @@ from . import compat, errors, validators
 __all__ = [
     'Rule', 'canonize',
     # shortcuts:
-    'any_value', 'any_or_none', 'optional'
+    'any_value', 'any_or_none', 'optional', 'in_range', 'one_of'
 ]
 
 
@@ -206,7 +206,8 @@ any_or_none = Rule(None, optional=True)
 
 def one_of(choices, first_is_default=False):
     """
-    A shortcut::
+    A shortcut for a rule with :func:`~monk.validators.validate_choice` validator.
+    ::
 
         choices = ['foo', 'bar']
 
@@ -238,7 +239,8 @@ def one_of(choices, first_is_default=False):
 
 def in_range(start, stop, first_is_default=False):
     """
-    A shortcut::
+    A shortcut for a rule with :func:`~monk.validators.validate_range` validator.
+    ::
 
         # these expressions are equal:
 

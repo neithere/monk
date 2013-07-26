@@ -51,6 +51,34 @@ You are free to design as complex a document as you need.
 The `manipulation` and `validation` functions (described below) support
 arbitrary nested structures.
 
+When this "natural" pythonic approach is not sufficient, you can mix it with
+a more verbose notation, e.g.::
+
+    title_spec = Rule(datatype=str, default='Untitled', validators=[...])
+
+There are also neat shortcuts::
+
+    spec = {
+        'url': optional(str),
+        'status': one_of(['new', 'in progress', 'closed']),
+        'blob': any_or_none,
+        'price': optional(in_range(5, 200)),
+    }
+
+By the way, the last one is translated into this one under the hood::
+
+    spec = {
+        'price': Rule(datatype=int, optional=True,
+                      validators=[monk.validators.validate_range(5, 200)]),
+    }
+
+And, yes, you can mix notations.  See FAQ.
+
+This very short intro shows that Monk requires almost **zero learning to
+start** and then provides very **powerful tools when you need them**;
+you won't have to rewrite the "intuitive" code, only augment complexity
+exactly in places where it's inevitable.
+
 Manipulation
 ............
 
@@ -62,14 +90,14 @@ The schema can be used to create full documents from incomplete data:
 
     # default values are set for missing keys
 
-    >>> merged(spec, {})
+    >>> merge_defaults(spec, {})
     { 'title': 'Untitled',
       'comments': []
     }
 
     # it's easy to override the defaults
 
-    >>> merged(spec, {'title': 'Hello'})
+    >>> merge_defaults(spec, {'title': 'Hello'})
     { 'title': 'Hello',
       'comments': []
     }
@@ -77,7 +105,7 @@ The schema can be used to create full documents from incomplete data:
     # nested lists of dictionaries can be auto-filled, too.
     # by the way, note the date.
 
-    >>> merged(spec, {'comments': ['author': 'john']})
+    >>> merge_defaults(spec, {'comments': ['author': 'john']})
     { 'title': 'Untitled',
       'comments': [
             { 'author': 'john',
