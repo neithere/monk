@@ -395,9 +395,9 @@ class TestUnfolding:
     def test_unfold_list_of_dicts(self):
         assert [{'x': 'a'}] == m.unfold_list_of_dicts([{'x': 'a'}], default_key='x')
         assert [{'x': 'a'}] == m.unfold_list_of_dicts( {'x': 'a'}, default_key='x')
-        assert [{'x': 'a'}] == m.unfold_list_of_dicts(       'a', default_key='x')
+        assert [{'x': 'a'}] == m.unfold_list_of_dicts(     t('a'), default_key='x')
         assert [{'x': 'a'}, {'x': 'b'}] == \
-            m.unfold_list_of_dicts([{'x': 'a'}, 'b'], default_key='x')
+            m.unfold_list_of_dicts([{'x': 'a'}, t('b')], default_key='x')
 
         # edge cases (may need revision)
         assert [{'x': 1}] == m.unfold_list_of_dicts({'x': 1}, default_key='y')
