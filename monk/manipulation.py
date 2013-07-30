@@ -205,26 +205,41 @@ def merged(spec, data, mergers=TYPE_MERGERS):
     return merge_defaults(spec, data, mergers=mergers)
 
 
-def unfold_list_of_dicts(value, default_key):
+class UNDEFINED:
+    pass
+
+
+def unfold_list_of_dicts(value, default_key, default_value=UNDEFINED):
     """
     Converts given value to a list of dictionaries as follows:
 
     * ``[{...}]`` → ``[{...}]``
     * ``{...}``   → ``[{...}]``
     * ``'xyz'``   → ``[{default_key: 'xyz'}]``
+    * ``None``    → ``[{default_key: default_value}]``  (if specified)
+    * ``None``    → ``[]``
+
+    :param default_value:
+        only Unicode, i.e. `str` in Python 3.x and **only** `unicode` in Python 2.x
 
     """
     if value is None:
-        return []
+        if default_value is UNDEFINED:
+            return []
+        value = default_value
+
     if isinstance(value, dict):
         return [value]
+
     if isinstance(value, text_type):
         return [{default_key: value}]
+
     if isinstance(value, list):
         if not all(isinstance(x, dict) for x in value):
             def _fix(x):
                 return {default_key: x} if isinstance(x, text_type) else x
             return list(map(_fix, value))
+
     return value
 
 

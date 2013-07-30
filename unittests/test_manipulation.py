@@ -398,6 +398,9 @@ class TestUnfolding:
         assert [{'x': 'a'}] == m.unfold_list_of_dicts(     t('a'), default_key='x')
         assert [{'x': 'a'}, {'x': 'b'}] == \
             m.unfold_list_of_dicts([{'x': 'a'}, t('b')], default_key='x')
+        assert [] == m.unfold_list_of_dicts(None, default_key='x')
+        assert [{'x': u'y'}] == m.unfold_list_of_dicts(None, default_key='x',
+                                                       default_value=u'y')
 
         # edge cases (may need revision)
         assert [{'x': 1}] == m.unfold_list_of_dicts({'x': 1}, default_key='y')
