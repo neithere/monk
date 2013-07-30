@@ -136,7 +136,10 @@ class TestDataTypes:
         validate({'a': []}, {'a': []})
         validate({'a': []}, {'a': ['b', 123]})
 
-        validate({'a': [int]}, {'a': []})
+        with pytest.raises(MissingValue) as excinfo:
+            validate({'a': [int]}, {'a': []})
+        assert "MissingValue: a: expected at least one item, got empty list" in excinfo.exconly()
+
         validate({'a': [int]}, {'a': [123]})
         validate({'a': [int]}, {'a': [123, 456]})
         with pytest.raises(TypeError):
@@ -434,7 +437,14 @@ class TestNested:
 
         # outer value is present, inner value is missing
 
-        validate(spec, [])
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, [])
+        assert "MissingValue: expected at least one item, got empty list" in excinfo.exconly()
+
+        # outer value is present, inner optional value is missing
+
+        relaxed_spec = Rule(datatype=list, inner_spec=Rule(int, optional=True))
+        validate(relaxed_spec, [])
 
         # inner value is present but is None
 
@@ -518,8 +528,14 @@ class TestNested:
             validate(spec, {'foo': [{'bar': None}]})
         assert "MissingValue: foo: #0: bar: expected list, got None" in excinfo.exconly()
 
-        validate(spec, {'foo': []})
-        validate(spec, {'foo': [{'bar': []}]})
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': []})
+        assert "MissingValue: foo: expected at least one item, got empty list" in excinfo.exconly()
+
+        with pytest.raises(MissingValue) as excinfo:
+            validate(spec, {'foo': [{'bar': []}]})
+        assert "MissingValue: foo: #0: bar: expected at least one item, got empty list" in excinfo.exconly()
+
         validate(spec, {'foo': [{'bar': [1]}]})
         validate(spec, {'foo': [{'bar': [1, 2]}]})
 

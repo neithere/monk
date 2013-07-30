@@ -97,6 +97,9 @@ def validate_list(rule, value):
 
     # XXX custom validation stuff can be inserted here, e.g. min/max items
 
+    if not value and not item_spec.optional:
+        raise errors.MissingValue('expected at least one item, got empty list')
+
     for i, item in enumerate(value):
         try:
             validate(item_spec, item)
