@@ -209,7 +209,7 @@ class UNDEFINED:
     pass
 
 
-def unfold_list_of_dicts(value, default_key, default_value=UNDEFINED):
+def normalize_list_of_dicts(value, default_key, default_value=UNDEFINED):
     """
     Converts given value to a list of dictionaries as follows:
 
@@ -243,7 +243,7 @@ def unfold_list_of_dicts(value, default_key, default_value=UNDEFINED):
     return value
 
 
-def unfold_to_list(value):
+def normalize_to_list(value):
     """
     Converts given value to a list  as follows:
 
@@ -256,6 +256,23 @@ def unfold_to_list(value):
     else:
         return value
 
+
+def unfold_list_of_dicts(value, default_key):
+    """
+    .. deprecated:: 0.10.0
+
+       Use :func:`normalize_list_of_dicts` instead.
+    """
+    return normalize_list_of_dicts(value, default_key)
+
+
+def unfold_to_list(value):
+    """
+    .. deprecated:: 0.10.0
+
+       Use :func:`normalize_to_list` instead.
+    """
+    return normalize_to_list(value)
 
 TYPE_MERGERS.update({
     dict: merge_dict,

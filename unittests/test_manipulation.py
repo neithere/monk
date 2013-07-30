@@ -387,23 +387,23 @@ class TestMergingDefaultsNaturalNotation:
         assert m.merge_defaults(spec, data) == expected
 
 
-class TestUnfolding:
-    def test_unfold_to_list(self):
-        assert [1] == m.unfold_to_list(1)
-        assert [1] == m.unfold_to_list([1])
+class TestMolding:
+    def test_normalize_to_list(self):
+        assert [1] == m.normalize_to_list(1)
+        assert [1] == m.normalize_to_list([1])
 
-    def test_unfold_list_of_dicts(self):
-        assert [{'x': 'a'}] == m.unfold_list_of_dicts([{'x': 'a'}], default_key='x')
-        assert [{'x': 'a'}] == m.unfold_list_of_dicts( {'x': 'a'}, default_key='x')
-        assert [{'x': 'a'}] == m.unfold_list_of_dicts(     t('a'), default_key='x')
+    def test_normalize_list_of_dicts(self):
+        assert [{'x': 'a'}] == m.normalize_list_of_dicts([{'x': 'a'}], default_key='x')
+        assert [{'x': 'a'}] == m.normalize_list_of_dicts( {'x': 'a'}, default_key='x')
+        assert [{'x': 'a'}] == m.normalize_list_of_dicts(     t('a'), default_key='x')
         assert [{'x': 'a'}, {'x': 'b'}] == \
-            m.unfold_list_of_dicts([{'x': 'a'}, t('b')], default_key='x')
-        assert [] == m.unfold_list_of_dicts(None, default_key='x')
-        assert [{'x': u'y'}] == m.unfold_list_of_dicts(None, default_key='x',
+            m.normalize_list_of_dicts([{'x': 'a'}, t('b')], default_key='x')
+        assert [] == m.normalize_list_of_dicts(None, default_key='x')
+        assert [{'x': u'y'}] == m.normalize_list_of_dicts(None, default_key='x',
                                                        default_value=u'y')
 
         # edge cases (may need revision)
-        assert [{'x': 1}] == m.unfold_list_of_dicts({'x': 1}, default_key='y')
-        assert [] == m.unfold_list_of_dicts(None, default_key='y')
-        assert 123 == m.unfold_list_of_dicts(123, default_key='x')
+        assert [{'x': 1}] == m.normalize_list_of_dicts({'x': 1}, default_key='y')
+        assert [] == m.normalize_list_of_dicts(None, default_key='y')
+        assert 123 == m.normalize_list_of_dicts(123, default_key='x')
 
