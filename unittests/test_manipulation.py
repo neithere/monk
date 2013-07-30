@@ -399,8 +399,8 @@ class TestMolding:
         assert [{'x': 'a'}, {'x': 'b'}] == \
             m.normalize_list_of_dicts([{'x': 'a'}, t('b')], default_key='x')
         assert [] == m.normalize_list_of_dicts(None, default_key='x')
-        assert [{'x': u'y'}] == m.normalize_list_of_dicts(None, default_key='x',
-                                                       default_value=u'y')
+        assert [{'x': t('y')}] == m.normalize_list_of_dicts(None, default_key='x',
+                                                            default_value=t('y'))
 
         # edge cases (may need revision)
         assert [{'x': 1}] == m.normalize_list_of_dicts({'x': 1}, default_key='y')
