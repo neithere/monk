@@ -1,0 +1,15 @@
+build/
+dist/
+docs/_build
+*.egg-info/*
+*.pyc
+*.pyo
+*~
+*.swo
+*.swp
+.coverage
+cover/
+*,cover
+htmlcov/
+.tox/
+.ropeproject/
