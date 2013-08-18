@@ -1,1 +1,1 @@
-pymongo==2.0.1
+pymongo==2.5.2

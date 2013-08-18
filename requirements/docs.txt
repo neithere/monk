@@ -1,2 +1,2 @@
-Sphinx == 1.1.2
-Mock == 1.0.1
+Sphinx==1.2b1
+Mock==1.0.1
