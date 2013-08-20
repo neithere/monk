@@ -6,7 +6,7 @@ python:
   - '3.3'
   - 'pypy'
 install:
-  - 'pip install -r requirements/devel.txt --use-mirrors'
+  - 'pip install -r requirements/devel.txt --use-mirrors --quiet'
 services:
   - mongodb
 script: py.test --cov=monk

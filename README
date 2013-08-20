@@ -181,10 +181,10 @@ Links
   * `Issue tracker`_
   * Direct e-mail (neithere at gmail com)
 
-.. _project home page: http://bitbucket.org/neithere/monk/
+.. _project home page: http://github.com/neithere/monk/
 .. _documentation: http://monk.readthedocs.org
 .. _package distribution: http://pypi.python.org/pypi/monk
-.. _issue tracker: http://bitbucket.org/neithere/monk/issues/
+.. _issue tracker: http://github.com/neithere/monk/issues/
 
 Author
 ------
@@ -193,7 +193,7 @@ Originally written by Andrey Mikhaylenko since 2011.
 
 Please feel free to submit patches, report bugs or request features:
 
-    http://bitbucket.org/neithere/monk/issues/
+    http://github.com/neithere/monk/issues/
 
 Licensing
 ---------

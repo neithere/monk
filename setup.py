@@ -46,8 +46,7 @@ setup(
     license  = 'GNU Lesser General Public License (LGPL), Version 3',
 
     # more info
-    url          = 'http://bitbucket.org/neithere/monk/',
-    download_url = 'http://bitbucket.org/neithere/monk/get/tip.zip',
+    url          = 'http://github.com/neithere/monk/',
 
     # categorization
     keywords     = ('mongo mongodb document query database api model models '
