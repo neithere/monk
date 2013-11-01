@@ -83,7 +83,7 @@ class MongoResultSet(object):
         """ Returns a generator with identifiers of objects in set.
         These expressions are equivalent::
 
-            ids = (item.get_id() for item in result_set)
+            ids = (item.id for item in result_set)
 
             ids = result_set.ids()
 
@@ -94,7 +94,7 @@ class MongoResultSet(object):
            cached.
 
         """
-        return (item.get_id() for item in self)
+        return (item.id for item in self)
 
 #    def count(self):
 #        return self._cursor.count()
@@ -121,8 +121,8 @@ class MongoBoundDictMixin(object):
 
         Raises `TypeError` if collection or id is not set.
         """
-        if self.collection and self.get_id():
-            return hash(self.collection) | hash(self.get_id())
+        if self.collection and self.id:
+            return hash(self.collection) | hash(self.id)
         raise TypeError('Document is unhashable: collection or id is not set')
 
     def __eq__(self, other):
@@ -133,14 +133,14 @@ class MongoBoundDictMixin(object):
         if not self.collection or not other.collection:
             return False
         # both must have ids
-        if not self.get_id() or not other.get_id():
+        if not self.id or not other.id:
             return False
 
         # collections must be equal
         if self.collection != other.collection:
             return False
         # ids must be equal
-        if self.get_id() != other.get_id():
+        if self.id != other.id:
             return False
 
         return True
@@ -222,15 +222,25 @@ class MongoBoundDictMixin(object):
 
         return object_id
 
+    @property
+    def id(self):
+        """ Returns object id or ``None``.
+        """
+        return self.get('_id')
+
     def get_id(self):
         """ Returns object id or ``None``.
         """
+        import warnings
+        warnings.warn('{0}.get_id() is deprecated, '
+                      'use {0}.id instead'.format(type(self).__name__),
+                      DeprecationWarning)
         return self.get('_id')
 
     def get_ref(self):
         """ Returns a `DBRef` for this object or ``None``.
         """
-        _id = self.get_id()
+        _id = self.id
         if _id is None:
             return None
         else:
@@ -246,9 +256,9 @@ class MongoBoundDictMixin(object):
         Collection name is taken from :attr:`MongoBoundDictMixin.collection`.
         """
         assert self.collection
-        assert self.get_id()
+        assert self.id
 
-        db[self.collection].remove(self.get_id())
+        db[self.collection].remove(self.id)
 
 
 def _db_to_dict_pairs(spec, data, db):
