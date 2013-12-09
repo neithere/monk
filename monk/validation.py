@@ -45,7 +45,7 @@ def validate_dict(rule, value):
         # spec is {} which means "a dict of anything"
         return
 
-    spec = {(canonize(k), canonize(v)) for k,v in rule.inner_spec.items()}
+    spec = tuple((canonize(k), canonize(v)) for k,v in rule.inner_spec.items())
 
     #missing = spec_keys - data_keys
 
