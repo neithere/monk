@@ -28,7 +28,7 @@ import pytest
 
 from monk.compat import text_type, safe_unicode
 from monk.errors import MissingKey, MissingValue, UnknownKey, ValidationError
-from monk.schema import Rule, optional, any_value, any_or_none
+from monk.schema import Rule, optional, any_value, any_or_none, in_range
 from monk.validation import validate
 
 
@@ -635,5 +635,26 @@ class TestRulesAsDictKeys:
         with pytest.raises(MissingKey):
             validate({str: int}, {})
 
-    def test_any_value_as_key():
+    def test_any_value_as_key(self):
         validate({None: 1}, {2: 3})
+
+    def test_custom_validators_in_dict_keys(self):
+        day_note_schema = {
+            in_range(2000, 2020): {
+                in_range(1, 12): {
+                    in_range(1, 31): str
+                }
+            }
+        }
+        good_note = {2013: {12: {9: 'it is a good day today'}}}
+        bad_note1 =  {2013: {12: {40: 'it is a bad day today'}}}
+        bad_note2 =  {2013: {13: {9: 'it is another bad day today'}}}
+        bad_note3 = {-2013: {12: {9: 'it is the worst day today'}}}
+
+        validate(day_note_schema, good_note)
+        with pytest.raises(UnknownKey):
+            validate(day_note_schema, bad_note1)
+        with pytest.raises(UnknownKey):
+            validate(day_note_schema, bad_note2)
+        with pytest.raises(UnknownKey):
+            validate(day_note_schema, bad_note3)
