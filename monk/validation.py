@@ -54,10 +54,8 @@ def validate_dict(rule, value):
     validated_data_keys = []
     missing_key_specs = []
     for kspec, vspec in spec:
-        # sanity check of spec keys
-        assert kspec
-        assert kspec.datatype
-        # NOTE kspec.default may be empty => any key of given datatype
+        # NOTE kspec.datatype can be None => any key of any datatype
+        # NOTE kspec.default  can be None => any key of given datatype
 
         # gather data keys that match given kspec;
         # then validate them against vspec

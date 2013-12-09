@@ -634,3 +634,6 @@ class TestRulesAsDictKeys:
     def test_missing_key(self):
         with pytest.raises(MissingKey):
             validate({str: int}, {})
+
+    def test_any_value_as_key():
+        validate({None: 1}, {2: 3})
