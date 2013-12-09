@@ -106,20 +106,6 @@ def validate_dict(rule, value):
             '", "'.join(rule.default if rule.default else compat.safe_str(rule)
                         for rule in missing_key_specs)))
 
-    data_keys = value.keys() if value else []
-    for key in data_keys:
-        vrule = canonize(rule.inner_spec.get(key))
-        if key in data_keys:
-            value_ = value.get(key)
-            try:
-                validate(subrule, value_)
-            except (errors.ValidationError, TypeError) as e:
-                raise type(e)('{k}: {e}'.format(k=key, e=e))
-        else:
-            if subrule.optional:
-                continue
-            raise errors.MissingKey('{0}'.format(key))
-
 
 def validate_list(rule, value):
     """ Nested list. May contain complex structures which are validated
