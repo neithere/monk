@@ -113,6 +113,11 @@ class Rule:
 #            raise TypeError('Inner spec must match datatype {0} (got {1})'.format(
 #                self.datatype.__name__, inner_spec))
 
+    def __hash__(self):
+        # TODO think this over and check Python docs
+        #return hash(((k,v) for k,v in self.__dict__.items()))
+        return hash('rule_'+str(self.datatype))
+
     def __repr__(self):
         return '<Rule {datatype}{optional}{default}{inner_spec}{allow_unknown_keys}>'.format(
             datatype=('any' if self.datatype is None else

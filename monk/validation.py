@@ -45,17 +45,70 @@ def validate_dict(rule, value):
         # spec is {} which means "a dict of anything"
         return
 
-    spec_keys = set(rule.inner_spec.keys() if rule.inner_spec else [])
-    data_keys = set(value.keys() if value else [])
-    unknown = data_keys - spec_keys
+    spec = {(canonize(k), canonize(v)) for k,v in rule.inner_spec.items()}
+
     #missing = spec_keys - data_keys
 
-    if unknown and not rule.dict_allow_unknown_keys:
-        raise errors.UnknownKey('"{0}"'.format(
-            '", "'.join(compat.safe_str(x) for x in unknown)))
 
-    for key in spec_keys | data_keys:
-        subrule = canonize(rule.inner_spec.get(key))
+    value = value or {}
+    validated_data_keys = []
+    missing_key_specs = []
+    for kspec, vspec in spec:
+        # sanity check of spec keys
+        assert kspec
+        assert kspec.datatype
+        # NOTE kspec.default may be empty => any key of given datatype
+
+        # gather data keys that match given kspec;
+        # then validate them against vspec
+        matched = False
+        for k,v in value.items():
+            if k in validated_data_keys:
+                continue
+
+            # check if this key is described by current rule;
+            # if it isn't, just skip it (and try another rule on it later on)
+            try:
+                validate(kspec, k)
+            except (TypeError, errors.ValidationError):
+                continue
+            else:
+                # key validation is more strict: if default value is present,
+                # the key *must* be equal to it
+                if kspec.default is not None and k != kspec.default:
+                    continue
+
+            # this key *is* described by current rule;
+            # validate the value (it *must* validate)
+            try:
+                validate(vspec, v)
+            except (errors.ValidationError, TypeError) as e:
+                raise type(e)('{k}: {e}'.format(k=k, e=e))
+
+            validated_data_keys.append(k)
+            matched = True
+
+        if not matched and not kspec.optional:
+            missing_key_specs.append(kspec)
+
+    # TODO document that unknown keys are checked before missing ones
+
+    # check if there are data keys that did not match any key spec;
+    # if yes, raise UnknownKey for them
+    if len(validated_data_keys) < len(value):
+        raise errors.UnknownKey('"{0}"'.format(
+            '", "'.join(compat.safe_str(x) for x in
+                        set(value) - set(validated_data_keys))))
+
+    if missing_key_specs:
+        # NOTE: this prints rules, not keys as strings
+        raise errors.MissingKey('"{0}"'.format(
+            '", "'.join(rule.default if rule.default else compat.safe_str(rule)
+                        for rule in missing_key_specs)))
+
+    data_keys = value.keys() if value else []
+    for key in data_keys:
+        vrule = canonize(rule.inner_spec.get(key))
         if key in data_keys:
             value_ = value.get(key)
             try:
