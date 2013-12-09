@@ -658,3 +658,7 @@ class TestRulesAsDictKeys:
             validate(day_note_schema, bad_note2)
         with pytest.raises(UnknownKey):
             validate(day_note_schema, bad_note3)
+
+    def test_nonsense(self):
+        with pytest.raises(UnknownKey):
+            validate({int: str}, {int: 'foo'})
