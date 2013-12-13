@@ -56,10 +56,6 @@ class Rule:
         ``bool``; if ``True``, :class:`~monk.validation.MissingValue`
         is never raised.  Default is ``False``.
 
-    :param dict_allow_unknown_keys:
-        ``bool``; if ``True``, :class:`~monk.validation.UnknownKey`
-        is never raised.  Default is ``False``.
-
     :param validators:
         a list of callables.
 
@@ -88,18 +84,14 @@ class Rule:
             Trigger: the dictionary contains a key which is not in
             the dictionary's `inner_spec`.
 
-            Suppress: turn the `dict_allow_unknown_keys` setting on
-            (of course on dictionary level).
-
     """
     def __init__(self, datatype, inner_spec=None, optional=False,
-                 dict_allow_unknown_keys=False, default=None, validators=None):
+                 default=None, validators=None):
         if isinstance(datatype, type(self)):
             raise ValueError('Cannot use a Rule instance as datatype')
         self.datatype = datatype
         self.inner_spec = inner_spec
         self.optional = optional
-        self.dict_allow_unknown_keys = dict_allow_unknown_keys
         self.default = default
         self.validators = validators or []
 
@@ -119,15 +111,15 @@ class Rule:
         return hash('rule_'+str(self.datatype))
 
     def __repr__(self):
-        return '<Rule {datatype}{optional}{default}{inner_spec}{allow_unknown_keys}>'.format(
-            datatype=('any' if self.datatype is None else
-                self.datatype.__name__),
-            optional=(' optional' if self.optional else ' required'),
-            allow_unknown_keys=(' dict:allow-unknown-keys' if self.dict_allow_unknown_keys else ''),
-            default=(' default={0}'.format(self.default)
-                     if self.default is not None else ''),
-            inner_spec=(' inner_spec={0}'.format(self.inner_spec)
-                     if self.inner_spec is not None else ''))
+        flags = []
+        flags.append('any' if self.datatype is None else self.datatype.__name__)
+        flags.append('optional' if self.optional else 'required')
+        if self.default is not None:
+            flags.append('default={0}'.format(self.default))
+        if self.inner_spec is not None:
+            flags.append('inner_spec={0}'.format(self.inner_spec))
+
+        return '<Rule {flags}>'.format(flags=' '.join(flags))
 
     def __eq__(self, other):
         if (isinstance(other, type(self)) and self.__dict__ == other.__dict__):

@@ -41,7 +41,7 @@ class MissingKey(ValidationError):
     """
 
 
-class UnknownKey(ValidationError):
+class InvalidKey(ValidationError):
     """ Raised whan the value dictionary contains a key which is not
     in the dictionary's :attr:`Rule.inner_spec`.
     """

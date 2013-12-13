@@ -27,7 +27,7 @@ import bson
 import pytest
 
 from monk.compat import text_type, safe_unicode
-from monk.errors import MissingKey, MissingValue, UnknownKey, ValidationError
+from monk.errors import MissingKey, MissingValue, InvalidKey, ValidationError
 from monk.schema import Rule, optional, any_value, any_or_none, in_range
 from monk.validation import validate
 
@@ -79,25 +79,22 @@ class TestOverall:
             validate({'a': text_type, 'b': int}, {'b': 1})
 
     def test_unknown_keys(self):
-        # verbose notation
-        validate(Rule(dict, dict_allow_unknown_keys=True), {'x': 123})
-
         # special behaviour: missing/empty inner_spec means "a dict of anything"
         validate(Rule(dict), {'x': 123})
 
         # inner_spec not empty, value matches it
         validate({'x': None}, {'x': 123})
 
-        with pytest.raises(UnknownKey):
+        with pytest.raises(InvalidKey):
             validate({'x': None}, {'y': 123})
 
-        with pytest.raises(UnknownKey):
+        with pytest.raises(InvalidKey):
             validate({'x': None}, {'x': 123, 'y': 456})
 
     def test_unknown_keys_encoding(self):
-        with pytest.raises(UnknownKey):
+        with pytest.raises(InvalidKey):
             validate({'a': text_type}, {'привет': 1})
-        with pytest.raises(UnknownKey):
+        with pytest.raises(InvalidKey):
             validate({'a': text_type}, {safe_unicode('привет'): 1})
 
 
@@ -621,13 +618,13 @@ class TestRulesAsDictKeys:
 
     def test_type_error(self):
         #with pytest.raises(TypeError):
-        with pytest.raises(UnknownKey):
+        with pytest.raises(InvalidKey):
             validate({str: int}, {'a': 1, NotImplemented: 5})
 
-    def test_unknown_key(self):
-        with pytest.raises(UnknownKey):
+    def test_invalid_key(self):
+        with pytest.raises(InvalidKey):
             validate({str: int}, {'a': 1, 1: 2})
-        with pytest.raises(UnknownKey):
+        with pytest.raises(InvalidKey):
             # special handling of rule.default in dict keys
             validate({'a': int}, {'a': 1, 'b': 5})
 
@@ -646,19 +643,25 @@ class TestRulesAsDictKeys:
                 }
             }
         }
-        good_note = {2013: {12: {9: 'it is a good day today'}}}
-        bad_note1 =  {2013: {12: {40: 'it is a bad day today'}}}
-        bad_note2 =  {2013: {13: {9: 'it is another bad day today'}}}
-        bad_note3 = {-2013: {12: {9: 'it is the worst day today'}}}
+        good_note = {2013: {12: {9:  'it is a good day today'}}}
+        bad_note1 = {1999: {12: {9:  'wrong year: below min'}}}
+        bad_note2 = {2013: {13: {9:  'wrong month: above max'}}}
+        bad_note3 = {2013: {12: {40: 'wrong day of month: above max'}}}
 
         validate(day_note_schema, good_note)
-        with pytest.raises(UnknownKey):
+
+        with pytest.raises(InvalidKey) as excinfo:
             validate(day_note_schema, bad_note1)
-        with pytest.raises(UnknownKey):
+        assert excinfo.exconly().endswith('InvalidKey: "1999"')
+
+        with pytest.raises(InvalidKey) as excinfo:
             validate(day_note_schema, bad_note2)
-        with pytest.raises(UnknownKey):
+        assert excinfo.exconly().endswith('InvalidKey: 2013: "13"')
+
+        with pytest.raises(InvalidKey) as excinfo:
             validate(day_note_schema, bad_note3)
+        assert excinfo.exconly().endswith('InvalidKey: 2013: 12: "40"')
 
     def test_nonsense(self):
-        with pytest.raises(UnknownKey):
+        with pytest.raises(InvalidKey):
             validate({int: str}, {int: 'foo'})
