@@ -4,12 +4,28 @@ Frequently Asked Questions
 What are the primary use cases of Monk?
 ---------------------------------------
 
-…
+* Entity schema for schema-less data storages
+  (NoSQL, JSON, YAML, CSV, whatever)
+* Publish/get data via RESTful API
+* Safely implement ETL
+* Process user input
+* ODMs (object-document wrappers) as syntax sugar upon Monk
 
 Why would I want to use Monk?
 -----------------------------
 
-…
+Monk allows to quickly prototype schemata using plain Python structures.
+It is very powerful, flexible, transparent and unobtrusive; all the power
+is accessible through a few functions and the rule class (which you may not
+even notice unless your use cases are demanding enough).  It is possible
+to write a simple script, build a large project or a library upon Monk.
+
+If in doubt, I encourage you to use Monk.  If it's not enough, read the docs
+and make sure you squeeze the maximum from the rules.
+
+When *not* to use Monk?  Easy: when the case is complex and a dedicated tool
+already exists.  For instance, it is possible to build an alternative
+to WTForms upon Monk but why?  Well, who knows.
 
 What problems does Monk solve?
 ------------------------------

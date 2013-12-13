@@ -72,6 +72,22 @@ By the way, the last one is translated into this one under the hood::
                       validators=[monk.validators.validate_range(5, 200)]),
     }
 
+It is even possible to define schemata for dictionary keys::
+
+    CATEGORIES = ['books', 'films', 'toys']
+    spec = {
+        'title': str,
+        optional('price'): float,    # key is optional; value is mandatory
+        'similar_items': {
+            one_of(CATEGORIES): [    # suggestions grouped by category
+                {'url': str, 'title': str}
+            ],
+        }
+    }
+
+    # (what if the categories should be populated dynamically?
+    #  well, the schema is plain Python data, just copy/update on the fly.)
+
 And, yes, you can mix notations.  See FAQ.
 
 This very short intro shows that Monk requires almost **zero learning to
