@@ -87,13 +87,115 @@ Can I mix the "natural" and "verbose" declarations?
 The :func:`~monk.validation.validate` function will convert the "natural"
 declarations into rules; if it finds a ready-made rule, it just accepts it.
 
-For example::
+For example:
+
+.. code-block:: python
 
     spec = {
         'name': str,
         'age': int,
         'attrs': Rule(datatype=dict, optional=True, inner_spec={'foo': int})
     }
+
+    validate(spec, { ... your data goes here ... })
+
+How "Natural" Declarations Map To "Verbose" Style?
+--------------------------------------------------
+
+In most cases the "natural" style implies providing a class or instance.
+
+A **type or class** means that the value must be an instance of such:
+
+=========== ==========================
+natural     verbose
+=========== ==========================
+``int``     ``Rule(datatype=int)``
+``str``     ``Rule(datatype=str)``
+``list``    ``Rule(datatype=list)``
+``dict``    ``Rule(datatype=dict)``
+``MyClass`` ``Rule(datatype=MyClass)``
+=========== ==========================
+
+An **instance** means that the value must be of the same type (or an instance
+of the same class) *and* the spec is the default value:
+
+================ ================================================
+natural          verbose
+================ ================================================
+``5``            ``Rule(datatype=int, default=5)``
+``'hello'``      ``Rule(datatype=str, default='hello')``
+``[]``           ``Rule(datatype=list, default=[], inner_spec=None)``
+``{}``           ``Rule(datatype=dict, default=None, inner_spec={})``
+``MyClass('x')`` ``Rule(datatype=MyClass, default=MyClass('x'))``
+================ ================================================
+
+Note that the `dict`, `list` and `MyClass` specs describe containers.
+It is possible to nest other specs inside of these.  Not all containers are
+handled by Monk as such: only `dict` and `list` are supported at the moment.
+They are the building blocks for complex multi-level schemata.
+If the "natural" spec is a non-empty container, it is wrapped into a `Rule`
+as its "inner spec":
+
+================ ============================================================
+natural          verbose
+================ ============================================================
+``[str]``        ``Rule(datatype=list, default=[], inner_spec=str)``
+``{str: int}``   ``Rule(datatype=dict, default=None, inner_spec={str: int})``
+================ ============================================================
+
+.. note:: FIXME
+
+   The `dict` and `list` actually behave differently (as in the tables):
+
+   * Empty `dict` goes to `inner_spec`; empty `list` goes to `default`.
+   * Non-empty `dict` goes to `inner_spec`; non-empty `list` item also goes to
+     `inner_spec` but without the surrounding list.
+
+   This may be somewhat reasonable but is utterly confusing.
+   The behaviour should be unified.
+
+.. note:: On defaults as dictionary keys
+
+   Normally default values are only used in *manipulation*.
+   In dictionaries they are also important for *validation*.  Consider this::
+
+       spec_a = {str: int}
+       spec_b = {'a': int}
+
+   The spec `spec_a` defines a dictionary which may contain any number of keys
+   that must be of type ``type('a')`` → `str`.
+
+   The spec `spec_b` requires that the dictionary contains a single key ``'a'``
+   and nothing else.  So, `a` in this case is not a default value but rather
+   a precise requirement.
+
+   The keys may be marked as optional and be multiple::
+
+       spec_c = {'a': int, optional('b'): float}
+
+   It's also possible to allow arbitrary keys of different types::
+
+       spec_d = {str: int, tuple: float}
+
+   Of course the key datatype must be hashable.
+
+.. note:: On optional dictionary keys vs. values
+
+   Consider this spec::
+
+       spec_a = {
+           'a': int,
+           'b': optional(int),
+           optional('c'): int,
+           optional('d'): optional(int),
+       }
+
+   It should not be surprising that the inner specs are interpreted thusly:
+
+   :a: key must be present; value must be of `int` type
+   :b: key must be present; value must be of `int` type or may be `None`
+   :c: key may exist or not; if yes, the value must be of `int` type
+   :d: key may exist or not; value must be of `int` type or may be `None`
 
 Do I need MongoDB to use Monk?
 ------------------------------
