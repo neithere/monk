@@ -23,9 +23,7 @@ The MongoDB extension requires `pymongo`.
 Documentation
 -------------
 
-See the `complete documentation`_ for details. 
-
-.. _complete documentation: http://packages.python.org/monk
+See the complete `documentation`_ for details.
 
 Examples
 --------
