@@ -27,8 +27,8 @@ import bson
 import pytest
 
 from monk.compat import text_type, safe_unicode
-from monk.errors import MissingKey, MissingValue, UnknownKey, ValidationError
-from monk.schema import Rule, optional, any_value, any_or_none
+from monk.errors import MissingKey, MissingValue, InvalidKey, ValidationError
+from monk.schema import Rule, optional, any_value, any_or_none, in_range
 from monk.validation import validate
 
 
@@ -69,32 +69,32 @@ class TestOverall:
 
         # MISSING KEY
 
-        validate({'a': Rule(text_type, optional=True)}, {})
+        validate({Rule(text_type, optional=True): text_type}, {})
+
+        with pytest.raises(MissingKey):
+            validate({'a': Rule(text_type, optional=True)}, {})
         with pytest.raises(MissingKey):
             validate({'a': text_type}, {})
         with pytest.raises(MissingKey):
             validate({'a': text_type, 'b': int}, {'b': 1})
 
     def test_unknown_keys(self):
-        # verbose notation
-        validate(Rule(dict, dict_allow_unknown_keys=True), {'x': 123})
-
         # special behaviour: missing/empty inner_spec means "a dict of anything"
         validate(Rule(dict), {'x': 123})
 
         # inner_spec not empty, value matches it
         validate({'x': None}, {'x': 123})
 
-        with pytest.raises(UnknownKey):
+        with pytest.raises(InvalidKey):
             validate({'x': None}, {'y': 123})
 
-        with pytest.raises(UnknownKey):
+        with pytest.raises(InvalidKey):
             validate({'x': None}, {'x': 123, 'y': 456})
 
     def test_unknown_keys_encoding(self):
-        with pytest.raises(UnknownKey):
+        with pytest.raises(InvalidKey):
             validate({'a': text_type}, {'привет': 1})
-        with pytest.raises(UnknownKey):
+        with pytest.raises(InvalidKey):
             validate({'a': text_type}, {safe_unicode('привет'): 1})
 
 
@@ -345,13 +345,13 @@ class TestNested:
 
         with pytest.raises(MissingKey) as excinfo:
             validate(spec, {})
-        assert "MissingKey: foo" in excinfo.exconly()
+        assert 'MissingKey: "foo"' in excinfo.exconly()
 
         # key is present, value is missing
 
         with pytest.raises(MissingValue) as excinfo:
             validate(spec, {'foo': None})
-        assert "MissingValue: foo: expected int, got None" in excinfo.exconly()
+        assert 'MissingValue: foo: expected int, got None' in excinfo.exconly()
 
         # key is present, value is present
 
@@ -366,13 +366,13 @@ class TestNested:
 
         with pytest.raises(MissingKey) as excinfo:
             validate(spec, {})
-        assert "MissingKey: foo" in excinfo.exconly()
+        assert 'MissingKey: "foo"' in excinfo.exconly()
 
         # key is present, value is missing
 
         with pytest.raises(MissingValue) as excinfo:
             validate(spec, {'foo': None})
-        assert "MissingValue: foo: expected dict, got None" in excinfo.exconly()
+        assert 'MissingValue: foo: expected dict, got None' in excinfo.exconly()
 
         # value is present
 
@@ -389,13 +389,13 @@ class TestNested:
 
         with pytest.raises(MissingKey) as excinfo:
             validate(spec, {'foo': {}})
-        assert "MissingKey: foo: bar" in excinfo.exconly()
+        assert 'MissingKey: foo: "bar"' in excinfo.exconly()
 
         # inner key is present, inner value is missing
 
         with pytest.raises(MissingValue) as excinfo:
             validate(spec, {'foo': {'bar': None}})
-        assert "MissingValue: foo: bar: expected int, got None" in excinfo.exconly()
+        assert 'MissingValue: foo: bar: expected int, got None' in excinfo.exconly()
 
         # inner value is present
 
@@ -414,13 +414,13 @@ class TestNested:
 
         with pytest.raises(MissingKey) as excinfo:
             validate(spec, {})
-        assert "MissingKey: foo" in excinfo.exconly()
+        assert 'MissingKey: "foo"' in excinfo.exconly()
 
         # inner key is present, inner value is missing
 
         with pytest.raises(MissingValue) as excinfo:
             validate(spec, {'foo': None})
-        assert "MissingValue: foo: expected int, got None" in excinfo.exconly()
+        assert 'MissingValue: foo: expected int, got None' in excinfo.exconly()
 
         # inner value is present
 
@@ -494,17 +494,17 @@ class TestNested:
 
         with pytest.raises(MissingKey) as excinfo:
             validate(spec, [{'foo': 123}, {}])
-        assert "MissingKey: #1: foo" in excinfo.exconly()
+        assert 'MissingKey: #1: "foo"' in excinfo.exconly()
 
         # dict in list: missing value
 
         with pytest.raises(MissingValue) as excinfo:
             validate(spec, [{'foo': None}])
-        assert "MissingValue: #0: foo: expected int, got None" in excinfo.exconly()
+        assert 'MissingValue: #0: foo: expected int, got None' in excinfo.exconly()
 
         with pytest.raises(MissingValue) as excinfo:
             validate(spec, [{'foo': 123}, {'foo': None}])
-        assert "MissingValue: #1: foo: expected int, got None" in excinfo.exconly()
+        assert 'MissingValue: #1: foo: expected int, got None' in excinfo.exconly()
 
         # multiple innermost values are present
 
@@ -515,7 +515,7 @@ class TestNested:
 
         with pytest.raises(TypeError) as excinfo:
             validate(spec, [{'foo': 123}, {'foo': 456}, {'foo': 'bogus'}])
-        assert "TypeError: #2: foo: expected int, got str 'bogus'" in excinfo.exconly()
+        assert 'TypeError: #2: foo: expected int, got str \'bogus\'' in excinfo.exconly()
 
     def test_int_in_list_in_dict_in_list_in_dict(self):
         spec = Rule(datatype=dict, inner_spec={'foo': [{'bar': [int]}]})
@@ -598,3 +598,70 @@ class TestCustomValidators:
             validate(spec, 6)
         assert 'value must be lesser than 5' in excinfo.exconly()
 
+
+class TestRulesAsDictKeys:
+
+    def test_datatype_to_datatype(self):
+        validate({str: int}, {'a': 1})
+        validate({Rule(str): int}, {'a': 1})
+
+    def test_multi_datatypes_to_datatype(self):
+        schema = {
+            str: int,
+            int: int,
+        }
+        with pytest.raises(MissingKey):
+            validate(schema, {'a': 1})
+        with pytest.raises(MissingKey):
+            validate(schema, {123: 1})
+        validate(schema, {'a': 1, 'b': 2, 123: 4, 456: 5})
+
+    def test_type_error(self):
+        #with pytest.raises(TypeError):
+        with pytest.raises(InvalidKey):
+            validate({str: int}, {'a': 1, NotImplemented: 5})
+
+    def test_invalid_key(self):
+        with pytest.raises(InvalidKey):
+            validate({str: int}, {'a': 1, 1: 2})
+        with pytest.raises(InvalidKey):
+            # special handling of rule.default in dict keys
+            validate({'a': int}, {'a': 1, 'b': 5})
+
+    def test_missing_key(self):
+        with pytest.raises(MissingKey):
+            validate({str: int}, {})
+
+    def test_any_value_as_key(self):
+        validate({None: 1}, {2: 3})
+
+    def test_custom_validators_in_dict_keys(self):
+        day_note_schema = {
+            in_range(2000, 2020): {
+                in_range(1, 12): {
+                    in_range(1, 31): str
+                }
+            }
+        }
+        good_note = {2013: {12: {9:  'it is a good day today'}}}
+        bad_note1 = {1999: {12: {9:  'wrong year: below min'}}}
+        bad_note2 = {2013: {13: {9:  'wrong month: above max'}}}
+        bad_note3 = {2013: {12: {40: 'wrong day of month: above max'}}}
+
+        validate(day_note_schema, good_note)
+
+        with pytest.raises(InvalidKey) as excinfo:
+            validate(day_note_schema, bad_note1)
+        assert excinfo.exconly().endswith('InvalidKey: "1999"')
+
+        with pytest.raises(InvalidKey) as excinfo:
+            validate(day_note_schema, bad_note2)
+        assert excinfo.exconly().endswith('InvalidKey: 2013: "13"')
+
+        with pytest.raises(InvalidKey) as excinfo:
+            validate(day_note_schema, bad_note3)
+        assert excinfo.exconly().endswith('InvalidKey: 2013: 12: "40"')
+
+    def test_nonsense(self):
+        with pytest.raises(InvalidKey):
+            validate({int: str}, {int: 'foo'})
