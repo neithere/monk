@@ -243,13 +243,13 @@ def in_range(start, stop, first_is_default=False):
 
         in_range(0, 200)
 
-        Rule(str, validators=[monk.validators.validate_range(0, 200)])
+        Rule(int, validators=[monk.validators.validate_range(0, 200)])
 
         # default value can be taken from the first choice:
 
         in_range(0, 200, first_is_default=True)
 
-        Rule(str, default=0,
+        Rule(int, default=0,
              validators=[monk.validators.validate_range(0, 200)])
 
     """
