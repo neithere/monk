@@ -22,7 +22,7 @@ Data manipulation
 ~~~~~~~~~~~~~~~~~
 """
 from monk.compat import text_type
-from monk.schema import canonize
+from monk.schema import Rule, canonize
 
 
 __all__ = [
@@ -76,6 +76,9 @@ def merge_dict(spec, value, mergers, fallback):
     result = {}
 
     for key in set(list(spec.inner_spec.keys()) + list(data.keys())):
+        if isinstance(key, Rule):
+            continue
+
         if key in spec.inner_spec:
             value = merge_defaults(spec.inner_spec[key], data.get(key),
                                    mergers, fallback)

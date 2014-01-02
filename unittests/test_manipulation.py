@@ -73,6 +73,13 @@ class TestMergingDefaults:
                     'merged() is deprecated, use merge_defaults() instead',
                     DeprecationWarning)
 
+    def test_rule_as_key(self):
+        spec_a = {Rule(str): int}
+        spec_b = {Rule(str, optional=True): int}
+
+        assert m.merged(spec_a, {}) == {}
+        assert m.merged(spec_b, {}) == {}
+
 
 class TestMergingDefaultsTypeSpecific:
     "Type-specific mergers"

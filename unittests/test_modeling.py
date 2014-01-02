@@ -85,6 +85,7 @@ def test_dot_expanded_dict_mixin():
     assert 'title' not in entry
     assert hasattr(entry, 'title')
 
+
 def test_typed_dict_repr_mixin():
     class Entry(modeling.TypedDictReprMixin, dict):
         pass
