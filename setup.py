@@ -25,7 +25,7 @@ from setuptools import setup
 import monk
 
 
-readme = open(os.path.join(os.path.dirname(__file__), 'README')).read()
+readme = open(os.path.join(os.path.dirname(__file__), 'README.rst')).read()
 
 setup(
     # overview
