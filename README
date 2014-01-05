@@ -1,5 +1,9 @@
+~~~~
 Monk
 ~~~~
+
+.. image:: https://travis-ci.org/neithere/monk.png?branch=master
+   :target: https://travis-ci.org/neithere/monk
 
 An unobtrusive data modeling, manipulation and validation library.
 
