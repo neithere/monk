@@ -2,6 +2,9 @@
 Monk
 ~~~~
 
+.. image:: https://badge.fury.io/py/monk.png
+   :target: http://badge.fury.io/py/monk
+
 .. image:: https://travis-ci.org/neithere/monk.png?branch=master
    :target: https://travis-ci.org/neithere/monk
 
