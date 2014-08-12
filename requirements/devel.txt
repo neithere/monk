@@ -1,4 +1,4 @@
--r basic.txt
+-r ext_mongo.txt
 -r docs.txt
 
 coverage==3.6
