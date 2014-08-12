@@ -22,7 +22,7 @@ Data manipulation
 ~~~~~~~~~~~~~~~~~
 """
 from monk.compat import text_type
-from monk.schema import Rule, canonize
+from monk.schema import Rule, OneOf, canonize
 
 
 __all__ = [
@@ -186,6 +186,16 @@ def merge_defaults(spec, value, mergers=TYPE_MERGERS, fallback=merge_any):
 
     """
     rule = canonize(spec)
+
+    if isinstance(rule, OneOf):
+        # FIXME we've been expecting a rule (Rule instance) but got an instance
+        # of another class.  OneOf should inherit Rule or they should have
+        # a common base class.
+        if rule.first_is_default:
+            return merge_defaults(rule.choices[0], value, mergers, fallback)
+
+        # XXX really?
+        return
 
     if value is None and rule.default is not None:
         return rule.default

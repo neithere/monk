@@ -25,7 +25,7 @@ import mock
 import pytest
 
 from monk.compat import text_type as t
-from monk.schema import Rule, optional
+from monk.schema import Rule, OneOf, optional
 import monk.manipulation as m
 
 
@@ -79,6 +79,19 @@ class TestMergingDefaults:
 
         assert m.merged(spec_a, {}) == {}
         assert m.merged(spec_b, {}) == {}
+
+    def test_merge_oneof(self):
+        str_rule = Rule(datatype=str, default='hello')
+        int_rule = Rule(datatype=int, default=123)
+
+        schema = OneOf([str_rule, int_rule])
+        assert m.merge_defaults(schema, None) == None
+
+        schema = OneOf([str_rule, int_rule], first_is_default=True)
+        assert m.merge_defaults(schema, None) == 'hello'
+
+        schema = OneOf([int_rule, str_rule], first_is_default=True)
+        assert m.merge_defaults(schema, None) == 123
 
 
 class TestMergingDefaultsTypeSpecific:

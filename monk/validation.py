@@ -22,7 +22,7 @@ Validation
 ~~~~~~~~~~
 """
 from . import compat
-from .schema import canonize
+from .schema import OneOf, canonize
 from . import errors
 
 __all__ = [
@@ -188,6 +188,28 @@ def validate(rule, value):
 
     """
     rule = canonize(rule)
+
+    if isinstance(rule, OneOf):
+        # FIXME we've been expecting a rule (Rule instance) but got an instance
+        # of another class.  OneOf should inherit Rule or they should have
+        # a common base class.
+
+        # validating against the alternative rules, one by one
+        failures = []
+        for subrule in rule.choices:
+            try:
+                validate(subrule, value)
+            except Exception as e:
+                failures.append(e)
+                continue
+            else:
+                # we have a winner! that's enough to pass the test
+                return
+        raise errors.ValidationError('failed {} alternative rules: {}'.format(
+            len(rule.choices),
+            '; '.join(
+                ('{}) {}: {}'.format(i+1, e.__class__.__name__, e)
+                    for i, e in enumerate(failures)))))
 
     if value is None:
         # empty value, ok unless required

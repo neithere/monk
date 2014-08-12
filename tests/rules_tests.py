@@ -25,7 +25,8 @@ import datetime
 import pytest
 
 from monk import errors
-from monk.schema import Rule, canonize, one_of, any_value, any_or_none
+from monk.schema import Rule, OneOf, canonize, one_of, any_value, any_or_none
+from monk.validation import validate
 
 
 class TestRule:
@@ -109,6 +110,42 @@ class TestCanonization:
         assert rule == canonize(rule)
 
 
+class TestAlternativeRules:
+
+    def test_flat(self):
+        schema = OneOf([int, str])
+        validate(schema, 123)
+        validate(schema, 'foo')
+        with pytest.raises(errors.ValidationError) as excinfo:
+            validate(schema, {})
+        assert (
+            'ValidationError: failed 2 alternative rules:'
+            ' 1) TypeError: expected int, got dict {};'
+            ' 2) TypeError: expected str, got dict {}'
+        ) in excinfo.exconly()
+
+    def test_nested(self):
+        schema = OneOf([
+            {'foo': int},
+            {'bar': str},
+        ])
+        validate(schema, {'foo': 123})
+        validate(schema, {'bar': 'hi'})
+        with pytest.raises(errors.ValidationError) as excinfo:
+            validate(schema, {'foo': 'hi'})
+        assert (
+            'ValidationError: failed 2 alternative rules:'
+            ' 1) TypeError: foo: expected int, got str \'hi\';'
+            ' 2) InvalidKey: "foo"'
+        ) in excinfo.exconly()
+        with pytest.raises(errors.ValidationError) as excinfo:
+            validate(schema, {'bar': 123})
+        assert (
+            'ValidationError: failed 2 alternative rules:'
+            ' 1) InvalidKey: "bar";'
+            ' 2) TypeError: bar: expected str, got int 123'
+        ) in excinfo.exconly()
+
 class TestShortcuts:
 
     def test_any_value(self):
@@ -134,4 +171,3 @@ class TestShortcuts:
         with pytest.raises(errors.ValidationError) as excinfo:
             v('quux')
         assert "expected one of ['foo', 'bar']" in excinfo.exconly()
-

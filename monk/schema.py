@@ -25,7 +25,7 @@ from . import compat, errors, validators
 
 
 __all__ = [
-    'Rule', 'canonize',
+    'Rule', 'OneOf', 'canonize',
     # shortcuts:
     'any_value', 'any_or_none', 'optional', 'in_range', 'one_of'
 ]
@@ -126,6 +126,37 @@ class Rule:
             return True
 
 
+class OneOf:
+    """
+    A special kind of schema node along with :class:`Rule`.  Represents a set
+    of alternative rules which can be applied at given place.  A typical use
+    case is when significant variations are accepted for a document field but
+    it is hard or impossible to describe them with validators.
+
+    Example::
+
+        {
+            'foo': OneOf([
+                int,
+                float,
+                Rule(str, validators=[can_be_coerced_to_int]),
+            ]),
+        }
+
+    """
+    def __init__(self, choices, first_is_default=False):
+        assert choices
+        self.choices = choices
+        self.first_is_default = first_is_default
+
+    def __repr__(self):
+        flags = []
+        if self.first_is_default:
+            flags.append('first-is-default')
+        return '<OneOf {choices!r} {flags}>'.format(
+            choices=self.choices, flags=' '.join(flags))
+
+
 #-------------------------------------------
 # Functions
 #
@@ -141,6 +172,8 @@ def canonize(spec, rule_kwargs={}):
     value = spec
 
     if isinstance(value, Rule):
+        rule = value
+    elif isinstance(value, OneOf):
         rule = value
     elif value is None:
         rule = Rule(None, **rule_kwargs)
