@@ -205,10 +205,10 @@ def validate(rule, value):
             else:
                 # we have a winner! that's enough to pass the test
                 return
-        raise errors.ValidationError('failed {} alternative rules: {}'.format(
+        raise errors.ValidationError('failed {0} alternative rules: {1}'.format(
             len(rule.choices),
             '; '.join(
-                ('{}) {}: {}'.format(i+1, e.__class__.__name__, e)
+                ('{0}) {1}: {2}'.format(i+1, e.__class__.__name__, e)
                     for i, e in enumerate(failures)))))
 
     if value is None:
