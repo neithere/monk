@@ -136,13 +136,13 @@ class TestAlternativeRules:
         assert (
             'ValidationError: failed 2 alternative rules:'
             ' 1) TypeError: foo: expected int, got str \'hi\';'
-            ' 2) InvalidKey: "foo"'
+            " 2) InvalidKey: 'foo'"
         ) in excinfo.exconly()
         with pytest.raises(errors.ValidationError) as excinfo:
             validate(schema, {'bar': 123})
         assert (
             'ValidationError: failed 2 alternative rules:'
-            ' 1) InvalidKey: "bar";'
+            " 1) InvalidKey: 'bar';"
             ' 2) TypeError: bar: expected str, got int 123'
         ) in excinfo.exconly()
 

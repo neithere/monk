@@ -652,15 +652,15 @@ class TestRulesAsDictKeys:
 
         with pytest.raises(InvalidKey) as excinfo:
             validate(day_note_schema, bad_note1)
-        assert excinfo.exconly().endswith('InvalidKey: "1999"')
+        assert excinfo.exconly().endswith("InvalidKey: 1999")
 
         with pytest.raises(InvalidKey) as excinfo:
             validate(day_note_schema, bad_note2)
-        assert excinfo.exconly().endswith('InvalidKey: 2013: "13"')
+        assert excinfo.exconly().endswith('InvalidKey: 2013: 13')
 
         with pytest.raises(InvalidKey) as excinfo:
             validate(day_note_schema, bad_note3)
-        assert excinfo.exconly().endswith('InvalidKey: 2013: 12: "40"')
+        assert excinfo.exconly().endswith('InvalidKey: 2013: 12: 40')
 
     def test_nonsense(self):
         with pytest.raises(InvalidKey):

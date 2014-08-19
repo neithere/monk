@@ -94,9 +94,7 @@ def validate_dict(rule, value):
     # check if there are data keys that did not match any key spec;
     # if yes, raise InvalidKey for them
     if len(validated_data_keys) < len(value):
-        raise errors.InvalidKey('"{0}"'.format(
-            '", "'.join(compat.safe_str(x) for x in
-                        set(value) - set(validated_data_keys))))
+        raise errors.InvalidKey(', '.join(repr(x) for x in set(value) - set(validated_data_keys)))
 
     if missing_key_specs:
         # NOTE: this prints rules, not keys as strings
