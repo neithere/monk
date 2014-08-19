@@ -127,10 +127,10 @@ class StructuredDictMixin(object):
     def _insert_defaults(self):
         """ Inserts default values from :attr:`StructuredDictMixin.structure`
         to `self` by merging the two structures
-        (see :func:`monk.manipulation.merged`).
+        (see :func:`monk.manipulation.merge_defaults`).
         """
-        with_defaults = manipulation.merged(self.structure, self)
-        self.update(with_defaults)
+        merged = manipulation.merge_defaults(self.structure, self)
+        self.update(merged)
 
     def validate(self):
         validation.validate(self.structure, self)
