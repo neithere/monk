@@ -249,22 +249,17 @@ class TestMergingDefaultsTypeSpecific:
         assert m.merge_list(rule, 123, {}, None) == 123
 
     def test_merge_list_with_oneof(self):
-        "non-rule node in inner spec"
+        "Non-rule node in list's inner spec"
 
         # no defaults
-
-        rule = Rule(datatype=list, inner_spec=[
-            OneOf([123, 456])
-        ])
+        rule = Rule(datatype=list, inner_spec=OneOf([123, 456]))
         assert m.merge_defaults(rule, []) == []
         assert m.merge_defaults(rule, [789]) == [789]
 
         # with defaults
         # (same results because defaults have no effect on lists)
-
-        rule = Rule(datatype=list, inner_spec=[
-            OneOf([123, 456], first_is_default=True)
-        ])
+        rule = Rule(datatype=list,
+                    inner_spec=OneOf([123, 456], first_is_default=True))
         assert m.merge_defaults(rule, []) == []
         assert m.merge_defaults(rule, [789]) == [789]
 

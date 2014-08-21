@@ -114,6 +114,15 @@ def merge_list(spec, value, mergers, fallback):
 
     item_spec = canonize(spec.inner_spec or None)
 
+    if isinstance(item_spec, OneOf):
+        # FIXME we've been expecting a rule (Rule instance) but got an instance
+        # of another class.  OneOf should inherit Rule or they should have
+        # a common base class.
+        if item_spec.first_is_default:
+            return merge_defaults(item_spec.choices[0], value, mergers, fallback)
+        else:
+            return value
+
     if item_spec.datatype is None:
         # any value is accepted as list item
         return value
