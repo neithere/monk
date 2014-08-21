@@ -187,6 +187,18 @@ def validate(rule, value):
     """
     rule = canonize(rule)
 
+    if value is None:
+        # empty value, ok unless required
+        if rule.optional:
+            return
+
+        if rule.datatype is NotImplemented:
+            pass
+        elif rule.datatype is None:
+            raise errors.MissingValue('expected a value, got None')
+        else:
+            raise errors.MissingValue('expected {0}, got None'.format(rule.datatype.__name__))
+
     if isinstance(rule, OneOf):
         # FIXME we've been expecting a rule (Rule instance) but got an instance
         # of another class.  OneOf should inherit Rule or they should have
@@ -209,17 +221,9 @@ def validate(rule, value):
                 ('{0}) {1}: {2}'.format(i+1, e.__class__.__name__, e)
                     for i, e in enumerate(failures)))))
 
-    if value is None:
-        # empty value, ok unless required
-        if rule.optional:
-            return
-
-        if rule.datatype is None:
-            raise errors.MissingValue('expected a value, got None')
-        else:
-            raise errors.MissingValue('expected {0}, got None'.format(rule.datatype.__name__))
-
-    if rule.datatype is None:
+    if rule.datatype is NotImplemented:
+        pass
+    elif rule.datatype is None:
         # any value is acceptable
         pass
     elif rule.datatype == dict:
@@ -231,5 +235,8 @@ def validate(rule, value):
         if isinstance(rule.datatype, type):
             validate_type(rule, value)
 
-    for validator in rule.validators:
-        validator(value)
+    if rule.validators is NotImplemented:
+        pass
+    else:
+        for validator in rule.validators:
+            validator(value)

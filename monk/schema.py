@@ -35,7 +35,14 @@ __all__ = [
 # Classes
 #
 
-class Rule:
+
+class BaseSchemaNode:
+    # if NotImplemented is encountered, data type should not be checked
+    datatype = NotImplemented
+    optional = False
+
+
+class Rule(BaseSchemaNode):
     """
     Extended specification of a field.  Allows marking it as optional.
 
@@ -126,7 +133,7 @@ class Rule:
             return True
 
 
-class OneOf:
+class OneOf(BaseSchemaNode):
     """
     A special kind of schema node along with :class:`Rule`.  Represents a set
     of alternative rules which can be applied at given place.  A typical use
@@ -219,7 +226,7 @@ def optional(spec):
         True
 
     """
-    if isinstance(spec, Rule):
+    if isinstance(spec, BaseSchemaNode):
         spec.optional = True
         return spec
     else:
