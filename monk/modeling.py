@@ -84,8 +84,7 @@ class DotExpandedDictMixin(object):
             super(DotExpandedDictMixin, self).__setattr__(attr, value)
 
     def __setitem__(self, key, value):
-        if isinstance(value, dict) and \
-           not isinstance(value, DotExpandedDict):
+        if isinstance(value, dict) and not isinstance(value, DotExpandedDict):
             value = make_dot_expanded(value)
         super(DotExpandedDictMixin, self).__setitem__(key, value)
 
