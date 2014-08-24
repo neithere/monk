@@ -46,7 +46,7 @@ class BaseRequirement(BaseValidator):
     def __call__(self, value):
         for implied in self.implies:
             implied(value)
-        self.check(value)
+        self._check(value)
 
     def _represent(self):
         return self.__dict__
@@ -60,7 +60,7 @@ class IsA(BaseRequirement):
         self.expected_type = expected_type
         self.default = default
 
-    def check(self, value):
+    def _check(self, value):
         if not isinstance(value, self.expected_type):
             raise ValidationError('must be {}'.format(self.expected_type.__name__))
 
@@ -73,7 +73,7 @@ class Equals(BaseRequirement):
         self.expected_value = expected_value
         self.default = default
 
-    def check(self, value):
+    def _check(self, value):
         if self.expected_value != value:
             raise ValidationError('!= {}' .format(self.expected_value))
 
@@ -86,7 +86,7 @@ class CanBeNone(BaseRequirement):
         self.is_allowed = is_allowed
         self.default = default
 
-    def check(self, value):
+    def _check(self, value):
         if value is None and not self.is_allowed:
             raise MissingValue('must be defined')
 
@@ -105,7 +105,7 @@ class ListContains(BaseRequirement):
         self.nested_validator = validator
         self.default = default
 
-    def check(self, value):
+    def _check(self, value):
         for i, nested_value in enumerate(value):
             try:
                 self.nested_validator(nested_value)
@@ -125,7 +125,7 @@ class DictContains(BaseRequirement):
         self.nested_validator = validator
         self.default = default
 
-    def check(self, value):
+    def _check(self, value):
         if self.key not in value:
             raise MissingKey(repr(self.key))
         nested_value = value[self.key]
