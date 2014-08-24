@@ -22,6 +22,7 @@ Value Specification Combinators
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 __all__ = [
+    'BaseValidator',
     'BaseCombinator',
     'All',
     'Any',
@@ -31,7 +32,16 @@ __all__ = [
 from .errors import (
     CombinedValidationError, AtLeastOneFailed, AllFailed, ValidationError
 )
-from .bases import BaseValidator
+
+
+class BaseValidator:
+    def __and__(self, other):
+        # XXX should we flatten same-logic one-item combs?
+        return All([self, other])
+
+    def __or__(self, other):
+        # XXX should we flatten same-logic one-item combs?
+        return Any([self, other])
 
 
 class BaseCombinator(BaseValidator):

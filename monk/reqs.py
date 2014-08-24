@@ -35,7 +35,7 @@ __all__ = [
 from functools import partial
 
 from .errors import ValidationError, MissingKey, MissingValue
-from .bases import BaseValidator
+from .combinators import BaseValidator
 
 
 class BaseRequirement(BaseValidator):
