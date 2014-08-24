@@ -680,4 +680,4 @@ class TestOneOf:
         validate(schema, [123])
         validate(schema, [123, 'sss'])
         with pytest.raises(ValidationError):
-            validate(schema, [123, 'sss', u'uuu'])
+            validate(schema, [123, 'sss', 999.999])
