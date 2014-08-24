@@ -58,3 +58,15 @@ class CombinedValidationError(ValidationError):
     """
     Raised when a combination of specs has failed validation.
     """
+
+
+class AllFailed(CombinedValidationError):
+    """
+    Raised when at least one validator was expected to pass but none did.
+    """
+
+
+class AtLeastOneFailed(CombinedValidationError):
+    """
+    Raised when all validators were expected to pas but at least one didn't.
+    """

@@ -28,11 +28,15 @@ __all__ = [
 ]
 
 
-from .errors import CombinedValidationError, ValidationError
+from .errors import (
+    CombinedValidationError, AtLeastOneFailed, AllFailed, ValidationError
+)
 from .bases import BaseValidator
 
 
 class BaseCombinator(BaseValidator):
+    error_class = CombinedValidationError
+
     def __init__(self, specs, default=None):
         assert specs
         self._specs = specs
@@ -42,17 +46,19 @@ class BaseCombinator(BaseValidator):
         errors = []
         for spec in self._specs:
             # TODO: group errors by exception type
-            if spec.is_recursive and errors:
-                # Don't collect nested errors if we already have one here.
-                # Another optimized strategy would be to fail early instead of
-                # trying to collect all exceptions for the node.
-                continue
+            # TODO: try recursive validators after all flat ones are OK
+            #       (may be not a good idea because the order may matter)
+            #if spec.is_recursive and errors:
+            #    # Don't collect nested errors if we already have one here.
+            #    # Another optimized strategy would be to fail early instead of
+            #    # trying to collect all exceptions for the node.
+            #    continue
             try:
                 spec(value)
             except ValidationError as e:
                 errors.append(e)
         if not self.can_tolerate(errors):
-            raise CombinedValidationError('invalid value {!r} ({})'.format(
+            raise self.error_class('{!r} ({})'.format(
                 value, '; '.join(('{}: {}'.format(e.__class__.__name__, e) for e in errors))))
 
 
@@ -73,12 +79,16 @@ class BaseCombinator(BaseValidator):
 
 
 class All(BaseCombinator):
+    error_class = AtLeastOneFailed
+
     def can_tolerate(self, errors):
         if not errors:
             return True
 
 
 class Any(BaseCombinator):
+    error_class = AllFailed
+
     def can_tolerate(self, errors):
         if len(errors) < len(self._specs):
             return True

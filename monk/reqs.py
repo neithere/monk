@@ -101,28 +101,28 @@ class ListContains(BaseRequirement):
     is_recursive = True
     implies = [IsA(list), CanBeNone(False)]
 
-    def __init__(self, req, default=None):
-        self.nested_req = req
+    def __init__(self, validator, default=None):
+        self.nested_validator = validator
         self.default = default
 
     def check(self, value):
         for i, nested_value in enumerate(value):
             try:
-                self.nested_req(nested_value)
+                self.nested_validator(nested_value)
             except ValidationError as e:
                 raise ValidationError('#{}: {}'.format(i, e))
 
     def _represent(self):
-        return repr(self.nested_req)
+        return repr(self.nested_validator)
 
 
 class DictContains(BaseRequirement):
     is_recursive = True
     implies = [IsA(dict), CanBeNone(False)]
 
-    def __init__(self, key, req, default=None):
+    def __init__(self, key, validator, default=None):
         self.key = key
-        self.nested_req = req
+        self.nested_validator = validator
         self.default = default
 
     def check(self, value):
@@ -130,7 +130,7 @@ class DictContains(BaseRequirement):
             raise MissingKey(repr(self.key))
         nested_value = value[self.key]
         try:
-            self.nested_req(nested_value)
+            self.nested_validator(nested_value)
         except ValidationError as e:
             raise ValidationError('{!r}: {}'.format(self.key, e))
 
