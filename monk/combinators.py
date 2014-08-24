@@ -53,7 +53,7 @@ class BaseCombinator(BaseValidator):
                 errors.append(e)
         if not self.can_tolerate(errors):
             raise CombinedValidationError('invalid value {!r} ({})'.format(
-                value, '; '.join(map(str, errors))))
+                value, '; '.join(('{}: {}'.format(e.__class__.__name__, e) for e in errors))))
 
 
     def __repr__(self):

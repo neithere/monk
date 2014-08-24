@@ -34,7 +34,7 @@ __all__ = [
 
 from functools import partial
 
-from .errors import ValidationError, MissingValue
+from .errors import ValidationError, MissingKey, MissingValue
 from .bases import BaseValidator
 
 
@@ -102,8 +102,11 @@ class ListContains(BaseRequirement):
         self.nested_req = req
 
     def check(self, value):
-        for nested_value in value:
-            self.nested_req(nested_value)
+        for i, nested_value in enumerate(value):
+            try:
+                self.nested_req(nested_value)
+            except ValidationError as e:
+                raise ValidationError('#{}: {}'.format(i, e))
 
     def _represent(self):
         return repr(self.nested_req)
@@ -118,8 +121,13 @@ class DictContains(BaseRequirement):
         self.nested_req = req
 
     def check(self, value):
+        if self.key not in value:
+            raise MissingKey(repr(self.key))
         nested_value = value[self.key]
-        self.nested_req(nested_value)
+        try:
+            self.nested_req(nested_value)
+        except ValidationError as e:
+            raise ValidationError('{!r}: {}'.format(self.key, e))
 
 
 #@requirement(implies=[IsA(dict)], is_recursive=True, vars=['key', 'req'])
