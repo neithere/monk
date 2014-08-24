@@ -29,9 +29,10 @@ __all__ = [
 
 
 from .errors import CombinedValidationError, ValidationError
+from .bases import BaseValidator
 
 
-class BaseCombinator:
+class BaseCombinator(BaseValidator):
     def __init__(self, specs, default=None):
         assert specs
         self._specs = specs

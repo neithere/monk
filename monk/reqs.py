@@ -35,9 +35,10 @@ __all__ = [
 from functools import partial
 
 from .errors import ValidationError, MissingValue
+from .bases import BaseValidator
 
 
-class BaseRequirement:
+class BaseRequirement(BaseValidator):
     # a hint for combinators, see their code
     is_recursive = False
     implies = ()
