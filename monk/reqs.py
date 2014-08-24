@@ -56,8 +56,9 @@ class BaseRequirement(BaseValidator):
 
 
 class IsA(BaseRequirement):
-    def __init__(self, expected_type):
+    def __init__(self, expected_type, default=None):
         self.expected_type = expected_type
+        self.default = default
 
     def check(self, value):
         if not isinstance(value, self.expected_type):
@@ -68,8 +69,9 @@ class IsA(BaseRequirement):
 
 
 class Equals(BaseRequirement):
-    def __init__(self, expected_value):
+    def __init__(self, expected_value, default=None):
         self.expected_value = expected_value
+        self.default = default
 
     def check(self, value):
         if self.expected_value != value:
@@ -80,8 +82,9 @@ class Equals(BaseRequirement):
 
 
 class CanBeNone(BaseRequirement):
-    def __init__(self, is_allowed):
+    def __init__(self, is_allowed, default=None):
         self.is_allowed = is_allowed
+        self.default = default
 
     def check(self, value):
         if value is None and not self.is_allowed:
@@ -98,8 +101,9 @@ class ListContains(BaseRequirement):
     is_recursive = True
     implies = [IsA(list), CanBeNone(False)]
 
-    def __init__(self, req):
+    def __init__(self, req, default=None):
         self.nested_req = req
+        self.default = default
 
     def check(self, value):
         for i, nested_value in enumerate(value):
@@ -116,9 +120,10 @@ class DictContains(BaseRequirement):
     is_recursive = True
     implies = [IsA(dict), CanBeNone(False)]
 
-    def __init__(self, key, req):
+    def __init__(self, key, req, default=None):
         self.key = key
         self.nested_req = req
+        self.default = default
 
     def check(self, value):
         if self.key not in value:
