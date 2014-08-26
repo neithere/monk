@@ -41,11 +41,11 @@ from .combinators import BaseValidator
 class BaseRequirement(BaseValidator):
     # a hint for combinators, see their code
     is_recursive = False
-    implies = ()
+    implies = NotImplemented
 
     def __call__(self, value):
-        for implied in self.implies:
-            implied(value)
+        if self.implies is not NotImplemented:
+            self.implies(value)
         self._check(value)
 
     def _represent(self):
@@ -99,7 +99,7 @@ Optional = partial(CanBeNone(True))
 
 class ListContains(BaseRequirement):
     is_recursive = True
-    implies = [IsA(list), CanBeNone(False)]
+    implies = IsA(list) & CanBeNone(False)
 
     def __init__(self, validator, default=None):
         self.nested_validator = validator
@@ -118,7 +118,7 @@ class ListContains(BaseRequirement):
 
 class DictContains(BaseRequirement):
     is_recursive = True
-    implies = [IsA(dict), CanBeNone(False)]
+    implies = IsA(dict) & CanBeNone(False)
 
     def __init__(self, key, validator, default=None):
         self.key = key
