@@ -50,6 +50,7 @@ class BaseRequirement(BaseValidator):
     # a hint for combinators, see their code
     is_recursive = False
     implies = NotImplemented
+    default = NotImplemented
 
     def __call__(self, value):
         if self.implies is not NotImplemented:
@@ -64,6 +65,9 @@ class BaseRequirement(BaseValidator):
 
 
 class IsA(BaseRequirement):
+    """
+    Requires that the value is an instance of given type.
+    """
     def __init__(self, expected_type, default=None):
         self.expected_type = expected_type
         self.default = default
@@ -77,6 +81,9 @@ class IsA(BaseRequirement):
 
 
 class Equals(BaseRequirement):
+    """
+    Requires that the value equals given expected value.
+    """
     def __init__(self, expected_value, default=None):
         self.expected_value = expected_value
         self.default = default
@@ -90,6 +97,11 @@ class Equals(BaseRequirement):
 
 
 class NotExists(BaseRequirement):
+    """
+    Requires that the value does not exist.  Obviously this only makes sense in
+    special cases like dictionary keys; otherwise there's simply nothing to
+    validate.  Note that this is *not* a check against `None` or `False`.
+    """
     def __init__(self, is_required=True, default=None):
         self.is_required = is_required
         self.default = default
@@ -101,6 +113,19 @@ class NotExists(BaseRequirement):
 
 
 class ListOf(BaseRequirement):
+    """
+    Requires that the value is a `list` which items match given validator.
+    Usage::
+
+        >>> v = ListOf(IsA(int) | IsA(str))
+        >>> v([123, 'hello'])
+        >>> v([123, 'hello', 5.5])
+        Traceback (most recent call last):
+        ...
+        ValidationError: #2: 5.5 (ValidationError: must be int;
+                                  ValidationError: must be str)
+
+    """
     is_recursive = True
     implies = IsA(list)
 
@@ -127,21 +152,41 @@ class ListOf(BaseRequirement):
 #    ctx['req'](nested_value)
 
 
-class EachItem(BaseRequirement):
-    def __init__(self, validator):
-        self.validator = validator
-
-    def _check(self, value):
-        for item in value:
-            self.validator(value)
 
 
 class DictOf(BaseRequirement):
+    """
+    Requires that the value is a `dict` which items match given patterns.
+    Usage::
+
+        >>> v = DictOf([
+        ...     # key "name" must exist; its value must be a `str`
+        ...     (Equals('name'), IsA(str)),
+        ...     # key "age" may not exist; its value must be an `int`
+        ...     (Equals('age') | NotExists(), IsA(int)),
+        ...     # there may be other `str` keys with `str` or `int` values
+        ...     (IsA(str), IsA(str) | IsA(int)),
+        ... ])
+        >>> v({'name': 'John'})
+        >>> v({'name': 'John', 'age': 25})
+        >>> v({'name': 'John', 'age': 25.5})
+        Traceback (most recent call last):
+        ...
+        monk.errors.ValidationError: 'age': must be int
+        >>> v({'name': 'John', 'age': 25, 'note': 'custom field'})
+        >>> v({'name': 'John', 'age': 25, 'note': 5.5})
+        Traceback (most recent call last):
+        ...
+        AllFailed: 'note': 5.5 (ValidationError: must be str;
+                                ValidationError: must be int)
+
+    Note that this validator supports :class:`NotExists` to mark keys that can
+    be missing.
+    """
     implies = IsA(dict)
 
-    def __init__(self, pairs, default=None):
+    def __init__(self, pairs):
         self._pairs = pairs
-        self.default = default
 
     def _check(self, value):
         value = value or {}
@@ -196,6 +241,9 @@ class DictOf(BaseRequirement):
 
 
 class Length(BaseRequirement):
+    """
+    Requires that the value length is in given boundaries.
+    """
     def __init__(self, min=None, max=None):
         self._min = min
         self._max = max

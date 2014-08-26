@@ -35,13 +35,22 @@ from .errors import (
 
 
 class BaseValidator:
-    def __and__(self, other):
+    def _combine(self, other, combinator):
         # XXX should we flatten same-logic one-item combs?
-        return All([self, other])
+        if not isinstance(other, BaseValidator):
+            if isinstance(other, type) and issubclass(other, BaseValidator):
+                # e.g. NotExists instead of NotExists()
+                raise TypeError('got {} class instead of its instance'
+                                .format(other.__name__))
+            raise TypeError('expected a {} subclass instance, got {!r}'
+                            .format(BaseValidator.__name__, other))
+        return combinator([self, other])
+
+    def __and__(self, other):
+        return self._combine(other, All)
 
     def __or__(self, other):
-        # XXX should we flatten same-logic one-item combs?
-        return Any([self, other])
+        return self._combine(other, Any)
 
 
 class BaseCombinator(BaseValidator):
@@ -93,6 +102,9 @@ class BaseCombinator(BaseValidator):
 
 
 class All(BaseCombinator):
+    """
+    Requires that the value passes all nested validators.
+    """
     error_class = AtLeastOneFailed
     break_on_first_fail = True
 
@@ -104,6 +116,9 @@ class All(BaseCombinator):
 
 
 class Any(BaseCombinator):
+    """
+    Requires that the value passes at least one of nested validators.
+    """
     error_class = AllFailed
 
     def can_tolerate(self, errors):
