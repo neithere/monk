@@ -146,6 +146,7 @@ class TestAlternativeRules:
             ' 2) TypeError: bar: expected str, got int 123'
         ) in excinfo.exconly()
 
+
 class TestShortcuts:
 
     def test_any_value(self):
@@ -155,6 +156,8 @@ class TestShortcuts:
         assert any_or_none == Rule(None, optional=True)
 
     def test_one_of(self):
+        # literals (behaviour implicitly turned on)
+
         shortcut_rule = one_of(['foo', 'bar'])
         # in this case the custom validator is an ad-hoc function
         # so two otherwise identical rules with such semantically equivalent
@@ -171,3 +174,20 @@ class TestShortcuts:
         with pytest.raises(errors.ValidationError) as excinfo:
             v('quux')
         assert "expected one of ['foo', 'bar']" in excinfo.exconly()
+
+        # non-literals → rules (behaviour explicitly turned on)
+
+        shortcut_rule = one_of(['foo', 'bar'], as_rules=True)
+        verbose_rule = OneOf(choices=['foo', 'bar'])
+        assert shortcut_rule == verbose_rule
+
+        v = one_of(['foo', 123], as_rules=True)
+        validate(v, 'hello')
+        validate(v, 456)
+        with pytest.raises(errors.ValidationError) as excinfo:
+            validate(v, 5.5)
+        assert (
+            'ValidationError: failed 2 alternative rules:'
+            ' 1) TypeError: expected str, got float 5.5;'
+            ' 2) TypeError: expected int, got float 5.5'
+        ) in excinfo.exconly()
