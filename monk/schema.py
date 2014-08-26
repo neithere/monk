@@ -25,7 +25,7 @@ from . import compat, errors, validators
 
 
 __all__ = [
-    'Rule', 'canonize',
+    'Rule', 'OneOf', 'canonize',
     # shortcuts:
     'any_value', 'any_or_none', 'optional', 'in_range', 'one_of'
 ]
@@ -35,7 +35,14 @@ __all__ = [
 # Classes
 #
 
-class Rule:
+
+class BaseSchemaNode:
+    # if NotImplemented is encountered, data type should not be checked
+    datatype = NotImplemented
+    optional = False
+
+
+class Rule(BaseSchemaNode):
     """
     Extended specification of a field.  Allows marking it as optional.
 
@@ -126,6 +133,41 @@ class Rule:
             return True
 
 
+class OneOf(BaseSchemaNode):
+    """
+    A special kind of schema node along with :class:`Rule`.  Represents a set
+    of alternative rules which can be applied at given place.  A typical use
+    case is when significant variations are accepted for a document field but
+    it is hard or impossible to describe them with validators.
+
+    Example::
+
+        {
+            'foo': OneOf([
+                int,
+                float,
+                Rule(str, validators=[can_be_coerced_to_int]),
+            ]),
+        }
+
+    """
+    def __init__(self, choices, first_is_default=False):
+        assert choices
+        self.choices = choices
+        self.first_is_default = first_is_default
+
+    def __repr__(self):
+        flags = []
+        if self.first_is_default:
+            flags.append('first-is-default')
+        return '<OneOf {choices!r} {flags}>'.format(
+            choices=self.choices, flags=' '.join(flags))
+
+    def __eq__(self, other):
+        if (isinstance(other, type(self)) and self.__dict__ == other.__dict__):
+            return True
+
+
 #-------------------------------------------
 # Functions
 #
@@ -141,6 +183,8 @@ def canonize(spec, rule_kwargs={}):
     value = spec
 
     if isinstance(value, Rule):
+        rule = value
+    elif isinstance(value, OneOf):
         rule = value
     elif value is None:
         rule = Rule(None, **rule_kwargs)
@@ -186,7 +230,7 @@ def optional(spec):
         True
 
     """
-    if isinstance(spec, Rule):
+    if isinstance(spec, BaseSchemaNode):
         spec.optional = True
         return spec
     else:
@@ -201,10 +245,30 @@ any_or_none = Rule(None, optional=True)
 "A shortcut for ``Rule(None, optional=True)``"
 
 
-def one_of(choices, first_is_default=False):
+def one_of(choices, first_is_default=False, as_rules=False):
     """
-    A shortcut for a rule with :func:`~monk.validators.validate_choice` validator.
-    ::
+    A shortcut for either a :class:`OneOf` instance or a rule with
+    :func:`~monk.validators.validate_choice` validator.
+
+    Alternative rules::
+
+        # given the two rules (in pythonic notation):
+
+        rules = ['foo', 123]
+
+        # these expressions are equal:
+
+        one_of(rules, as_rules=True)
+        OneOf(rules)
+
+        # first_is_default propagates, so these are equal again:
+
+        one_of(rules, first_is_default=True, as_rules=True)
+        OneOf(rules, first_is_default=True)
+
+    A rule with a choice validator::
+
+        # given the two literals:
 
         choices = ['foo', 'bar']
 
@@ -221,8 +285,25 @@ def one_of(choices, first_is_default=False):
         Rule(str, default=choices[0],
              validators=[monk.validators.choice(choices)])
 
+    :param choices:
+        a list of choices (literals by default; see `as_rules`).
+    :param as_rules:
+        `bool`, default is `True`.  If `False`, the `choices` are interpreted
+        as rules instead of literals and the result would be a :class:`OneOf`
+        instance instead of .  In this case a list of `['foo', 'bar']`
+        is considered a "pythonic" schema which should be canonized, so `'foo'`
+        becomes a :class:`Rule` with datatype being `str` and default value
+        being `'foo'`.  However, that specific schema is invalid (the list
+        must contain only one item), so an error would be raised.
+    :param first_is_default:
+        use the first choice to define the default value
+        (for :func:`monk.manipulation.merge_defaults`).
+
     """
     assert choices
+
+    if as_rules:
+        return OneOf(choices, first_is_default=first_is_default)
 
     if first_is_default:
         default_choice = choices[0]

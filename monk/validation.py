@@ -22,7 +22,7 @@ Validation
 ~~~~~~~~~~
 """
 from . import compat
-from .schema import canonize
+from .schema import OneOf, canonize
 from . import errors
 
 __all__ = [
@@ -94,9 +94,7 @@ def validate_dict(rule, value):
     # check if there are data keys that did not match any key spec;
     # if yes, raise InvalidKey for them
     if len(validated_data_keys) < len(value):
-        raise errors.InvalidKey('"{0}"'.format(
-            '", "'.join(compat.safe_str(x) for x in
-                        set(value) - set(validated_data_keys))))
+        raise errors.InvalidKey(', '.join(repr(x) for x in set(value) - set(validated_data_keys)))
 
     if missing_key_specs:
         # NOTE: this prints rules, not keys as strings
@@ -194,12 +192,38 @@ def validate(rule, value):
         if rule.optional:
             return
 
-        if rule.datatype is None:
+        if rule.datatype is NotImplemented:
+            pass
+        elif rule.datatype is None:
             raise errors.MissingValue('expected a value, got None')
         else:
             raise errors.MissingValue('expected {0}, got None'.format(rule.datatype.__name__))
 
-    if rule.datatype is None:
+    if isinstance(rule, OneOf):
+        # FIXME we've been expecting a rule (Rule instance) but got an instance
+        # of another class.  OneOf should inherit Rule or they should have
+        # a common base class.
+
+        # validating against the alternative rules, one by one
+        failures = []
+        for subrule in rule.choices:
+            try:
+                validate(subrule, value)
+            except Exception as e:
+                failures.append(e)
+                continue
+            else:
+                # we have a winner! that's enough to pass the test
+                return
+        raise errors.ValidationError('failed {0} alternative rules: {1}'.format(
+            len(rule.choices),
+            '; '.join(
+                ('{0}) {1}: {2}'.format(i+1, e.__class__.__name__, e)
+                    for i, e in enumerate(failures)))))
+
+    if rule.datatype is NotImplemented:
+        pass
+    elif rule.datatype is None:
         # any value is acceptable
         pass
     elif rule.datatype == dict:
@@ -211,5 +235,8 @@ def validate(rule, value):
         if isinstance(rule.datatype, type):
             validate_type(rule, value)
 
-    for validator in rule.validators:
-        validator(value)
+    if rule.validators is NotImplemented:
+        pass
+    else:
+        for validator in rule.validators:
+            validator(value)

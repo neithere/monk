@@ -25,7 +25,7 @@ import mock
 import pytest
 
 from monk.compat import text_type as t
-from monk.schema import Rule, optional
+from monk.schema import Rule, OneOf, optional
 import monk.manipulation as m
 
 
@@ -79,6 +79,19 @@ class TestMergingDefaults:
 
         assert m.merged(spec_a, {}) == {}
         assert m.merged(spec_b, {}) == {}
+
+    def test_merge_oneof(self):
+        str_rule = Rule(datatype=str, default='hello')
+        int_rule = Rule(datatype=int, default=123)
+
+        schema = OneOf([str_rule, int_rule])
+        assert m.merge_defaults(schema, None) == None
+
+        schema = OneOf([str_rule, int_rule], first_is_default=True)
+        assert m.merge_defaults(schema, None) == 'hello'
+
+        schema = OneOf([int_rule, str_rule], first_is_default=True)
+        assert m.merge_defaults(schema, None) == 123
 
 
 class TestMergingDefaultsTypeSpecific:
@@ -234,6 +247,21 @@ class TestMergingDefaultsTypeSpecific:
 
         # bogus value; will not pass validation but should be preserved
         assert m.merge_list(rule, 123, {}, None) == 123
+
+    def test_merge_list_with_oneof(self):
+        "Non-rule node in list's inner spec"
+
+        # no defaults
+        rule = Rule(datatype=list, inner_spec=OneOf([123, 456]))
+        assert m.merge_defaults(rule, []) == []
+        assert m.merge_defaults(rule, [789]) == [789]
+
+        # with defaults
+        # (same results because defaults have no effect on lists)
+        rule = Rule(datatype=list,
+                    inner_spec=OneOf([123, 456], first_is_default=True))
+        assert m.merge_defaults(rule, []) == []
+        assert m.merge_defaults(rule, [789]) == [789]
 
 
 class TestMergingDefaultsNaturalNotation:

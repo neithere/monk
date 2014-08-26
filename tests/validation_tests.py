@@ -28,7 +28,7 @@ import pytest
 
 from monk.compat import text_type, safe_unicode
 from monk.errors import MissingKey, MissingValue, InvalidKey, ValidationError
-from monk.schema import Rule, optional, any_value, any_or_none, in_range
+from monk.schema import OneOf, Rule, optional, any_value, any_or_none, in_range
 from monk.validation import validate
 
 
@@ -652,16 +652,32 @@ class TestRulesAsDictKeys:
 
         with pytest.raises(InvalidKey) as excinfo:
             validate(day_note_schema, bad_note1)
-        assert excinfo.exconly().endswith('InvalidKey: "1999"')
+        assert excinfo.exconly().endswith("InvalidKey: 1999")
 
         with pytest.raises(InvalidKey) as excinfo:
             validate(day_note_schema, bad_note2)
-        assert excinfo.exconly().endswith('InvalidKey: 2013: "13"')
+        assert excinfo.exconly().endswith('InvalidKey: 2013: 13')
 
         with pytest.raises(InvalidKey) as excinfo:
             validate(day_note_schema, bad_note3)
-        assert excinfo.exconly().endswith('InvalidKey: 2013: 12: "40"')
+        assert excinfo.exconly().endswith('InvalidKey: 2013: 12: 40')
 
     def test_nonsense(self):
         with pytest.raises(InvalidKey):
             validate({int: str}, {int: 'foo'})
+
+
+class TestOneOf:
+    # regressions for edge cases where the kludge named "OneOf" would break
+    def test_validate_optional_one_of_in_a_list(self):
+        # unset "optional" should work exactly as in a Rule
+        schema = [OneOf([str, int])]
+        with pytest.raises(ValidationError):
+            validate(schema, [])
+
+        schema = [optional(OneOf([str, int]))]
+        validate(schema, [])
+        validate(schema, [123])
+        validate(schema, [123, 'sss'])
+        with pytest.raises(ValidationError):
+            validate(schema, [123, 'sss', 999.999])

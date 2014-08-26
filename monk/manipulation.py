@@ -22,7 +22,7 @@ Data manipulation
 ~~~~~~~~~~~~~~~~~
 """
 from monk.compat import text_type
-from monk.schema import Rule, canonize
+from monk.schema import Rule, OneOf, canonize
 
 
 __all__ = [
@@ -102,8 +102,6 @@ def merge_list(spec, value, mergers, fallback):
     """
     assert spec.datatype is list
 
-    item_spec = canonize(spec.inner_spec or None)
-
     if spec.optional and value is None:
         return None
 
@@ -113,6 +111,17 @@ def merge_list(spec, value, mergers, fallback):
     if value is not None and not isinstance(value, list):
         # bogus value; will not pass validation but should be preserved
         return value
+
+    item_spec = canonize(spec.inner_spec or None)
+
+    if isinstance(item_spec, OneOf):
+        # FIXME we've been expecting a rule (Rule instance) but got an instance
+        # of another class.  OneOf should inherit Rule or they should have
+        # a common base class.
+        if item_spec.first_is_default:
+            return merge_defaults(item_spec.choices[0], value, mergers, fallback)
+        else:
+            return value
 
     if item_spec.datatype is None:
         # any value is accepted as list item
@@ -186,6 +195,16 @@ def merge_defaults(spec, value, mergers=TYPE_MERGERS, fallback=merge_any):
 
     """
     rule = canonize(spec)
+
+    if isinstance(rule, OneOf):
+        # FIXME we've been expecting a rule (Rule instance) but got an instance
+        # of another class.  OneOf should inherit Rule or they should have
+        # a common base class.
+        if rule.first_is_default:
+            return merge_defaults(rule.choices[0], value, mergers, fallback)
+
+        # XXX really?
+        return value
 
     if value is None and rule.default is not None:
         return rule.default
