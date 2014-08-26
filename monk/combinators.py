@@ -46,6 +46,7 @@ class BaseValidator:
 
 class BaseCombinator(BaseValidator):
     error_class = CombinedValidationError
+    break_on_first_fail = False
 
     def __init__(self, specs, default=None):
         assert specs
@@ -66,6 +67,9 @@ class BaseCombinator(BaseValidator):
             try:
                 spec(value)
             except ValidationError as e:
+                if self.break_on_first_fail:
+                    # don't even wrap the error
+                    raise
                 errors.append(e)
         if not self.can_tolerate(errors):
             raise self.error_class('{!r} ({})'.format(
@@ -90,8 +94,11 @@ class BaseCombinator(BaseValidator):
 
 class All(BaseCombinator):
     error_class = AtLeastOneFailed
+    break_on_first_fail = True
 
     def can_tolerate(self, errors):
+        # TODO: fail early, work as `or` does
+        # (this also enables basic if-then in the schema)
         if not errors:
             return True
 

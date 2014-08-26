@@ -25,17 +25,25 @@ __all__ = [
     'BaseRequirement',
     'IsA',
     'Equals',
-    'CanBeNone',
-    'Required',
-    'Optional',
-    'DictContains',
-    'ListContains',
+    'Length',
+    'ListOf',
+    'DictOf',
+    'NotExists',
 ]
 
 from functools import partial
 
-from .errors import ValidationError, MissingKey, MissingValue
+from . import compat
+from .errors import ValidationError, InvalidKey, MissingKey, MissingValue
 from .combinators import BaseValidator
+
+
+class MISSING:
+    """
+    Stub for NotExists validator to pass if the value is missing
+    (e.g. for dictionary keys).
+    """
+    pass
 
 
 class BaseRequirement(BaseValidator):
@@ -81,25 +89,20 @@ class Equals(BaseRequirement):
         return repr(self.expected_value)
 
 
-class CanBeNone(BaseRequirement):
-    def __init__(self, is_allowed, default=None):
-        self.is_allowed = is_allowed
+class NotExists(BaseRequirement):
+    def __init__(self, is_required=True, default=None):
+        self.is_required = is_required
         self.default = default
 
     def _check(self, value):
-        if value is None and not self.is_allowed:
-            raise MissingValue('must be defined')
-
-    def _represent(self):
-        return self.is_allowed
-
-Required = partial(CanBeNone(False))
-Optional = partial(CanBeNone(True))
+        if value is not MISSING:
+            raise MissingValue('must not exist')
 
 
-class ListContains(BaseRequirement):
+
+class ListOf(BaseRequirement):
     is_recursive = True
-    implies = IsA(list) & CanBeNone(False)
+    implies = IsA(list)
 
     def __init__(self, validator, default=None):
         self.nested_validator = validator
@@ -116,26 +119,89 @@ class ListContains(BaseRequirement):
         return repr(self.nested_validator)
 
 
-class DictContains(BaseRequirement):
-    is_recursive = True
-    implies = IsA(dict) & CanBeNone(False)
-
-    def __init__(self, key, validator, default=None):
-        self.key = key
-        self.nested_validator = validator
-        self.default = default
-
-    def _check(self, value):
-        if self.key not in value:
-            raise MissingKey(repr(self.key))
-        nested_value = value[self.key]
-        try:
-            self.nested_validator(nested_value)
-        except ValidationError as e:
-            raise ValidationError('{!r}: {}'.format(self.key, e))
 
 
 #@requirement(implies=[IsA(dict)], is_recursive=True, vars=['key', 'req'])
 #def dict_contains(ctx, value):
 #    nested_value = value[ctx['key']]
 #    ctx['req'](nested_value)
+
+
+class EachItem(BaseRequirement):
+    def __init__(self, validator):
+        self.validator = validator
+
+    def _check(self, value):
+        for item in value:
+            self.validator(value)
+
+
+class DictOf(BaseRequirement):
+    implies = IsA(dict)
+
+    def __init__(self, pairs, default=None):
+        self._pairs = pairs
+        self.default = default
+
+    def _check(self, value):
+        value = value or {}
+        validated_data_keys = []
+        missing_key_specs = []
+        for k_validator, v_validator in self._pairs:
+            # NOTE kspec.datatype can be None => any key of any datatype
+            # NOTE kspec.default  can be None => any key of given datatype
+
+            # gather data keys that match given kspec;
+            # then validate them against vspec
+            matched = False
+            for k,v in value.items():
+                if k in validated_data_keys:
+                    continue
+
+                # check if this key is described by current rule;
+                # if it isn't, just skip it (and try another rule on it later on)
+                try:
+                    k_validator(k)
+                except (TypeError, ValidationError):
+                    continue
+
+                # this key *is* described by current rule;
+                # validate the value (it *must* validate)
+                try:
+                    v_validator(v)
+                except (ValidationError, TypeError) as e:
+                    raise type(e)('{k!r}: {e}'.format(k=k, e=e))
+
+                validated_data_keys.append(k)
+                matched = True
+
+#            if not matched and not k_validator.optional:
+            if not matched:
+                try:
+                    k_validator(MISSING)
+                except ValidationError:
+                    missing_key_specs.append(k_validator)
+
+        # TODO document that unknown keys are checked before missing ones
+
+        # check if there are data keys that did not match any key spec;
+        # if yes, raise InvalidKey for them
+        if len(validated_data_keys) < len(value):
+            raise InvalidKey(', '.join(repr(x) for x in set(value) - set(validated_data_keys)))
+
+        if missing_key_specs:
+            # NOTE: this prints rules, not keys as strings
+            raise MissingKey('{0}'.format(
+                ', '.join(compat.safe_str(rule) for rule in missing_key_specs)))
+
+
+class Length(BaseRequirement):
+    def __init__(self, min=None, max=None):
+        self._min = min
+        self._max = max
+
+    def _check(self, value):
+        if self._min is not None and self._min > len(value):
+            raise ValidationError('length must be ≤ {}'.format(self._min))
+        if self._max is not None and self._max < len(value):
+            raise ValidationError('length must be ≥ {}'.format(self._max))
