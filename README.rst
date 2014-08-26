@@ -22,7 +22,7 @@ Dependencies
 
 `Monk` is tested against the following versions of Python:
 
-* CPython 2.6, 2.7, 3.2, 3.3
+* CPython 2.6, 2.7, 3.2, 3.4
 * PyPy 2.0
 
 The MongoDB extension requires `pymongo`.
