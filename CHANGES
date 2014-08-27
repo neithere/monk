@@ -2,6 +2,11 @@
 Changelog
 ~~~~~~~~~
 
+Version 0.13
+------------
+
+* Added a new validation mechanism instead of the Rule/OneOf-based one.
+
 Version 0.12
 ------------
 
