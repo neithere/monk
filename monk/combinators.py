@@ -34,7 +34,7 @@ from .errors import (
 )
 
 
-class BaseValidator:
+class BaseValidator(object):
     def _combine(self, other, combinator):
         # XXX should we flatten same-logic one-item combs?
         if not isinstance(other, BaseValidator):

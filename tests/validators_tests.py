@@ -226,3 +226,12 @@ def test_magic_and_or():
 
     v = IsA(str) | IsA(int) & IsA(float)
     assert repr(v) == 'Any[IsA(str), All[IsA(int), IsA(float)]]'
+
+
+def test_combinator_edge_cases():
+    with raises_regexp(TypeError, 'got NotExists class instead of its instance'):
+        IsA(str) | NotExists
+
+    with raises_regexp(TypeError, 'expected a BaseValidator subclass instance,'
+                                  " got 'Albatross!'"):
+        IsA(str) | "Albatross!"
