@@ -26,17 +26,17 @@ __all__ = [
     'Anything',
     'IsA',
     'Equals',
+    'InRange',
     'Length',
     'ListOf',
     'DictOf',
     'NotExists',
 ]
 
-from functools import partial
 
 from . import compat
 from .errors import (
-    ValidationError, InvalidKey, MissingKey, MissingValue,
+    ValidationError, InvalidKey, MissingKey,
     StructureSpecificationError)
 from .combinators import BaseValidator
 
@@ -261,20 +261,21 @@ class DictOf(BaseRequirement):
                 ', '.join(compat.safe_str(rule) for rule in missing_key_specs)))
 
 
-class Length(BaseRequirement):
+
+class InRange(BaseRequirement):
     """
-    Requires that the value length is in given boundaries.
+    Requires that the numeric value is in given boundaries.
     """
     def __init__(self, min=None, max=None):
         self._min = min
         self._max = max
 
     def _check(self, value):
-        if self._min is not None and self._min > len(value):
-            raise ValidationError('length must be ≥ {expected}'
+        if self._min is not None and self._min > value:
+            raise ValidationError('must be ≥ {expected}'
                                   .format(expected=self._min))
-        if self._max is not None and self._max < len(value):
-            raise ValidationError('length must be ≤ {expected}'
+        if self._max is not None and self._max < value:
+            raise ValidationError('must be ≤ {expected}'
                                   .format(expected=self._max))
 
     def _represent(self):
@@ -282,6 +283,17 @@ class Length(BaseRequirement):
             return '' if x is None else x
         return '{min}..{max}'.format(min=_fmt(self._min),
                                      max=_fmt(self._max))
+
+
+class Length(InRange):
+    """
+    Requires that the value length is in given boundaries.
+    """
+    def _check(self, value):
+        try:
+            super(Length, self)._check(len(value))
+        except ValidationError as e:
+            raise ValidationError('length ' + str(e))
 
 
 def translate(value):

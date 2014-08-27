@@ -34,7 +34,7 @@ from monk import validators
 
 from monk.combinators import All, Any
 from monk.reqs import (
-    Anything, IsA, Equals, Length, ListOf, DictOf, NotExists, MISSING,
+    Anything, IsA, Equals, InRange, Length, ListOf, DictOf, NotExists, MISSING,
     translate
 )
 
@@ -106,6 +106,45 @@ def test_equals():
 
     with raises_regexp(ValidationError, "^!= 'foo'"):
         v('bar')
+
+
+def test_inrange():
+    range_2_to_4 = InRange(min=2, max=4)
+    range_min_2 = InRange(min=2)
+    range_max_4 = InRange(max=4)
+
+    assert repr(range_2_to_4) == 'InRange(2..4)'
+    assert repr(range_min_2) == 'InRange(2..)'
+    assert repr(range_max_4) == 'InRange(..4)'
+
+    # below limit
+    with raises_regexp(ValidationError, '^must be ≥ 2'):
+        range_min_2(1)
+    with raises_regexp(ValidationError, '^must be ≥ 2'):
+        range_2_to_4(1)
+    range_max_4(1)
+
+    # at lower limit
+    range_2_to_4(2)
+    range_min_2(2)
+    range_max_4(2)
+
+    # between limits
+    range_2_to_4(3)
+    range_min_2(3)
+    range_max_4(3)
+
+    # at higher limit
+    range_2_to_4(4)
+    range_min_2(4)
+    range_max_4(4)
+
+    # above limit
+    range_min_2(5)
+    with raises_regexp(ValidationError, '^must be ≤ 4'):
+        range_2_to_4(5)
+    with raises_regexp(ValidationError, '^must be ≤ 4'):
+        range_max_4(5)
 
 
 def test_length():
