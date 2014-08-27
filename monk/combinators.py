@@ -40,10 +40,10 @@ class BaseValidator(object):
         if not isinstance(other, BaseValidator):
             if isinstance(other, type) and issubclass(other, BaseValidator):
                 # e.g. NotExists instead of NotExists()
-                raise TypeError('got {} class instead of its instance'
-                                .format(other.__name__))
-            raise TypeError('expected a {} subclass instance, got {!r}'
-                            .format(BaseValidator.__name__, other))
+                raise TypeError('got {cls} class instead of its instance'
+                                .format(cls=other.__name__))
+            raise TypeError('expected a {cls} subclass instance, got {other!r}'
+                            .format(cls=BaseValidator.__name__, other=other))
         return combinator([self, other])
 
     def __and__(self, other):
@@ -81,14 +81,17 @@ class BaseCombinator(BaseValidator):
                     raise
                 errors.append(e)
         if not self.can_tolerate(errors):
-            raise self.error_class('{!r} ({})'.format(
-                value, '; '.join(('{}: {}'.format(e.__class__.__name__, e) for e in errors))))
+            errors_str = '; '.join((
+                '{cls}: {error}'.format(cls=e.__class__.__name__, error=e)
+                for e in errors))
+            raise self.error_class(
+                '{value!r} ({errors})'.format(value=value, errors=errors_str))
 
 
     def __repr__(self):
-        return '{}[{}]'.format(
-            self.__class__.__name__,
-            ', '.join(map(str, self._specs)))
+        return '{cls}[{validators}]'.format(
+            cls=self.__class__.__name__,
+            validators=', '.join(map(str, self._specs)))
 
     @property
     def default(self):

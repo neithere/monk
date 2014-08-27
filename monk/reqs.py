@@ -61,7 +61,8 @@ class BaseRequirement(BaseValidator):
         return self.__dict__
 
     def __repr__(self):
-        return '{}({})'.format(self.__class__.__name__, self._represent())
+        return '{cls}({rep})'.format(cls=self.__class__.__name__,
+                                     rep=self._represent())
 
 
 class IsA(BaseRequirement):
@@ -74,7 +75,8 @@ class IsA(BaseRequirement):
 
     def _check(self, value):
         if not isinstance(value, self.expected_type):
-            raise ValidationError('must be {}'.format(self.expected_type.__name__))
+            raise ValidationError('must be {type}'
+                                  .format(type=self.expected_type.__name__))
 
     def _represent(self):
         return self.expected_type.__name__
@@ -90,7 +92,8 @@ class Equals(BaseRequirement):
 
     def _check(self, value):
         if self.expected_value != value:
-            raise ValidationError('!= {!r}' .format(self.expected_value))
+            raise ValidationError('!= {expected!r}'
+                                  .format(expected=self.expected_value))
 
     def _represent(self):
         return repr(self.expected_value)
@@ -140,7 +143,8 @@ class ListOf(BaseRequirement):
             try:
                 self.nested_validator(nested_value)
             except ValidationError as e:
-                raise ValidationError('#{}: {}'.format(i, e))
+                raise ValidationError('#{elem}: {error}'
+                                      .format(elem=i, error=e))
 
     def _represent(self):
         return repr(self.nested_validator)
@@ -252,11 +256,14 @@ class Length(BaseRequirement):
 
     def _check(self, value):
         if self._min is not None and self._min > len(value):
-            raise ValidationError('length must be ≥ {}'.format(self._min))
+            raise ValidationError('length must be ≥ {expected}'
+                                  .format(expected=self._min))
         if self._max is not None and self._max < len(value):
-            raise ValidationError('length must be ≤ {}'.format(self._max))
+            raise ValidationError('length must be ≤ {expected}'
+                                  .format(expected=self._max))
 
     def _represent(self):
         def _fmt(x):
             return '' if x is None else x
-        return '{}..{}'.format(_fmt(self._min), _fmt(self._max))
+        return '{min}..{max}'.format(min=_fmt(self._min),
+                                     max=_fmt(self._max))

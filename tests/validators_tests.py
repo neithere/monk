@@ -194,9 +194,9 @@ def test_combinator_any():
 
     v('foo')
     v(123)
-    with raises_regexp(ValidationError, '^4.2 \(ValidationError: must be str;'
+    with raises_regexp(ValidationError, '^4.5 \(ValidationError: must be str;'
                                               ' ValidationError: must be int\)'):
-        v(4.2)
+        v(4.5)
 
 
 def test_combinator_all():
