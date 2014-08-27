@@ -1,0 +1,16 @@
+~~~~~~~~~
+Changelog
+~~~~~~~~~
+
+Version 0.12
+------------
+
+* Added ability to specify alternative rules (introducing `OneOf`, a sibling
+  of `Rule`).  This functionality is also available in `one_of` with
+  `as_rules=True`.
+
+* The MongoDB-related requirements are now optional.
+
+* Dropped official support for Python 3.3 in favour of 3.4.
+
+* The InvalidKey exception now uses `repr()` to format invalid values.

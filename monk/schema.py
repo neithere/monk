@@ -163,6 +163,10 @@ class OneOf(BaseSchemaNode):
         return '<OneOf {choices!r} {flags}>'.format(
             choices=self.choices, flags=' '.join(flags))
 
+    def __eq__(self, other):
+        if (isinstance(other, type(self)) and self.__dict__ == other.__dict__):
+            return True
+
 
 #-------------------------------------------
 # Functions
@@ -241,10 +245,30 @@ any_or_none = Rule(None, optional=True)
 "A shortcut for ``Rule(None, optional=True)``"
 
 
-def one_of(choices, first_is_default=False):
+def one_of(choices, first_is_default=False, as_rules=False):
     """
-    A shortcut for a rule with :func:`~monk.validators.validate_choice` validator.
-    ::
+    A shortcut for either a :class:`OneOf` instance or a rule with
+    :func:`~monk.validators.validate_choice` validator.
+
+    Alternative rules::
+
+        # given the two rules (in pythonic notation):
+
+        rules = ['foo', 123]
+
+        # these expressions are equal:
+
+        one_of(rules, as_rules=True)
+        OneOf(rules)
+
+        # first_is_default propagates, so these are equal again:
+
+        one_of(rules, first_is_default=True, as_rules=True)
+        OneOf(rules, first_is_default=True)
+
+    A rule with a choice validator::
+
+        # given the two literals:
 
         choices = ['foo', 'bar']
 
@@ -261,8 +285,25 @@ def one_of(choices, first_is_default=False):
         Rule(str, default=choices[0],
              validators=[monk.validators.choice(choices)])
 
+    :param choices:
+        a list of choices (literals by default; see `as_rules`).
+    :param as_rules:
+        `bool`, default is `True`.  If `False`, the `choices` are interpreted
+        as rules instead of literals and the result would be a :class:`OneOf`
+        instance instead of .  In this case a list of `['foo', 'bar']`
+        is considered a "pythonic" schema which should be canonized, so `'foo'`
+        becomes a :class:`Rule` with datatype being `str` and default value
+        being `'foo'`.  However, that specific schema is invalid (the list
+        must contain only one item), so an error would be raised.
+    :param first_is_default:
+        use the first choice to define the default value
+        (for :func:`monk.manipulation.merge_defaults`).
+
     """
     assert choices
+
+    if as_rules:
+        return OneOf(choices, first_is_default=first_is_default)
 
     if first_is_default:
         default_choice = choices[0]

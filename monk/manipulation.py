@@ -203,7 +203,6 @@ def merge_defaults(spec, value, mergers=TYPE_MERGERS, fallback=merge_any):
         if rule.first_is_default:
             return merge_defaults(rule.choices[0], value, mergers, fallback)
 
-        # XXX really?
         return value
 
     if value is None and rule.default is not None:
