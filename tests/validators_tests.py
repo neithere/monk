@@ -24,13 +24,19 @@ Validators tests
 import pytest
 from pytest import raises_regexp
 
-from monk.errors import ValidationError, MissingKey, InvalidKey
+from monk.errors import (
+    ValidationError, MissingKey, InvalidKey,
+    StructureSpecificationError
+)
 from monk.schema import Rule
 from monk.validation import validate
 from monk import validators
 
 from monk.combinators import All, Any
-from monk.reqs import IsA, Equals, Length, ListOf, DictOf, NotExists, MISSING
+from monk.reqs import (
+    Anything, IsA, Equals, Length, ListOf, DictOf, NotExists, MISSING,
+    translate
+)
 
 
 class TestLegacyValidators:
@@ -67,6 +73,17 @@ class TestLegacyValidators:
         with pytest.raises(ValidationError) as excinfo:
             validate(spec, 'foobar')
         assert "expected value of length 3, got 'foobar'" in excinfo.exconly()
+
+
+def test_anything():
+    v = Anything()
+
+    assert repr(v) == 'Anything()'
+
+    v('foo')
+    v(123)
+    v(MISSING)
+    v([5])
 
 
 def test_isa():
@@ -212,6 +229,25 @@ def test_combinator_all():
         v('fooo')
 
 
+def test_magic_eq():
+    assert IsA(str) == IsA(str)
+    assert IsA(str) != IsA(str, default='foo')
+    assert IsA(str) != IsA(int)
+    assert IsA(str) != Equals(int)
+
+    # nested
+    v1 = ListOf([DictOf([ (Equals('foo'), IsA(str)) ])])
+    v2 = ListOf([DictOf([ (Equals('foo'), IsA(str)) ])])
+    v3 = ListOf([DictOf([ (Equals('bar'), IsA(str)) ])])
+    v4 = ListOf([DictOf([ (Equals('foo'), IsA(int)) ])])
+    v5 = ListOf([DictOf([ (Equals('foo'), IsA(str, default='x')) ])])
+    assert v1 == v1
+    assert v1 == v2
+    assert v1 != v3
+    assert v1 != v4
+    assert v1 != v5
+
+
 def test_magic_and_or():
     v = IsA(str) | IsA(int)
     assert isinstance(v, Any)
@@ -228,6 +264,13 @@ def test_magic_and_or():
     assert repr(v) == 'Any[IsA(str), All[IsA(int), IsA(float)]]'
 
 
+def test_magic_hash():
+    assert hash(IsA(str)) == hash(IsA(str))
+    assert hash(IsA(str)) != hash(IsA(str, default='foo'))
+    assert hash(IsA(str)) != hash(IsA(int))
+    assert hash(IsA(str)) != hash(IsA(str) | IsA(int))
+
+
 def test_combinator_edge_cases():
     with raises_regexp(TypeError, 'got NotExists class instead of its instance'):
         IsA(str) | NotExists
@@ -235,3 +278,57 @@ def test_combinator_edge_cases():
     with raises_regexp(TypeError, 'expected a BaseValidator subclass instance,'
                                   " got 'Albatross!'"):
         IsA(str) | "Albatross!"
+
+
+def test_translate_validator():
+    assert translate(IsA(int)) == IsA(int)
+    assert translate(IsA(str, default='hello')) == IsA(str, default='hello')
+
+
+def test_translate_none():
+    assert translate(None) == Anything()
+
+
+def test_translate_type():
+    assert translate(int) == IsA(int)
+    assert translate(str) == IsA(str)
+
+
+def test_translate_func():
+    # FIXME things like datetime.now() imply transient defaults
+    def func():
+        return 'hello'
+    assert translate(func) == IsA(str, default='hello')
+
+
+def test_translate_list():
+    assert translate(list) == IsA(list)
+    assert translate([]) == IsA(list)
+    assert translate([int]) == ListOf(IsA(int))
+    assert translate([1]) == ListOf(IsA(int, default=1))
+    with raises_regexp(StructureSpecificationError,
+                       'Expected a list containing exactly 1 item; '
+                       'got 3: \[1, 2, 3\]'):
+        translate([1, 2, 3])
+
+
+def test_translate_dict():
+    assert translate(dict) == IsA(dict)
+    assert translate({}) == IsA(dict)
+
+    # literal as a key
+    assert translate({'foo': 123}) == DictOf([
+        (Equals('foo'), IsA(int, default=123)),
+    ])
+    assert translate({123: str}) == DictOf([
+        (Equals(123), IsA(str)),
+    ])
+
+    # validator as a key
+    assert translate({Equals('foo') | Equals('bar'): str}) == DictOf([
+        (Equals('foo') | Equals('bar'), IsA(str)),
+    ])
+
+
+def test_translate_fallback():
+    assert translate('hello') == IsA(str, default='hello')

@@ -23,6 +23,7 @@ Value Specification Classes
 """
 __all__ = [
     'BaseRequirement',
+    'Anything',
     'IsA',
     'Equals',
     'Length',
@@ -34,7 +35,9 @@ __all__ = [
 from functools import partial
 
 from . import compat
-from .errors import ValidationError, InvalidKey, MissingKey, MissingValue
+from .errors import (
+    ValidationError, InvalidKey, MissingKey, MissingValue,
+    StructureSpecificationError)
 from .combinators import BaseValidator
 
 
@@ -63,6 +66,18 @@ class BaseRequirement(BaseValidator):
     def __repr__(self):
         return '{cls}({rep})'.format(cls=self.__class__.__name__,
                                      rep=self._represent())
+
+
+
+class Anything(BaseRequirement):
+    """
+    Any values passes validation.
+    """
+    def _check(self, value):
+        pass
+
+    def _represent(self):
+        return ''
 
 
 class IsA(BaseRequirement):
@@ -267,3 +282,56 @@ class Length(BaseRequirement):
             return '' if x is None else x
         return '{min}..{max}'.format(min=_fmt(self._min),
                                      max=_fmt(self._max))
+
+
+def translate(value):
+    """
+    Translates given schema from "pythonic" syntax to a validator.
+
+    Usage::
+
+        >>> translate(str)
+        IsA(str)
+        >>> translate('hello')
+        IsA(str, default='hello')
+
+    """
+    if isinstance(value, BaseValidator):
+        return value
+
+    if value is None:
+        return Anything()
+
+    if isinstance(value, type):
+        return IsA(value)
+
+    if type(value) in compat.func_types:
+        real_value = value()
+        return IsA(type(real_value), default=real_value)
+
+    if isinstance(value, list):
+        if value == []:
+            # no inner spec, just an empty list as the default value
+            return IsA(list)
+        elif len(value) == 1:
+            # the only item as spec for each item of the collection
+            return ListOf(translate(value[0]))
+        else:
+            raise StructureSpecificationError(
+                'Expected a list containing exactly 1 item; '
+                'got {cnt}: {spec}'.format(cnt=len(value), spec=value))
+
+    if isinstance(value, dict):
+        if not value:
+            return IsA(dict)
+        items = []
+        for k, v in value.items():
+            if isinstance(k, BaseValidator):
+                k_validator = k
+            else:
+                k_validator = Equals(k)
+            v_validator = translate(v)
+            items.append((k_validator, v_validator))
+        return DictOf(items)
+
+    return IsA(type(value), default=value)

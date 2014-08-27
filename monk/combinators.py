@@ -52,6 +52,14 @@ class BaseValidator(object):
     def __or__(self, other):
         return self._combine(other, Any)
 
+    def __eq__(self, other):
+        return isinstance(other, type(self)) and self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        # TODO think this over and check Python docs
+        #return hash(((k,v) for k,v in self.__dict__.items()))
+        return hash('validator_'+str(self.__dict__))
+
 
 class BaseCombinator(BaseValidator):
     error_class = CombinedValidationError
