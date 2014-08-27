@@ -86,7 +86,7 @@ class BaseCombinator(BaseValidator):
 
 
     def __repr__(self):
-        return '<{} [{}]>'.format(
+        return '{}[{}]'.format(
             self.__class__.__name__,
             ', '.join(map(str, self._specs)))
 

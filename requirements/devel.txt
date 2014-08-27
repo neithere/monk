@@ -5,3 +5,4 @@ coverage==3.6
 pep8==1.4.6
 pytest==2.3.5
 pytest-cov==1.6
+pytest-raisesregexp==1.0

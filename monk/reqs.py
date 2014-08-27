@@ -90,7 +90,7 @@ class Equals(BaseRequirement):
 
     def _check(self, value):
         if self.expected_value != value:
-            raise ValidationError('!= {}' .format(self.expected_value))
+            raise ValidationError('!= {!r}' .format(self.expected_value))
 
     def _represent(self):
         return repr(self.expected_value)
@@ -102,13 +102,15 @@ class NotExists(BaseRequirement):
     special cases like dictionary keys; otherwise there's simply nothing to
     validate.  Note that this is *not* a check against `None` or `False`.
     """
-    def __init__(self, is_required=True, default=None):
-        self.is_required = is_required
+    def __init__(self, default=None):
         self.default = default
 
     def _check(self, value):
         if value is not MISSING:
-            raise MissingValue('must not exist')
+            raise ValidationError('must not exist')
+
+    def _represent(self):
+        return ''
 
 
 
@@ -250,6 +252,11 @@ class Length(BaseRequirement):
 
     def _check(self, value):
         if self._min is not None and self._min > len(value):
-            raise ValidationError('length must be ≤ {}'.format(self._min))
+            raise ValidationError('length must be ≥ {}'.format(self._min))
         if self._max is not None and self._max < len(value):
-            raise ValidationError('length must be ≥ {}'.format(self._max))
+            raise ValidationError('length must be ≤ {}'.format(self._max))
+
+    def _represent(self):
+        def _fmt(x):
+            return '' if x is None else x
+        return '{}..{}'.format(_fmt(self._min), _fmt(self._max))
