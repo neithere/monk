@@ -28,8 +28,8 @@ import pytest
 
 from monk.compat import text_type, safe_unicode
 from monk.errors import MissingKey, MissingValue, InvalidKey, ValidationError
-from monk.schema import OneOf, Rule, optional, any_value, any_or_none, in_range
-from monk.reqs import IsA, NotExists
+from monk.schema import optional, in_range
+from monk.reqs import Anything, IsA, Equals, NotExists, translate, MISSING
 from monk.validation import validate
 
 
@@ -70,14 +70,20 @@ class TestOverall:
 
         # MISSING KEY
 
-        validate({IsA(text_type) | NotExists(): text_type}, {})
+        dict_with_opt_key = translate({IsA(text_type) | NotExists(): text_type})
+        dict_with_opt_key({})
 
+        dict_with_req_key_opt_value = translate({'a': IsA(text_type) | Equals(None)})
         with pytest.raises(MissingKey):
-            validate({'a': Rule(text_type, optional=True)}, {})
+            dict_with_req_key_opt_value({})
+
+        dict_with_req_key_req_value = translate({'a': IsA(text_type)})
         with pytest.raises(MissingKey):
-            validate({'a': text_type}, {})
+            dict_with_req_key_req_value({})
+
+        dict_with_req_keys_req_values = translate({'a': text_type, 'b': int})
         with pytest.raises(MissingKey):
-            validate({'a': text_type, 'b': int}, {'b': 1})
+            dict_with_req_keys_req_values({'b': 1})
 
     def test_unknown_keys(self):
         # special behaviour: missing/empty inner_spec means "a dict of anything"
@@ -137,37 +143,37 @@ class TestDataTypes:
         validate({'a': []}, {'a': []})
         validate({'a': []}, {'a': ['b', 123]})
 
-        with pytest.raises(MissingValue) as excinfo:
+        with pytest.raises(ValidationError) as excinfo:
             validate({'a': [int]}, {'a': []})
-        assert "MissingValue: a: expected at least one item, got empty list" in excinfo.exconly()
+        assert "ValidationError: 'a': length must be ≥ 1" in excinfo.exconly()
 
         validate({'a': [int]}, {'a': [123]})
         validate({'a': [int]}, {'a': [123, 456]})
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': [int]}, {'a': ['b', 123]})
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': [text_type]}, {'a': [{'b': 'c'}]})
 
     def test_unicode(self):
         validate({'a': text_type}, {'a': text_type('hello')})
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': text_type}, {'a': 123})
 
     def test_unicode_instance(self):
         validate({'a': text_type('foo')}, {'a': text_type('hello')})
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': text_type('foo')}, {'a': 123})
 
     def test_datetime(self):
         validate({'a': datetime.datetime},
                  {'a': datetime.datetime.utcnow()})
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': datetime.datetime}, {'a': 123})
 
     def test_datetime_instance(self):
         validate({'a': datetime.datetime(1900, 1, 1)},
                  {'a': datetime.datetime.utcnow()})
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': datetime.datetime}, {'a': 123})
 
     def test_objectid(self):
@@ -198,13 +204,13 @@ class TestDataTypes:
         validate({'a': Obj.cmeth}, {'a': 2})
         validate({'a': Obj().ometh}, {'a': 2})
 
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': func}, {'a': 'foo'})
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': Obj.smeth}, {'a': 'foo'})
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': Obj.cmeth}, {'a': 'foo'})
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': Obj().ometh}, {'a': 'foo'})
 
     def test_valid_document(self):
@@ -243,72 +249,90 @@ class TestRuleSettings:
     def test_any_required(self):
         "A value of any type"
 
-        # value is present
-        validate(Rule(datatype=None), 1)
+        any_value = Anything()
 
-        # value is missing
-        with pytest.raises(MissingValue) as excinfo:
-            validate(Rule(datatype=None), None)
-        assert "MissingValue: expected a value, got None" in excinfo.exconly()
+        # value is present
+        any_value(1)
+
+        # XXX CHANGED:
+        #
+        ## value is missing
+        #with pytest.raises(MissingValue) as excinfo:
+        #    validate(Rule(datatype=None), None)
+        #assert "MissingValue: expected a value, got None" in excinfo.exconly()
+        #
+        any_value(None)
+        any_value(MISSING)
 
     def test_any_optional(self):
         "A value of any type or no value"
 
+        any_value_or_no_value = Anything() | NotExists()
+
         # value is present
-        validate(Rule(datatype=None, optional=True), 1)
+        any_value_or_no_value(1)
 
         # value is missing
-        validate(Rule(datatype=None, optional=True), None)
+        any_value_or_no_value(None)
+        any_value_or_no_value(MISSING)
 
     def test_typed_required(self):
         "A value of given type"
 
+        v_int = IsA(int)
+
         # value is present and matches datatype
-        validate(Rule(int), 1)
+        v_int(1)
 
         # value is present but does not match datatype
-        with pytest.raises(TypeError) as excinfo:
-            validate(Rule(int), 'bogus')
+        with pytest.raises(ValidationError) as excinfo:
+            v_int('bogus')
         assert "TypeError: expected int, got str 'bogus'" in excinfo.exconly()
 
         # value is missing
-        with pytest.raises(MissingValue) as excinfo:
-            validate(Rule(int), None)
+        with pytest.raises(ValidationError) as excinfo:
+            v_int(None)
         assert "MissingValue: expected int, got None" in excinfo.exconly()
 
     def test_typed_optional(self):
         "A value of given type or no value"
 
+        opt_int = IsA(int) | Equals(None)
+
         # value is present and matches datatype
-        validate(Rule(int, optional=True), 1)
+        opt_int(1)
 
         # value is present but does not match datatype
         with pytest.raises(TypeError) as excinfo:
-            validate(Rule(int), 'bogus')
+            opt_int('bogus')
         assert "TypeError: expected int, got str 'bogus'" in excinfo.exconly()
 
         # value is missing
-        validate(Rule(int, optional=True), None)
+        opt_int(None)
 
     def test_typed_required_dict(self):
         "A value of given type (dict)"
 
+        a_dict = IsA(dict)
+
         # value is present
-        validate(Rule(datatype=dict), {})
+        a_dict({})
 
         # value is missing
         with pytest.raises(MissingValue) as excinfo:
-            validate(Rule(datatype=dict), None)
+            a_dict(None)
         assert "MissingValue: expected dict, got None" in excinfo.exconly()
 
     def test_typed_optional_dict(self):
         "A value of given type (dict) or no value"
 
+        a_dict = IsA(dict) | Equals(None)
+
         # value is present
-        validate(Rule(datatype=dict, optional=True), {})
+        a_dict({})
 
         # value is missing
-        validate(Rule(datatype=dict, optional=True), None)
+        a_dict(None)
 
     def test_typed_required_list(self):
         "A value of given type (list)"

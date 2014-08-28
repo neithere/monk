@@ -32,40 +32,6 @@ from monk.combinators import Any
 from monk.validation import validate
 
 
-class TestRule:
-
-    def test_rule_as_datatype(self):
-        rule = Rule(None)
-        with pytest.raises(ValueError) as excinfo:
-            Rule(rule)
-        assert 'Cannot use a Rule instance as datatype' in excinfo.exconly()
-
-    def test_rule_repr(self):
-        assert repr(Rule(None)) == '<Rule any required>'
-        assert repr(Rule(None, optional=True)) == '<Rule any optional>'
-        assert repr(Rule(str)) == '<Rule str required>'
-        assert repr(Rule(str, default='foo')) == '<Rule str required default=foo>'
-
-    def test_sanity_default(self):
-        Rule(str)
-        Rule(str, default='foo')
-        with pytest.raises(TypeError) as excinfo:
-            Rule(str, default=123)
-        assert excinfo.exconly() == 'TypeError: Default value must match datatype str (got 123)'
-
-    @pytest.mark.xfail
-    def test_sanity_inner_spec(self):
-        #
-        # this won't work because only dict wants a dict as its inner_spec;
-        # a list doesn't need this duplication.
-        #
-        Rule(dict)
-        Rule(dict, inner_spec={})
-        with pytest.raises(TypeError) as excinfo:
-            Rule(dict, inner_spec=123)
-        assert excinfo.exconly() == 'TypeError: Inner spec must match datatype dict (got 123)'
-
-
 class TestTranslation:
     # FIXME this is largerly duplicated in validators_tests
 
@@ -125,13 +91,13 @@ class TestAlternativeRules:
         with pytest.raises(errors.ValidationError) as excinfo:
             validate(schema, {})
         assert (
-            'ValidationError: failed 2 alternative rules:'
-            ' 1) TypeError: expected int, got dict {};'
-            ' 2) TypeError: expected str, got dict {}'
+            "AllFailed: {} "
+            "(ValidationError: must be int;"
+            " ValidationError: must be str)"
         ) in excinfo.exconly()
 
     def test_nested(self):
-        schema = OneOf([
+        schema = Any([
             {'foo': int},
             {'bar': str},
         ])
@@ -140,16 +106,16 @@ class TestAlternativeRules:
         with pytest.raises(errors.ValidationError) as excinfo:
             validate(schema, {'foo': 'hi'})
         assert (
-            'ValidationError: failed 2 alternative rules:'
-            ' 1) TypeError: foo: expected int, got str \'hi\';'
-            " 2) InvalidKey: 'foo'"
+            "AllFailed: {'foo': 'hi'} "
+            "(ValidationError: 'foo': must be int;"
+            " InvalidKey: 'foo')"
         ) in excinfo.exconly()
         with pytest.raises(errors.ValidationError) as excinfo:
             validate(schema, {'bar': 123})
         assert (
-            'ValidationError: failed 2 alternative rules:'
-            " 1) InvalidKey: 'bar';"
-            ' 2) TypeError: bar: expected str, got int 123'
+            "AllFailed: {'bar': 123} "
+            "(InvalidKey: 'bar';"
+            " ValidationError: 'bar': must be str)"
         ) in excinfo.exconly()
 
 

@@ -291,8 +291,6 @@ class DictOf(BaseRequirement):
         Returns a dictionary based on `value` with each value recursively
         merged with `spec`.
         """
-        if value is None:
-            return value
 
         if value is not None and not isinstance(value, dict):
             # bogus value; will not pass validation but should be preserved
@@ -302,20 +300,24 @@ class DictOf(BaseRequirement):
             return {}
 
         collected = {}
-        collected.update(value)
+#        collected.update(value)
         for k_validator, v_validator in self._pairs:
             k_default = k_validator.get_default_for(None)
             if k_default is None:
                 continue
 
             # even None is ok
-            v_for_this_k = value.get(k_default)
+            if value:
+                v_for_this_k = value.get(k_default)
+            else:
+                v_for_this_k = None
             v_default = v_validator.get_default_for(v_for_this_k)
             collected.update({k_default: v_default})
 
-        for k, v in value.items():
-            if k not in collected:
-                collected[k] = v
+        if value:
+            for k, v in value.items():
+                if k not in collected:
+                    collected[k] = v
 
         return collected
 
@@ -385,7 +387,7 @@ def translate(value):
             return IsA(list)
         elif len(value) == 1:
             # the only item as spec for each item of the collection
-            return ListOf(translate(value[0]))
+            return ListOf(translate(value[0])) & Length(min=1)
         else:
             raise StructureSpecificationError(
                 'Expected a list containing exactly 1 item; '

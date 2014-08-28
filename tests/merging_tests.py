@@ -18,8 +18,9 @@
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with Monk.  If not, see <http://gnu.org/licenses/>.
 """
-Data manipulation tests
-=======================
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+Tests for Merging Defaults
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 import mock
 import pytest
@@ -30,39 +31,8 @@ from monk.reqs import (
     Anything, IsA, DictOf, ListOf, Equals, NotExists,
     translate
 )
+from monk.schema import optional
 import monk.manipulation as m
-
-
-class TestMergingDefaults:
-    "Basic behaviour of merge_defaults()"
-
-    def test_defaults_from_rule(self):
-        "Default value from rule"
-        assert IsA(int, default=1).get_default_for(None) == 1
-        assert IsA(int, default=1).get_default_for(2) == 2
-
-    def test_rule_as_key(self):
-        spec_a = DictOf([ (IsA(str), IsA(int)) ])
-        spec_b = DictOf([ (IsA(str) | NotExists(), IsA(int)) ])
-
-        assert spec_a.get_default_for({}) == {}
-        assert spec_b.get_default_for({}) == {}
-
-    def test_merge_oneof(self):
-        str_rule = IsA(str, default='hello')
-        int_rule = IsA(int, default=123)
-
-        schema = Any([str_rule, int_rule])
-        assert schema.get_default_for(None) == None
-
-        schema = Any([str_rule, int_rule], default=456)
-        assert schema.get_default_for(None) == 456
-
-        schema = Any([str_rule, int_rule], first_is_default=True)
-        assert schema.get_default_for(None) == 'hello'
-
-        schema = Any([int_rule, str_rule], first_is_default=True)
-        assert schema.get_default_for(None) == 123
 
 
 class TestValidators:
@@ -112,10 +82,12 @@ class TestValidators:
         ])
 
         # optional missing dictionary with optional key
-        assert spec.get_default_for(None) == None
-
         # XXX CHANGED
+        #assert spec.get_default_for(None) == None
+        assert spec.get_default_for(None) == {'a': None}
+
         # optional empty dictionary with optional key
+        # XXX CHANGED
         # (if the value can be either int or None, why choose one?
         # here we set None not because of Equals(None) but because
         # we *mean* None — no value could be chosen.
@@ -241,7 +213,6 @@ class TestNaturalNotation:
     These were written much earlier than :class:`TestMergingDefaults`
     and may be outdated in terms of organization.
     """
-
     def test_merge(self):
         spec = translate({'a': 1})
 
@@ -391,7 +362,12 @@ class TestNaturalNotation:
         assert m.merge_defaults(spec, data) == expected
 
     def test_required_inside_optional_dict_in_dict(self):
-        spec = translate({'foo': optional({'a': 1, 'b': optional(2)})})
+        spec = translate({
+            'foo': optional({
+                'a': 1,
+                'b': optional(2),
+            }),
+        })
 
         data = {}
         expected = {'foo': None}
@@ -402,11 +378,15 @@ class TestNaturalNotation:
         assert m.merge_defaults(spec, data) == expected
 
         data = {'foo': {}}
-        expected = {'foo': {'a': 1, 'b': 2}}
+        # XXX CHANGED:
+        #expected = {'foo': {'a': 1, 'b': 2}}
+        expected = {'foo': {'a': 1, 'b': None}}
         assert m.merge_defaults(spec, data) == expected
 
         data = {'foo': {'a': 3}}
-        expected = {'foo': {'a': 3, 'b': 2}}
+        # XXX CHANGED:
+        #expected = {'foo': {'a': 3, 'b': 2}}
+        expected = {'foo': {'a': 3, 'b': None}}
         assert m.merge_defaults(spec, data) == expected
 
         data = {'foo': {'b': 3}}
@@ -414,22 +394,56 @@ class TestNaturalNotation:
         assert m.merge_defaults(spec, data) == expected
 
 
-class TestMolding:
-    def test_normalize_to_list(self):
-        assert [1] == m.normalize_to_list(1)
-        assert [1] == m.normalize_to_list([1])
+class TestMisc:
+    """
+    Some cases not covered elsewhere.
+    """
+    def test_defaults_from_rule(self):
+        "Default value from rule"
+        assert IsA(int, default=1).get_default_for(None) == 1
+        assert IsA(int, default=1).get_default_for(2) == 2
 
-    def test_normalize_list_of_dicts(self):
-        assert [{'x': 'a'}] == m.normalize_list_of_dicts([{'x': 'a'}], default_key='x')
-        assert [{'x': 'a'}] == m.normalize_list_of_dicts( {'x': 'a'}, default_key='x')
-        assert [{'x': 'a'}] == m.normalize_list_of_dicts(     t('a'), default_key='x')
-        assert [{'x': 'a'}, {'x': 'b'}] == \
-            m.normalize_list_of_dicts([{'x': 'a'}, t('b')], default_key='x')
-        assert [] == m.normalize_list_of_dicts(None, default_key='x')
-        assert [{'x': t('y')}] == m.normalize_list_of_dicts(None, default_key='x',
-                                                            default_value=t('y'))
+    def test_rule_as_key(self):
+        spec_a = DictOf([ (IsA(str), IsA(int)) ])
+        spec_b = DictOf([ (IsA(str) | NotExists(), IsA(int)) ])
 
-        # edge cases (may need revision)
-        assert [{'x': 1}] == m.normalize_list_of_dicts({'x': 1}, default_key='y')
-        assert [] == m.normalize_list_of_dicts(None, default_key='y')
-        assert 123 == m.normalize_list_of_dicts(123, default_key='x')
+        assert spec_a.get_default_for({}) == {}
+        assert spec_b.get_default_for({}) == {}
+
+    def test_merge_oneof(self):
+        str_rule = IsA(str, default='hello')
+        int_rule = IsA(int, default=123)
+
+        schema = Any([str_rule, int_rule])
+        assert schema.get_default_for(None) == None
+
+        schema = Any([str_rule, int_rule], default=456)
+        assert schema.get_default_for(None) == 456
+
+        schema = Any([str_rule, int_rule], first_is_default=True)
+        assert schema.get_default_for(None) == 'hello'
+
+        schema = Any([int_rule, str_rule], first_is_default=True)
+        assert schema.get_default_for(None) == 123
+
+    def test_merge_dictof_dictof_isa(self):
+        raw_spec = {
+            'content': {
+                'text': 'hello',
+            },
+        }
+
+        spec = translate(raw_spec)
+
+        # make sure translation went as expected
+        assert spec == DictOf([
+            (Equals('content'), DictOf([
+                (Equals('text'), IsA(t, default=t('hello'))),
+            ])),
+        ])
+
+        # make sure merging works as expected for nested dict
+        assert raw_spec == spec.get_default_for({'content': {}})
+
+        # make sure merging works as expected for nested *and* root dicts
+        assert raw_spec == spec.get_default_for({})

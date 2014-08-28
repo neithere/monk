@@ -27,6 +27,7 @@ import pytest
 
 from bson import DBRef, ObjectId
 from monk import mongo
+from monk.errors import ValidationError
 from monk.schema import optional
 from monk.compat import text_type as t
 
@@ -110,7 +111,7 @@ class TestDocumentModel:
         event.validate()
         assert isinstance(event.time, datetime.datetime)
 
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             event = Event(time=datetime.date.today())
             event.validate()
 
@@ -130,7 +131,7 @@ class TestDocumentModel:
         assert isinstance(event.text, t)
         assert event.text == t('hello')
 
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             event = Event(text=123)
             event.validate()
 
@@ -154,7 +155,7 @@ class TestDocumentModel:
         assert isinstance(event.content.text, t)
         assert event.content.text == t('hello')
 
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             event = Event(content=dict(text=123))
             event.validate()
 

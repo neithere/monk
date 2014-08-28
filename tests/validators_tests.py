@@ -306,8 +306,8 @@ def test_translate_func():
 def test_translate_list():
     assert translate(list) == IsA(list)
     assert translate([]) == IsA(list)
-    assert translate([int]) == ListOf(IsA(int))
-    assert translate([1]) == ListOf(IsA(int, default=1))
+    assert translate([int]) == ListOf(IsA(int)) & Length(min=1)
+    assert translate([1]) == ListOf(IsA(int, default=1)) & Length(min=1)
     with raises_regexp(StructureSpecificationError,
                        'Expected a list containing exactly 1 item; '
                        'got 3: \[1, 2, 3\]'):
