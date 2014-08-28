@@ -40,14 +40,15 @@ class BaseValidator(object):
 
     def _combine(self, other, combinator):
         # XXX should we flatten same-logic one-item combs?
-        if not isinstance(other, BaseValidator):
-            if isinstance(other, type) and issubclass(other, BaseValidator):
-                # e.g. NotExists instead of NotExists()
-                raise TypeError('got {cls} class instead of its instance'
-                                .format(cls=other.__name__))
-            raise TypeError('expected a {cls} subclass instance, got {other!r}'
-                            .format(cls=BaseValidator.__name__, other=other))
-        return combinator([self, other])
+        if isinstance(other, type) and issubclass(other, BaseValidator):
+            # e.g. NotExists instead of NotExists()
+            raise TypeError('got {cls} class instead of its instance'
+                            .format(cls=other.__name__))
+
+        # FIXME resolve circular import
+        from .reqs import translate
+
+        return combinator([self, translate(other)])
 
     def _merge(self, value):
         if value is not None:
@@ -115,9 +116,15 @@ class BaseCombinator(BaseValidator):
                     raise
                 errors.append(e)
         if not self.can_tolerate(errors):
-            errors_str = '; '.join((
-                '{cls}: {error}'.format(cls=e.__class__.__name__, error=e)
-                for e in errors))
+            def fmt_err(e):
+                # only display error class if it's not obvious
+                if type(e) is ValidationError:
+                    tmpl = '{err}'
+                else:
+                    tmpl = '{cls}: {err}'
+                return tmpl.format(cls=e.__class__.__name__, err=e)
+
+            errors_str = '; '.join((fmt_err(e) for e in errors))
             raise self.error_class(
                 '{value!r} ({errors})'.format(value=value, errors=errors_str))
 

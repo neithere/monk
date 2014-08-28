@@ -90,11 +90,7 @@ class TestAlternativeRules:
         validate(schema, 'foo')
         with pytest.raises(errors.ValidationError) as excinfo:
             validate(schema, {})
-        assert (
-            "AllFailed: {} "
-            "(ValidationError: must be int;"
-            " ValidationError: must be str)"
-        ) in excinfo.exconly()
+        assert "AllFailed: {} (must be int; must be str)" in excinfo.exconly()
 
     def test_nested(self):
         schema = Any([
@@ -105,18 +101,12 @@ class TestAlternativeRules:
         validate(schema, {'bar': 'hi'})
         with pytest.raises(errors.ValidationError) as excinfo:
             validate(schema, {'foo': 'hi'})
-        assert (
-            "AllFailed: {'foo': 'hi'} "
-            "(ValidationError: 'foo': must be int;"
-            " InvalidKey: 'foo')"
-        ) in excinfo.exconly()
+        assert ("AllFailed: {'foo': 'hi'} "
+                "('foo': must be int; InvalidKey: 'foo')") in excinfo.exconly()
         with pytest.raises(errors.ValidationError) as excinfo:
             validate(schema, {'bar': 123})
-        assert (
-            "AllFailed: {'bar': 123} "
-            "(InvalidKey: 'bar';"
-            " ValidationError: 'bar': must be str)"
-        ) in excinfo.exconly()
+        assert ("AllFailed: {'bar': 123} "
+                "(InvalidKey: 'bar'; 'bar': must be str)") in excinfo.exconly()
 
 
 class TestShortcuts:
@@ -130,9 +120,7 @@ class TestShortcuts:
         v('foo')
         with pytest.raises(errors.ValidationError) as excinfo:
             v('quux')
-        assert ("AllFailed: 'quux' (ValidationError: != 'foo';"
-                                  " ValidationError: != 'bar')"
-        ) in excinfo.exconly()
+        assert "AllFailed: 'quux' (!= 'foo'; != 'bar')" in excinfo.exconly()
 
         # non-literals → rules (behaviour explicitly turned on)
 
@@ -145,7 +133,4 @@ class TestShortcuts:
         v(456)
         with pytest.raises(errors.ValidationError) as excinfo:
             v(5.5)
-        assert (
-            'AllFailed: 5.5 (ValidationError: must be str;'
-                           ' ValidationError: must be int)'
-        ) in excinfo.exconly()
+        assert 'AllFailed: 5.5 (must be str; must be int)' in excinfo.exconly()

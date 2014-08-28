@@ -155,7 +155,7 @@ class ListOf(BaseRequirement):
     implies = IsA(list)
 
     def __init__(self, validator, default=None):
-        self._nested_validator = validator
+        self._nested_validator = translate(validator)
         self._default = default
 
     def _check(self, value):
