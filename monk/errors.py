@@ -70,3 +70,9 @@ class AtLeastOneFailed(CombinedValidationError):
     """
     Raised when all validators were expected to pas but at least one didn't.
     """
+
+
+class NoDefaultValue(Exception):
+    """
+    Raised when the validator could not produce a default value.
+    """

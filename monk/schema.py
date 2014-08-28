@@ -223,26 +223,25 @@ def canonize(spec, rule_kwargs={}):
 
 def optional(spec):
     """
-    Returns a canonized `spec` marked as optional.
+    Returns a validator which allows the value to be `None` or missing.
     ::
 
-        >>> optional(str) == Rule(datatype=str, optional=True)
+        >>> optional(str) == IsA(str) | Equals(None) | NotExists()
         True
 
     """
-    if isinstance(spec, BaseSchemaNode):
-        spec.optional = True
-        return spec
-    else:
-        return canonize(spec, rule_kwargs={'optional': True})
+    return translate(spec) | Equals(None) | NotExists()
 
 
-any_value = Rule(None)
-"A shortcut for ``Rule(None)``"
+any_value = Anything()
+"""
+A shortcut for ``Anything()``.
 
+.. deprecated:: 0.13
 
-any_or_none = Rule(None, optional=True)
-"A shortcut for ``Rule(None, optional=True)``"
+   Use :class:`Anything` instead.
+
+"""
 
 
 def one_of(choices, first_is_default=False, as_rules=False):
@@ -299,20 +298,21 @@ def one_of(choices, first_is_default=False, as_rules=False):
         use the first choice to define the default value
         (for :func:`monk.manipulation.merge_defaults`).
 
+    .. deprecated:: 0.13
+
+       Use :class:`Any` instead.
+
     """
     assert choices
 
-    if as_rules:
-        return OneOf(choices, first_is_default=first_is_default)
-
     if first_is_default:
-        default_choice = choices[0]
-    else:
-        default_choice = None
+        # FIXME
+        raise NotImplementedError()
 
-    return Rule(datatype=type(choices[0]),
-                default=default_choice,
-                validators=[validators.validate_choice(choices)])
+    if as_rules:
+        return Any(choices)
+    else:
+        return Any([Equals(x) for x in choices])
 
 
 def in_range(start, stop, first_is_default=False):
@@ -333,12 +333,14 @@ def in_range(start, stop, first_is_default=False):
         Rule(int, default=0,
              validators=[monk.validators.validate_range(0, 200)])
 
+    .. deprecated:: 0.13
+
+       Use :class:`InRange` instead.
+
     """
     if first_is_default:
         default_value = start
     else:
         default_value = None
 
-    return Rule(datatype=int,
-                default=default_value,
-                validators=[validators.validate_range(start, stop)])
+    return InRange(start, stop, default=default_value)

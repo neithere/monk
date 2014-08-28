@@ -53,7 +53,6 @@ class BaseRequirement(BaseValidator):
     # a hint for combinators, see their code
     is_recursive = False
     implies = NotImplemented
-    default = NotImplemented
 
     def __call__(self, value):
         if self.implies is not NotImplemented:
@@ -86,7 +85,7 @@ class IsA(BaseRequirement):
     """
     def __init__(self, expected_type, default=None):
         self.expected_type = expected_type
-        self.default = default
+        self._default = default
 
     def _check(self, value):
         if not isinstance(value, self.expected_type):
@@ -94,24 +93,30 @@ class IsA(BaseRequirement):
                                   .format(type=self.expected_type.__name__))
 
     def _represent(self):
-        return self.expected_type.__name__
+        if self._default:
+            return '{} {!r}'.format(self.expected_type.__name__, self._default)
+        else:
+            return self.expected_type.__name__
 
 
 class Equals(BaseRequirement):
     """
     Requires that the value equals given expected value.
     """
-    def __init__(self, expected_value, default=None):
-        self.expected_value = expected_value
-        self.default = default
+    def __init__(self, expected_value):
+        self._expected_value = expected_value
 
     def _check(self, value):
-        if self.expected_value != value:
+        if self._expected_value != value:
             raise ValidationError('!= {expected!r}'
-                                  .format(expected=self.expected_value))
+                                  .format(expected=self._expected_value))
 
     def _represent(self):
-        return repr(self.expected_value)
+        return repr(self._expected_value)
+
+    @property
+    def _default(self):
+        return self._expected_value
 
 
 class NotExists(BaseRequirement):
@@ -121,7 +126,7 @@ class NotExists(BaseRequirement):
     validate.  Note that this is *not* a check against `None` or `False`.
     """
     def __init__(self, default=None):
-        self.default = default
+        self._default = default
 
     def _check(self, value):
         if value is not MISSING:
@@ -150,20 +155,37 @@ class ListOf(BaseRequirement):
     implies = IsA(list)
 
     def __init__(self, validator, default=None):
-        self.nested_validator = validator
-        self.default = default
+        self._nested_validator = validator
+        self._default = default
 
     def _check(self, value):
         for i, nested_value in enumerate(value):
             try:
-                self.nested_validator(nested_value)
+                self._nested_validator(nested_value)
             except ValidationError as e:
                 raise ValidationError('#{elem}: {error}'
                                       .format(elem=i, error=e))
 
     def _represent(self):
-        return repr(self.nested_validator)
+        return repr(self._nested_validator)
 
+    def _merge(self, value):
+        """ Returns a list based on `value`:
+
+        * missing required value is converted to an empty list;
+        * missing required items are never created;
+        * nested items are merged recursively.
+
+        """
+        if not value:
+            return []
+
+        if value is not None and not isinstance(value, list):
+            # bogus value; will not pass validation but should be preserved
+            return value
+
+        item_spec = self._nested_validator
+        return [x if x is None else item_spec.get_default_for(x) for x in value]
 
 
 
@@ -208,6 +230,9 @@ class DictOf(BaseRequirement):
 
     def __init__(self, pairs):
         self._pairs = pairs
+
+    def _represent(self):
+        return repr(self._pairs)
 
     def _check(self, value):
         value = value or {}
@@ -260,6 +285,39 @@ class DictOf(BaseRequirement):
             raise MissingKey('{0}'.format(
                 ', '.join(compat.safe_str(rule) for rule in missing_key_specs)))
 
+
+    def _merge(self, value):
+        """
+        Returns a dictionary based on `value` with each value recursively
+        merged with `spec`.
+        """
+        if value is None:
+            return value
+
+        if value is not None and not isinstance(value, dict):
+            # bogus value; will not pass validation but should be preserved
+            return value
+
+        if not self._pairs:
+            return {}
+
+        collected = {}
+        collected.update(value)
+        for k_validator, v_validator in self._pairs:
+            k_default = k_validator.get_default_for(None)
+            if k_default is None:
+                continue
+
+            # even None is ok
+            v_for_this_k = value.get(k_default)
+            v_default = v_validator.get_default_for(v_for_this_k)
+            collected.update({k_default: v_default})
+
+        for k, v in value.items():
+            if k not in collected:
+                collected[k] = v
+
+        return collected
 
 
 class InRange(BaseRequirement):

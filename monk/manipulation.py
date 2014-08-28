@@ -21,8 +21,8 @@
 Data manipulation
 ~~~~~~~~~~~~~~~~~
 """
-from monk.compat import text_type
-from monk.schema import Rule, OneOf, canonize
+from .compat import text_type
+from .reqs import translate
 
 
 __all__ = [
@@ -50,6 +50,8 @@ TYPE_MERGERS = {}
 def merge_any(spec, value, mergers, fallback):
     """ Always returns the value as is.
     """
+    raise NotImplementedError('DEPRECATED merge_any')
+
     return value
 
 
@@ -57,6 +59,8 @@ def merge_dict(spec, value, mergers, fallback):
     """ Returns a dictionary based on `value` with each value recursively
     merged with `spec`.
     """
+    raise NotImplementedError('DEPRECATED merge_dict')
+
     assert spec.datatype is dict
 
     if spec.optional and value is None:
@@ -100,6 +104,8 @@ def merge_list(spec, value, mergers, fallback):
     * nested items are merged recursively.
 
     """
+    raise NotImplementedError('DEPRECATED merge_list')
+
     assert spec.datatype is list
 
     if spec.optional and value is None:
@@ -134,7 +140,7 @@ def merge_list(spec, value, mergers, fallback):
     return value
 
 
-def merge_defaults(spec, value, mergers=TYPE_MERGERS, fallback=merge_any):
+def merge_defaults(spec, value, mergers=NotImplemented, fallback=NotImplemented):
     """ Returns a copy of `value` recursively updated to match the `spec`:
 
     * New values are added whenever possible (including nested ones).
@@ -194,36 +200,16 @@ def merge_defaults(spec, value, mergers=TYPE_MERGERS, fallback=merge_any):
         {'a': [{'b': 123}, {'b': 123, 'x': 0}]}
 
     """
-    rule = canonize(spec)
-
-    if isinstance(rule, OneOf):
-        # FIXME we've been expecting a rule (Rule instance) but got an instance
-        # of another class.  OneOf should inherit Rule or they should have
-        # a common base class.
-        if rule.first_is_default:
-            return merge_defaults(rule.choices[0], value, mergers, fallback)
-
-        return value
-
-    if value is None and rule.default is not None:
-        return rule.default
-
-    merger = mergers.get(rule.datatype, fallback)
-
-    return merger(rule, value, mergers=mergers, fallback=fallback)
+    # XXX remove after all tests are up to date
+    if mergers is not NotImplemented:
+        raise NotImplementedError('DEPRECATED mergers argument')
+    if fallback is not NotImplemented:
+        raise NotImplementedError('DEPRECATED fallback argument')
 
 
-def merged(spec, data, mergers=TYPE_MERGERS):
-    """
-    .. deprecated:: 0.10.0
+    validator = translate(spec)
 
-       Use :func:`merge_defaults` instead.
-    """
-    import warnings
-    warnings.warn('merged() is deprecated, use merge_defaults() instead',
-                  DeprecationWarning)
-
-    return merge_defaults(spec, data, mergers=mergers)
+    return validator.get_default_for(value)
 
 
 class UNDEFINED:

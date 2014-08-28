@@ -29,6 +29,7 @@ import pytest
 from monk.compat import text_type, safe_unicode
 from monk.errors import MissingKey, MissingValue, InvalidKey, ValidationError
 from monk.schema import OneOf, Rule, optional, any_value, any_or_none, in_range
+from monk.reqs import IsA, NotExists
 from monk.validation import validate
 
 
@@ -39,37 +40,37 @@ class TestOverall:
         # MISSING VALUE
 
         validate({'a': optional(text_type)}, {'a': text_type('')})
-        with pytest.raises(MissingValue):
+        with pytest.raises(ValidationError):
             validate({'a': text_type}, {'a': None})
 
         validate({'a': optional(dict)}, {'a': {}})
-        with pytest.raises(MissingValue):
+        with pytest.raises(ValidationError):
             validate({'a': dict}, {'a': None})
 
         validate({'a': optional(list)}, {'a': []})
-        with pytest.raises(MissingValue):
+        with pytest.raises(ValidationError):
             validate({'a': list}, {'a': None})
 
         validate({'a': bool}, {'a': True})
         validate({'a': bool}, {'a': False})
         validate({'a': optional(bool)}, {'a': None})
-        with pytest.raises(MissingValue):
+        with pytest.raises(ValidationError):
             validate({'a': bool}, {'a': None})
 
         # TYPE ERROR
 
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': text_type}, {'a': False})
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': text_type}, {'a': 0})
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             validate({'a': bool}, {'a': ''})
 
     def test_missing(self):
 
         # MISSING KEY
 
-        validate({Rule(text_type, optional=True): text_type}, {})
+        validate({IsA(text_type) | NotExists(): text_type}, {})
 
         with pytest.raises(MissingKey):
             validate({'a': Rule(text_type, optional=True)}, {})
@@ -80,7 +81,7 @@ class TestOverall:
 
     def test_unknown_keys(self):
         # special behaviour: missing/empty inner_spec means "a dict of anything"
-        validate(Rule(dict), {'x': 123})
+        validate(dict, {'x': 123})
 
         # inner_spec not empty, value matches it
         validate({'x': None}, {'x': 123})

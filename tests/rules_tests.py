@@ -25,7 +25,10 @@ import datetime
 import pytest
 
 from monk import errors
-from monk.schema import Rule, OneOf, canonize, one_of, any_value, any_or_none
+#from monk.schema import Rule, OneOf, canonize, one_of, any_value, any_or_none
+from monk.schema import one_of
+from monk.reqs import Anything, IsA, Equals, ListOf, DictOf, translate
+from monk.combinators import Any
 from monk.validation import validate
 
 
@@ -63,57 +66,60 @@ class TestRule:
         assert excinfo.exconly() == 'TypeError: Inner spec must match datatype dict (got 123)'
 
 
-class TestCanonization:
+class TestTranslation:
+    # FIXME this is largerly duplicated in validators_tests
 
     def test_none(self):
-        assert canonize(None) == Rule(None)
+        assert translate(None) == Anything()
 
     def test_bool(self):
-        assert canonize(bool) == Rule(bool)
-        assert canonize(True)  == Rule(bool, default=True)
-        assert canonize(False)  == Rule(bool, default=False)
+        assert translate(bool) == IsA(bool)
+        assert translate(True)  == IsA(bool, default=True)
+        assert translate(False)  == IsA(bool, default=False)
 
     def test_datetime(self):
-        assert canonize(datetime.datetime) == Rule(datetime.datetime)
+        assert translate(datetime.datetime) == IsA(datetime.datetime)
 
         dt = datetime.datetime.now()
-        assert canonize(dt) == Rule(datetime.datetime, default=dt)
+        assert translate(dt) == IsA(datetime.datetime, default=dt)
 
     def test_dict(self):
-        assert canonize(dict) == Rule(dict)
-        assert canonize({'foo': 123}) == Rule(dict, inner_spec={'foo': 123})
+        assert translate(dict) == IsA(dict)
+        assert translate({'foo': 123}) == DictOf([
+            (Equals('foo'), IsA(int, default=123)),
+        ])
 
     def test_float(self):
-        assert canonize(float) == Rule(float)
-        assert canonize(.5) == Rule(float, default=.5)
+        assert translate(float) == IsA(float)
+        assert translate(.5) == IsA(float, default=.5)
 
     def test_int(self):
-        assert canonize(int) == Rule(int)
-        assert canonize(5) == Rule(int, default=5)
+        assert translate(int) == IsA(int)
+        assert translate(5) == IsA(int, default=5)
 
     def test_list(self):
-        assert canonize(list) == Rule(list)
+        assert translate(list) == IsA(list)
 
-        assert canonize([]) == Rule(list, default=[])
+        assert translate([]) == IsA(list)
 
         with pytest.raises(errors.StructureSpecificationError) as excinfo:
-            canonize([1,2])
+            translate([1,2])
         assert ("StructureSpecificationError: Expected a list "
                 "containing exactly 1 item; got 2: [1, 2]") in excinfo.exconly()
 
     def test_string(self):
-        assert canonize(str) == Rule(str)
-        assert canonize('foo') == Rule(str, default='foo')
+        assert translate(str) == IsA(str)
+        assert translate('foo') == IsA(str, default='foo')
 
     def test_rule(self):
-        rule = Rule(str, default='abc', optional=True)
-        assert rule == canonize(rule)
+        rule = IsA(str, default='abc') | IsA(int)
+        assert rule == translate(rule)
 
 
 class TestAlternativeRules:
 
     def test_flat(self):
-        schema = OneOf([int, str])
+        schema = Any([int, str])
         validate(schema, 123)
         validate(schema, 'foo')
         with pytest.raises(errors.ValidationError) as excinfo:
@@ -149,45 +155,31 @@ class TestAlternativeRules:
 
 class TestShortcuts:
 
-    def test_any_value(self):
-        assert any_value == Rule(None)
-
-    def test_any_or_none(self):
-        assert any_or_none == Rule(None, optional=True)
-
     def test_one_of(self):
         # literals (behaviour implicitly turned on)
 
-        shortcut_rule = one_of(['foo', 'bar'])
-        # in this case the custom validator is an ad-hoc function
-        # so two otherwise identical rules with such semantically equivalent
-        # validators will always be considered different; we just strip this
-        # function to compare the rest
-        shortcut_rule.validators = []
-        verbose_rule = Rule(datatype=str, default=None)
-        assert shortcut_rule == verbose_rule
+        assert one_of(['foo', 'bar']) == Equals('foo') | Equals('bar')
 
-        assert 1 == len(one_of(['foo', 'bar']).validators)
-
-        v = one_of(['foo', 'bar']).validators[0]
+        v = one_of(['foo', 'bar'])
         v('foo')
         with pytest.raises(errors.ValidationError) as excinfo:
             v('quux')
-        assert "expected one of ['foo', 'bar']" in excinfo.exconly()
+        assert ("AllFailed: 'quux' (ValidationError: != 'foo';"
+                                  " ValidationError: != 'bar')"
+        ) in excinfo.exconly()
 
         # non-literals → rules (behaviour explicitly turned on)
 
         shortcut_rule = one_of(['foo', 'bar'], as_rules=True)
-        verbose_rule = OneOf(choices=['foo', 'bar'])
+        verbose_rule = Any(['foo', 'bar'])
         assert shortcut_rule == verbose_rule
 
         v = one_of(['foo', 123], as_rules=True)
-        validate(v, 'hello')
-        validate(v, 456)
+        v('hello')
+        v(456)
         with pytest.raises(errors.ValidationError) as excinfo:
-            validate(v, 5.5)
+            v(5.5)
         assert (
-            'ValidationError: failed 2 alternative rules:'
-            ' 1) TypeError: expected str, got float 5.5;'
-            ' 2) TypeError: expected int, got float 5.5'
+            'AllFailed: 5.5 (ValidationError: must be str;'
+                           ' ValidationError: must be int)'
         ) in excinfo.exconly()

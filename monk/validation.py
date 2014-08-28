@@ -22,7 +22,6 @@ Validation
 ~~~~~~~~~~
 """
 from . import compat
-from .schema import OneOf, canonize
 from . import errors
 
 __all__ = [
@@ -185,6 +184,13 @@ def validate(rule, value):
         if the value (or a nested value) does not belong to the designated type.
 
     """
+    from .reqs import translate
+    validator = translate(rule)
+    validator(value)
+
+    return
+
+
     rule = canonize(rule)
 
     if value is None:

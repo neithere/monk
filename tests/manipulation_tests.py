@@ -25,7 +25,11 @@ import mock
 import pytest
 
 from monk.compat import text_type as t
-from monk.schema import Rule, OneOf, optional
+from monk.combinators import Any
+from monk.reqs import (
+    Anything, IsA, DictOf, ListOf, Equals, NotExists,
+    translate
+)
 import monk.manipulation as m
 
 
@@ -34,237 +38,202 @@ class TestMergingDefaults:
 
     def test_defaults_from_rule(self):
         "Default value from rule"
-        rule = Rule(int, default=1)
-        assert m.merge_defaults(rule, None) == 1
-        assert m.merge_defaults(rule, 2) == 2
-
-    def test_type_merger(self):
-        "No default value → datatype-specific merger"
-        type_merger = mock.Mock()
-        fallback = mock.Mock()
-
-        m.merge_defaults(
-            Rule(int), 1, {int: type_merger}, fallback)
-
-        type_merger.assert_called_once_with(
-            Rule(int), 1, mergers={int: type_merger}, fallback=fallback)
-        fallback.assert_not_called()
-
-    def test_fallback(self):
-        "No datatype-specific merger → fallback merger"
-        type_merger = mock.Mock()
-        fallback = mock.Mock()
-
-        m.merge_defaults(
-            Rule(int), 1, {str: type_merger}, fallback)
-
-        type_merger.assert_not_called()
-        fallback.assert_called_once_with(
-            Rule(int), 1, mergers={str: type_merger}, fallback=fallback)
-
-    def test_deprecation(self):
-        "Deprecated function wraps the new one"
-        with mock.patch('monk.manipulation.merge_defaults') as new_func:
-            with mock.patch('warnings.warn') as warn:
-                new_func.return_value = 'returned'
-                m.merged('spec', 'value', 'mergers') == 'returned'
-                new_func.assert_called_once_with('spec', 'value', mergers='mergers')
-                warn.assert_called_once_with(
-                    'merged() is deprecated, use merge_defaults() instead',
-                    DeprecationWarning)
+        assert IsA(int, default=1).get_default_for(None) == 1
+        assert IsA(int, default=1).get_default_for(2) == 2
 
     def test_rule_as_key(self):
-        spec_a = {Rule(str): int}
-        spec_b = {Rule(str, optional=True): int}
+        spec_a = DictOf([ (IsA(str), IsA(int)) ])
+        spec_b = DictOf([ (IsA(str) | NotExists(), IsA(int)) ])
 
-        assert m.merged(spec_a, {}) == {}
-        assert m.merged(spec_b, {}) == {}
+        assert spec_a.get_default_for({}) == {}
+        assert spec_b.get_default_for({}) == {}
 
     def test_merge_oneof(self):
-        str_rule = Rule(datatype=str, default='hello')
-        int_rule = Rule(datatype=int, default=123)
+        str_rule = IsA(str, default='hello')
+        int_rule = IsA(int, default=123)
 
-        schema = OneOf([str_rule, int_rule])
-        assert m.merge_defaults(schema, None) == None
+        schema = Any([str_rule, int_rule])
+        assert schema.get_default_for(None) == None
 
-        schema = OneOf([str_rule, int_rule], first_is_default=True)
-        assert m.merge_defaults(schema, None) == 'hello'
+        schema = Any([str_rule, int_rule], default=456)
+        assert schema.get_default_for(None) == 456
 
-        schema = OneOf([int_rule, str_rule], first_is_default=True)
-        assert m.merge_defaults(schema, None) == 123
+        schema = Any([str_rule, int_rule], first_is_default=True)
+        assert schema.get_default_for(None) == 'hello'
+
+        schema = Any([int_rule, str_rule], first_is_default=True)
+        assert schema.get_default_for(None) == 123
 
 
-class TestMergingDefaultsTypeSpecific:
-    "Type-specific mergers"
+class TestValidators:
+    """
+    Validator-specific mergers
+    """
+    def test_merge_anything(self):
+        # "any value is OK"
+        assert Anything().get_default_for(None) == None
+        assert Anything().get_default_for(1234) == 1234
+        assert Anything().get_default_for('hi') == 'hi'
+        assert Anything().get_default_for({1: 2}) == {1: 2}
 
-    def test_default_type_mergers(self):
-
-        assert m.TYPE_MERGERS == {
-            dict: m.merge_dict,
-            list: m.merge_list,
-        }
-
-    def test_merge_any(self):
-
-        # datatype None stands for "any value is OK"
-        rule = Rule(datatype=None)
-
-        assert m.merge_any(rule, None, {}, None) == None
-        assert m.merge_any(rule, 1234, {}, None) == 1234
-        assert m.merge_any(rule, 'hi', {}, None) == 'hi'
-        assert m.merge_any(rule, {1:2}, {}, None) == {1:2}
-
-    def test_merge_dict(self):
-
-        with pytest.raises(AssertionError):
-            # function should check for rule datatype
-            m.merge_dict(Rule(datatype=int), None, {}, None)
-
-    def test_merge_dict_type(self):
-
-        rule = Rule(datatype=dict, optional=True)
+    def test_merge_isa__dict(self):
+        # TODO use a single test for all types used with IsA
 
         # optional missing dictionary
-        assert m.merge_dict(rule, None, {}, None) == None
+        assert (IsA(dict) | Equals(None)).get_default_for(None) == None
 
-        rule = Rule(datatype=dict)
-
-        # required missing dictionary → empty dictionary
-        assert m.merge_dict(rule, None, {}, None) == {}
+        # XXX CHANGED
+        ## required missing dictionary → empty dictionary
+        #assert IsA(dict).get_default_for(None) == {}
+        assert IsA(dict).get_default_for(None) == None
 
         # required empty dictionary
-        assert m.merge_dict(rule, {}, {}, None) == {}
+        assert IsA(dict).get_default_for({}) == {}
 
         # required non-empty dictionary
-        assert m.merge_dict(rule, {'x': 1}, {}, None) == {'x': 1}
+        assert IsA(dict).get_default_for({'x': 1}) == {'x': 1}
 
-    def test_merge_dict_innerspec(self):
-
-        ## present but empty inner spec (optional)
-        rule = Rule(datatype=dict, inner_spec={}, optional=True)
-
-        # optional missing dictionary
-        assert m.merge_dict(rule, None, {}, None) == None
-
-        ## present but empty inner spec (required)
-        rule = Rule(datatype=dict, inner_spec={})
-
-        # required missing dictionary → empty dictionary
-        assert m.merge_dict(rule, None, {}, None) == {}
+    def test_merge_dictof(self):
 
         ## present non-empty inner spec (optional)
-        rule = Rule(datatype=dict, inner_spec={'a': 1}, optional=True)
+        spec = DictOf([
+            (Equals('a'), IsA(int, default=1)),
+        ]) | Equals(None)
 
         # optional missing dictionary with required key
-        assert m.merge_dict(rule, None, {}, None) == None
+        assert spec.get_default_for(None) == None
 
         # optional empty dictionary with required key
-        assert m.merge_dict(rule, {}, {}, None) == {'a': 1}
+        assert spec.get_default_for({}) == {'a': 1}
 
         ## present non-empty inner spec (optional)
-        rule = Rule(datatype=dict, inner_spec={'a': optional(1)},
-                    optional=True)
+        spec = DictOf([
+            (Equals('a'), IsA(int, default=1) | Equals(None)),
+        ])
 
         # optional missing dictionary with optional key
-        assert m.merge_dict(rule, None, {}, None) == None
+        assert spec.get_default_for(None) == None
 
+        # XXX CHANGED
         # optional empty dictionary with optional key
-        assert m.merge_dict(rule, {}, {}, None) == {'a': 1}
+        # (if the value can be either int or None, why choose one?
+        # here we set None not because of Equals(None) but because
+        # we *mean* None — no value could be chosen.
+        #assert spec.get_default_for({}) == {'a': 1}
+        assert spec.get_default_for({}) == {'a': None}
 
         ## present non-empty inner spec (required)
-        rule = Rule(datatype=dict, inner_spec={'a': 1})
+        spec = DictOf([
+            (Equals('a'), IsA(int, default=1)),
+        ])
 
         # required missing dictionary → inner spec
-        assert m.merge_dict(rule, None, {}, None) == {'a': 1}
+        assert spec.get_default_for({}) == {'a': 1}
 
         # required empty dictionary → inner spec
-        assert m.merge_dict(rule, {}, {}, None) == {'a': 1}
+        assert spec.get_default_for({}) == {'a': 1}
 
-        # required non-empty dictionary → inner spec
-        fallback = lambda s, v, **kw: v
-        assert m.merge_dict(rule, {'a': 2}, {}, fallback) == {'a': 2}
-        assert m.merge_dict(rule, {'b': 3}, {}, fallback) == {'a': 1, 'b': 3}
+        # XXX CHANGED
+        ## required non-empty dictionary → inner spec
+        #fallback = lambda s, v, **kw: v
+        #assert m.merge_defaults(rule, {'a': 2}, {}, fallback) == {'a': 2}
+        #assert m.merge_defaults(rule, {'b': 3}, {}, fallback) == {'a': 1, 'b': 3}
 
         # bogus value; will not pass validation but should be preserved
-        assert m.merge_dict(rule, 123, {}, None) == 123
+        assert spec.get_default_for(123) == 123
 
     def test_merge_list(self):
 
         ## present but empty inner spec (optional)
-        rule = Rule(datatype=list, inner_spec=[], optional=True)
+        rule = ListOf([]) | Equals(None)
 
         # optional missing list
-        assert m.merge_list(rule, None, {}, None) == None
+        assert rule.get_default_for(None) == None
 
         ## present but empty inner spec (required)
-        rule = Rule(datatype=list, inner_spec=[])
+        rule = ListOf([])
 
         # required missing list → empty list
-        assert m.merge_list(rule, None, {}, None) == []
+        assert rule.get_default_for(None) == []
 
         ## present non-empty inner spec (optional)
-        rule = Rule(datatype=list, inner_spec=123, optional=True)
+        rule = ListOf(IsA(int, default=123)) | Equals(None)
 
         # optional missing list with required item(s)
-        assert m.merge_list(rule, None, {}, None) == None
+        assert rule.get_default_for(None) == None
 
         # optional empty list with required item(s)
-        assert m.merge_list(rule, [], {}, None) == []
+        assert rule.get_default_for([]) == []
 
         ## present non-empty inner spec (optional)
-        rule = Rule(datatype=list, inner_spec=[optional(1)],
-                    optional=True)
+        elem_spec = IsA(int, default=123) | Equals(None)
+        rule = ListOf(elem_spec) | Equals(None)
 
         # optional missing list with optional item(s)
-        assert m.merge_list(rule, None, {}, None) == None
+        assert rule.get_default_for(None) == None
 
         # optional empty list with optional item
-        assert m.merge_list(rule, [], {}, None) == []
+        assert rule.get_default_for([]) == []
 
         ## present non-empty inner spec (required)
-        rule = Rule(datatype=list, inner_spec=123)
+        rule = ListOf(IsA(int, default=123))
 
         # required missing list → inner spec
-        assert m.merge_list(rule, None, {}, None) == []
+        assert rule.get_default_for(None) == []
 
         # required empty list → inner spec
-        assert m.merge_list(rule, [], {}, None) == []
+        assert rule.get_default_for([]) == []
 
         # required non-empty list → inner spec
-        fallback = lambda s, v, **kw: v
-        assert m.merge_list(rule, [None], {}, fallback) == [None]
-        assert m.merge_list(rule, [456], {}, fallback) == [456]
+#        fallback = lambda s, v, **kw: v
+        assert rule.get_default_for([None]) == [None]
+        assert rule.get_default_for([456]) == [456]
 
         ## present inner spec with empty item spec
-        rule = Rule(datatype=list, inner_spec=None)
-
-        assert m.merge_list(rule, [456], {}, fallback) == [456]
+        rule = ListOf(Anything())
+        assert rule.get_default_for([456]) == [456]
 
         ## present inner spec with item spec that has an inner spec
-        rule = Rule(datatype=list, inner_spec=[123])
+        #rule = Rule(datatype=list, inner_spec=[123])
+        rule = ListOf(ListOf(IsA(int, default=123)))
 
-        assert m.merge_list(rule, [None], {}, fallback) == [123]
+        # XXX CHANGED    WTF was it before!?
+        ##assert rule.get_default_for([None]) == [123]
+        #assert rule.get_default_for([[]]) == [[123]]
 
         # bogus value; will not pass validation but should be preserved
-        assert m.merge_list(rule, 123, {}, None) == 123
+        assert rule.get_default_for(123) == 123
 
     def test_merge_list_with_oneof(self):
         "Non-rule node in list's inner spec"
 
+        # TODO: refactor and reformulate.
+        #       This test was written for older implementation of Monk.
+
+        int_spec = IsA(int, default=123)
+        str_spec = IsA(str, default='foo')
+
         # no defaults
-        rule = Rule(datatype=list, inner_spec=OneOf([123, 456]))
-        assert m.merge_defaults(rule, []) == []
-        assert m.merge_defaults(rule, [789]) == [789]
+
+        #rule = Rule(datatype=list, inner_spec=OneOf([123, 456]))
+        item_spec = Any([int_spec, str_spec])
+        rule = ListOf(item_spec)
+        assert rule.get_default_for([]) == []
+        assert rule.get_default_for([789]) == [789]
 
         # with defaults
         # (same results because defaults have no effect on lists)
-        rule = Rule(datatype=list,
-                    inner_spec=OneOf([123, 456], first_is_default=True))
-        assert m.merge_defaults(rule, []) == []
-        assert m.merge_defaults(rule, [789]) == [789]
+
+        #rule = Rule(datatype=list,
+        #            inner_spec=OneOf([123, 456], first_is_default=True))
+
+        item_spec = Any([int_spec, str_spec], first_is_default=True)
+        rule = ListOf(item_spec)
+        assert rule.get_default_for([]) == []
+        assert rule.get_default_for([789]) == [789]
 
 
-class TestMergingDefaultsNaturalNotation:
+class TestNaturalNotation:
     """
     Tests for :func:`merge_defaults` with "natural" notation
     and more or less complex (and random) cases.
@@ -274,67 +243,85 @@ class TestMergingDefaultsNaturalNotation:
     """
 
     def test_merge(self):
-        assert {'a': 1, 'b': 2} == m.merge_defaults({'a': 1}, {'b': 2})
+        spec = translate({'a': 1})
 
-    def test_none(self):
-        assert {'a': None} == m.merge_defaults({'a': None}, {})
-        assert {'a': None} == m.merge_defaults({'a': None}, {'a': None})
-        assert {'a': 1234} == m.merge_defaults({'a': None}, {'a': 1234})
+        assert spec.get_default_for({'b': 2}) == {'a': 1, 'b': 2}
 
-    def test_type(self):
-        assert {'a': None} == m.merge_defaults({'a': t}, {})
-        assert {'a': None} == m.merge_defaults({'a': t}, {'a': None})
-        assert {'a': t('a')} == m.merge_defaults({'a': t}, {'a': t('a')})
+    def test_none_in_dict(self):
+        spec = translate({'a': None})
+        assert spec.get_default_for({}) == {'a': None}
+        assert spec.get_default_for({'a': None}) == {'a': None}
+        assert spec.get_default_for({'a': 1234}) == {'a': 1234}
 
     def test_type_in_dict(self):
-        spec = {'a': {'b': int}}
+        spec = translate({'a': t})
+
+        assert spec.get_default_for({}) == {'a': None}
+        assert spec.get_default_for({'a': None}) == {'a': None}
+        assert spec.get_default_for({'a': t('a')}) == {'a': t('a')}
+
+    def test_type_in_dict_in_dict(self):
+        spec = translate({'a': {'b': int}})
 
         # key is absent; should be inserted
-        assert {'a': {'b': None}} == m.merge_defaults(spec, {})
+        assert spec.get_default_for({}) == {'a': {'b': None}}
         # same with nested key
-        assert {'a': {'b': None}} == m.merge_defaults(spec, {'a': {}})
+        assert spec.get_default_for({'a': {}}) == {'a': {'b': None}}
 
         # key is present but value is None; should be overridden with defaults
         #
         #   XXX do we really need to override *present* values in data
         #       even if they are None?
         #
-        assert {'a': {'b': None}} == m.merge_defaults(spec, {'a': None})
-        assert {'a': {'b': None}} == m.merge_defaults(spec, {'a': {'b': None}})
+        assert spec.get_default_for({'a': None}) == {'a': {'b': None}}
+        assert spec.get_default_for({'a': {'b': None}}) == {'a': {'b': None}}
 
         # key is present, value is not None; leave as is
         # (even if it won't pass validation)
-        assert {'a': {'b': 1234}} == m.merge_defaults(spec, {'a': {'b': 1234}})
-        assert {'a': t('bogus string')} == m.merge_defaults(spec, {'a': t('bogus string')})
+        assert spec.get_default_for({'a': {'b': 1234}}) == {'a': {'b': 1234}}
+        assert spec.get_default_for({'a': t('bogus string')}) == {'a': t('bogus string')}
 
-    def test_type_in_list(self):
-        assert {'a': []} == m.merge_defaults({'a': [int]}, {'a': []})
-        assert {'a': [123]} == m.merge_defaults({'a': [int]}, {'a': [123]})
-        assert {'a': [123, 456]} == m.merge_defaults({'a': [int]}, {'a': [123, 456]})
+    def test_type_in_list_in_dict(self):
+        spec = translate({'a': [int]})
+
+        assert spec.get_default_for({'a': []}) == {'a': []}
+        assert spec.get_default_for({'a': [123]}) == {'a': [123]}
+        assert spec.get_default_for({'a': [123, 456]}) == {'a': [123, 456]}
 
     def test_rule_in_list(self):
-        assert {'a': []} == m.merge_defaults({'a': [Rule(datatype=int)]}, {'a': []})
-        assert {'a': []} == m.merge_defaults({'a': [Rule(datatype=int)]}, {'a': None})
-        assert {'a': []} == m.merge_defaults({'a': [Rule(datatype=int)]}, {})
+        spec = translate({'a': [IsA(int)]})
 
-    def test_instance(self):
-        assert {'a': 1} == m.merge_defaults({'a': 1}, {})
+        assert spec.get_default_for({'a': []}) == {'a': []}
+        assert spec.get_default_for({'a': None}) == {'a': []}
+        assert spec.get_default_for({}) == {'a': []}
 
     def test_instance_in_dict(self):
-        assert {'a': {'b': 1}} == m.merge_defaults({'a': {'b': 1}}, {})
+        spec = translate({'a': 1})
 
-    def test_instance_in_list(self):
-        assert {'a': [1]} == m.merge_defaults({}, {'a': [1]})
-        assert {'a': [1]} == m.merge_defaults({'a': []}, {'a': [1]})
-        assert {'a': [0]} == m.merge_defaults({'a': [0]}, {'a': [0]})
-        assert {'a': [0, 1]} == m.merge_defaults({'a': [0]}, {'a': [0, 1]})
+        assert spec.get_default_for({}) == {'a': 1}
 
-    def test_instance_in_list_of_dicts(self):
-        spec = {'a': [{'b': 1}]}
-        assert {'a': []} == m.merge_defaults(spec, {})
-        assert {'a': []} == m.merge_defaults(spec, {'a': []})
-        assert {'a': [{'b': 1}]} == m.merge_defaults(spec, {'a': [{}]})
-        assert {'a': [{'b': 0}]} == m.merge_defaults(spec, {'a': [{'b': 0}]})
+    def test_instance_in_dict(self):
+        spec = translate({'a': {'b': 1}})
+
+        assert spec.get_default_for({}) == {'a': {'b': 1}}
+
+    def test_instance_in_list_in_dict(self):
+        spec = translate({})
+
+        assert spec.get_default_for({'a': [1]}) == {'a': [1]}
+
+        spec = translate({'a': [0]})
+
+        assert spec.get_default_for({'a': [0]}) == {'a': [0]}
+        assert spec.get_default_for({'a': [0, 1]}) == {'a': [0, 1]}
+
+    def test_instance_in_list_of_dicts_in_dict(self):
+        spec = translate({'a': [{'b': 1}]})
+
+        assert spec.get_default_for({}) == {'a': []}
+        assert spec.get_default_for({'a': []}) == {'a': []}
+        assert spec.get_default_for({'a': [{}]}) == {'a': [{'b': 1}]}
+        assert spec.get_default_for({'a': [{'b': 0}]}) == {'a': [{'b': 0}]}
 
     def test_complex_list_of_dicts(self):
         "some items are populated, some aren't"
@@ -361,45 +348,50 @@ class TestMergingDefaultsNaturalNotation:
 
     def test_custom_structures(self):
         "custom keys should not be lost even if they are not in spec"
+        spec = translate({})
         data = {'a': [{'b': {'c': 123}}]}
-        assert data == m.merge_defaults({}, data)
+        assert spec.get_default_for(data) == data
 
-    def test_unexpected_dict(self):
+    def test_unexpected_dict_in_dict(self):
         """ Non-dictionary in spec, dict in data.
         Data is preserved though won't validate.
         """
-        assert {'a': {'b': 123}} == m.merge_defaults({'a': t}, {'a': {'b': 123}})
+        spec = translate({'a': t})
+        data = {'a': {'b': 123}}
+        assert spec.get_default_for(data) == data
 
-    def test_unexpected_list(self):
+    def test_unexpected_list_in_dict(self):
         """ Non-list in spec, list in data.
         Data is preserved though won't validate.
         """
-        assert {'a': [123]} == m.merge_defaults({'a': t}, {'a': [123]})
+        spec = translate({'a': t})
+        data = {'a': [123]}
+        assert spec.get_default_for(data) == data
 
-    def test_callable(self):
+    def test_callable_in_dict(self):
         """ Callable defaults.
         """
-        spec = {'text': lambda: t('hello')}
+        spec = translate({'text': lambda: t('hello')})
         data = {}
         expected = {'text': t('hello')}
         assert m.merge_defaults(spec, data) == expected
 
-    def test_callable_nested(self):
+    def test_callable_nested_in_dict(self):
         """ Nested callable defaults.
         """
-        spec = {'content': {'text': lambda: t('hello')}}
+        spec = translate({'content': {'text': lambda: t('hello')}})
         data = {}
         expected = {'content': {'text': t('hello')}}
         assert m.merge_defaults(spec, data) == expected
 
-    def test_rule_merger(self):
-        spec = {'foo': Rule(str, default='bar')}
+    def test_validator_in_dict(self):
+        spec = translate({'foo': IsA(str, default='bar')})
         data = {}
         expected = {'foo': 'bar'}
         assert m.merge_defaults(spec, data) == expected
 
-    def test_required_inside_optional_dict(self):
-        spec = {'foo': optional({'a': 1, 'b': optional(2)})}
+    def test_required_inside_optional_dict_in_dict(self):
+        spec = translate({'foo': optional({'a': 1, 'b': optional(2)})})
 
         data = {}
         expected = {'foo': None}
@@ -441,4 +433,3 @@ class TestMolding:
         assert [{'x': 1}] == m.normalize_list_of_dicts({'x': 1}, default_key='y')
         assert [] == m.normalize_list_of_dicts(None, default_key='y')
         assert 123 == m.normalize_list_of_dicts(123, default_key='x')
-
