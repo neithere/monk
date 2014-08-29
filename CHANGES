@@ -23,7 +23,7 @@ An example of what you may need to do::
     }
     new_spec = {
         'foo': IsA(str) | IsA(int),        # or:  Any([str, int])
-        'bar': IsA(int) & InRange(0, 5),
+        'bar': IsA(int) & InRange(0, 5),   # or:  InRange(0,5) & int
         'quux': int,
     }
 
