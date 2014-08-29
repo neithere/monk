@@ -25,6 +25,8 @@ Removed (without deprecation stage):
   custom type-specific merger functions are dropped.
   The function `merge_defaults` has been radically simplified and
   it does not support `mergers` and `fallback` arguments anymore.
+* all validation logic has been integrated into stand-alone validators;
+  therefore there are no more type-specific validation functions.
 
 Deprecated:
 
