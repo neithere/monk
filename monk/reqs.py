@@ -331,6 +331,8 @@ class InRange(BaseRequirement):
         self._max = max
 
     def _check(self, value):
+        if value is MISSING:
+            raise InvalidKey(value)
         if self._min is not None and self._min > value:
             raise ValidationError('must be ≥ {expected}'
                                   .format(expected=self._min))
@@ -401,7 +403,10 @@ def translate(value):
             if isinstance(k, BaseValidator):
                 k_validator = k
             else:
-                k_validator = Equals(k)
+                k_validator = translate(k)
+                default = k_validator.get_default_for(None)
+                if default is not None:
+                    k_validator = Equals(default)
             v_validator = translate(v)
             items.append((k_validator, v_validator))
         return DictOf(items)

@@ -213,8 +213,7 @@ def test_combinator_any():
 
     v('foo')
     v(123)
-    with raises_regexp(ValidationError, '^4.5 \(ValidationError: must be str;'
-                                              ' ValidationError: must be int\)'):
+    with raises_regexp(ValidationError, '^4.5 \(must be str; must be int\)'):
         v(4.5)
 
 
@@ -277,9 +276,10 @@ def test_combinator_edge_cases():
     with raises_regexp(TypeError, 'got NotExists class instead of its instance'):
         IsA(str) | NotExists
 
-    with raises_regexp(TypeError, 'expected a BaseValidator subclass instance,'
-                                  " got 'Albatross!'"):
-        IsA(str) | "Albatross!"
+    # translate() is applied to the right argument
+    assert IsA(str) | 'Albatross!' == IsA(str) | IsA(str, default='Albatross!')
+    assert IsA(str) | None == IsA(str) | Anything()
+    assert Length(min=3) & [] == Length(min=3) & IsA(list)
 
 
 def test_translate_validator():
@@ -329,6 +329,17 @@ def test_translate_dict():
     # validator as a key
     assert translate({Equals('foo') | Equals('bar'): str}) == DictOf([
         (Equals('foo') | Equals('bar'), IsA(str)),
+    ])
+
+    # type as a key
+    assert translate({str: int}) == DictOf([
+        (IsA(str), IsA(int)),
+    ])
+
+    # function as a key
+    func = lambda: 'foo'
+    assert translate({func: int}) == DictOf([
+        (Equals('foo'), IsA(int)),
     ])
 
 
