@@ -21,16 +21,13 @@
 Validators tests
 ================
 """
-import pytest
 from pytest import raises_regexp
 
-from monk.errors import (
-    ValidationError, MissingKey, InvalidKey,
-    StructureSpecificationError
-)
 from monk import (
     All, Any, Anything, IsA, Equals, InRange, Length, ListOf, DictOf,
-    NotExists, MISSING, translate
+    NotExists, MISSING, translate,
+    ValidationError, MissingKey, InvalidKey,
+    StructureSpecificationError
 )
 
 

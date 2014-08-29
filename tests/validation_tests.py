@@ -27,12 +27,14 @@ import bson
 import pytest
 
 from monk.compat import text_type, safe_unicode
-from monk.errors import MissingKey, InvalidKey, ValidationError
-from monk.schema import optional
 from monk import (
-    Anything, IsA, Equals, NotExists, translate, MISSING, ListOf, InRange
+    Anything, IsA, Equals, NotExists, ListOf, InRange,
+    MISSING,
+    translate,
+    validate,
+    optional,
+    MissingKey, InvalidKey, ValidationError,
 )
-from monk.validation import validate
 
 
 class TestOverall:

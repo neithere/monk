@@ -24,10 +24,9 @@ Tests for Merging Defaults
 """
 from monk.compat import text_type as t
 from monk import (
-    Any, Anything, IsA, DictOf, ListOf, Equals, NotExists, translate
+    Any, Anything, IsA, DictOf, ListOf, Equals, NotExists, translate,
+    merge_defaults, optional
 )
-from monk.schema import optional
-import monk.manipulation as m
 
 
 class TestValidators:
@@ -103,8 +102,8 @@ class TestValidators:
         # XXX CHANGED
         ## required non-empty dictionary → inner spec
         #fallback = lambda s, v, **kw: v
-        #assert m.merge_defaults(rule, {'a': 2}, {}, fallback) == {'a': 2}
-        #assert m.merge_defaults(rule, {'b': 3}, {}, fallback) == {'a': 1, 'b': 3}
+        #assert merge_defaults(rule, {'a': 2}, {}, fallback) == {'a': 2}
+        #assert merge_defaults(rule, {'b': 3}, {}, fallback) == {'a': 1, 'b': 3}
 
         # bogus value; will not pass validation but should be preserved
         assert spec.get_default_for(123) == 123
@@ -310,7 +309,7 @@ class TestNaturalNotation:
                 {'b': 2, 'c': {'d': 1}}
             ]
         }
-        assert m.merge_defaults(spec, data) == expected
+        assert merge_defaults(spec, data) == expected
 
     def test_custom_structures(self):
         "custom keys should not be lost even if they are not in spec"
@@ -340,7 +339,7 @@ class TestNaturalNotation:
         spec = translate({'text': lambda: t('hello')})
         data = {}
         expected = {'text': t('hello')}
-        assert m.merge_defaults(spec, data) == expected
+        assert merge_defaults(spec, data) == expected
 
     def test_callable_nested_in_dict(self):
         """ Nested callable defaults.
@@ -348,13 +347,13 @@ class TestNaturalNotation:
         spec = translate({'content': {'text': lambda: t('hello')}})
         data = {}
         expected = {'content': {'text': t('hello')}}
-        assert m.merge_defaults(spec, data) == expected
+        assert merge_defaults(spec, data) == expected
 
     def test_validator_in_dict(self):
         spec = translate({'foo': IsA(str, default='bar')})
         data = {}
         expected = {'foo': 'bar'}
-        assert m.merge_defaults(spec, data) == expected
+        assert merge_defaults(spec, data) == expected
 
     def test_required_inside_optional_dict_in_dict(self):
         spec = translate({
@@ -366,27 +365,27 @@ class TestNaturalNotation:
 
         data = {}
         expected = {'foo': None}
-        assert m.merge_defaults(spec, data) == expected
+        assert merge_defaults(spec, data) == expected
 
         data = {'foo': None}
         expected = {'foo': None}
-        assert m.merge_defaults(spec, data) == expected
+        assert merge_defaults(spec, data) == expected
 
         data = {'foo': {}}
         # XXX CHANGED:
         #expected = {'foo': {'a': 1, 'b': 2}}
         expected = {'foo': {'a': 1, 'b': None}}
-        assert m.merge_defaults(spec, data) == expected
+        assert merge_defaults(spec, data) == expected
 
         data = {'foo': {'a': 3}}
         # XXX CHANGED:
         #expected = {'foo': {'a': 3, 'b': 2}}
         expected = {'foo': {'a': 3, 'b': None}}
-        assert m.merge_defaults(spec, data) == expected
+        assert merge_defaults(spec, data) == expected
 
         data = {'foo': {'b': 3}}
         expected = {'foo': {'a': 1, 'b': 3}}
-        assert m.merge_defaults(spec, data) == expected
+        assert merge_defaults(spec, data) == expected
 
 
 class TestMisc:

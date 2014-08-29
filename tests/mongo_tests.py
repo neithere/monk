@@ -27,8 +27,7 @@ import pytest
 
 from bson import DBRef, ObjectId
 from monk import mongo
-from monk.errors import ValidationError
-from monk.schema import optional
+from monk import optional, ValidationError
 from monk.compat import text_type as t
 
 

@@ -27,7 +27,7 @@ DB-agnostic helpers to build powerful ODMs.
 from __future__ import unicode_literals
 
 from .compat import text_type
-from . import manipulation, validation
+from . import validate, merge_defaults
 
 
 __all__ = ['DotExpandedDictMixin', 'DotExpandedDict', 'make_dot_expanded',
@@ -114,7 +114,7 @@ class StructuredDictMixin(object):
     .. attribute:: structure
 
         The document structure specification. For details see
-        :func:`monk.validation.validate`.
+        :func:`monk.shortcuts.validate`.
 
     """
     structure = {}
@@ -128,8 +128,8 @@ class StructuredDictMixin(object):
         to `self` by merging the two structures
         (see :func:`monk.manipulation.merge_defaults`).
         """
-        merged = manipulation.merge_defaults(self.structure, self)
+        merged = merge_defaults(self.structure, self)
         self.update(merged)
 
     def validate(self):
-        validation.validate(self.structure, self)
+        validate(self.structure, self)

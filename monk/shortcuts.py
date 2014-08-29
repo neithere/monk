@@ -21,16 +21,11 @@
 Schema Definition
 ~~~~~~~~~~~~~~~~~
 """
-from .combinators import Any
-from .reqs import translate, Equals, NotExists, InRange
+from .import Any, Equals, NotExists, InRange, translate
 
 
 __all__ = ['optional',  'one_of']
 
-
-#-------------------------------------------
-# Shortcuts
-#
 
 def optional(spec):
     """

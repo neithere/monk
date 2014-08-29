@@ -22,7 +22,7 @@ Data manipulation
 ~~~~~~~~~~~~~~~~~
 """
 from .compat import text_type
-from .reqs import translate
+from . import translate
 
 
 __all__ = [
