@@ -429,7 +429,7 @@ class TestMisc:
     def test_merge_dictof_dictof_isa(self):
         raw_spec = {
             'content': {
-                'text': 'hello',
+                'text': t('hello'),
             },
         }
 
