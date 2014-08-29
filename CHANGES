@@ -5,32 +5,68 @@ Changelog
 Version 0.13
 ------------
 
+The library has been completely rewritten.
+
+**Your old code will probably break** unless it only used plain Python specs.
+
+This release maintains backwards compatibility only on the "natural syntax"
+level.  The underlying mechanism has been completely replaced.  Any code
+that relied on Rules must be updated before upgrade.  This should be rather
+easy as the new mechanism is much more powerful and expressive.
+
+An example of what you may need to do::
+
+    old_spec = {
+        'foo': OneOf([str, int], as_rules=True),
+        'bar': Rule(datatype=int, validators=[in_range(0, 5)]),
+        'quux': int,
+    }
+    new_spec = {
+        'foo': IsA(str) | IsA(int),        # or:  Any([str, int])
+        'bar': IsA(int) & InRange(0, 5),
+        'quux': int,
+    }
+
 * Added a new validation mechanism instead of the Rule/OneOf-based one.
+
+* Added validators/combinators: `Any`, `All`.
+
+* Added validators/requirements: `Anything`, `IsA`, `Equals`, `InRange`,
+  `Length`, `ListOf`, `DictOf`, `NotExists`.
 
 Removed (after deprecation):
 
 * `unfold_to_list` (deprecated since 0.10)
+
 * `unfold_to_list_of_dicts` (deprecated since 0.10)
 
-Removed (without deprecation stage):
+**Removed/replaced without deprecation stage**:
 
 * `Rule` class is replaced with concrete validators.
+
 * `OneOf` class is replaced with `Any` combinator.
+
 * `any_value` shortcut is replaced with `Anything` validator.
+
 * `any_or_none` shortcut is dropped.
+
 * `canonize()` is replaced with `translate()`
+
 * custom validators to be used within a `Rule` are replaced with stand-alone
   validators/mergers.
+
 * mergers are integrated into stand-alone validators/mergers; therefore
   custom type-specific merger functions are dropped.
   The function `merge_defaults` has been radically simplified and
   it does not support `mergers` and `fallback` arguments anymore.
+
 * all validation logic has been integrated into stand-alone validators;
   therefore there are no more type-specific validation functions.
 
 Deprecated:
 
 * `one_of` shortcut is deprecated in favour of `Any` combinator.
+
 * `in_range` shortcut is deprecated in favour of `InRange` validator.
 
 Changed some details of behaviour:
