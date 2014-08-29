@@ -26,10 +26,9 @@ import pytest
 
 from monk import errors
 #from monk.schema import Rule, OneOf, canonize, one_of, any_value, any_or_none
-from monk.schema import one_of
-from monk.reqs import Anything, IsA, Equals, ListOf, DictOf, translate
-from monk.combinators import Any
-from monk.validation import validate
+from monk import (
+    Any, Anything, IsA, Equals, DictOf, translate, one_of
+)
 
 
 class TestTranslation:
@@ -86,10 +85,10 @@ class TestAlternativeRules:
 
     def test_flat(self):
         schema = Any([int, str])
-        validate(schema, 123)
-        validate(schema, 'foo')
+        schema(123)
+        schema('foo')
         with pytest.raises(errors.ValidationError) as excinfo:
-            validate(schema, {})
+            schema({})
         assert "AllFailed: {} (must be int; must be str)" in excinfo.exconly()
 
     def test_nested(self):
@@ -97,14 +96,14 @@ class TestAlternativeRules:
             {'foo': int},
             {'bar': str},
         ])
-        validate(schema, {'foo': 123})
-        validate(schema, {'bar': 'hi'})
+        schema({'foo': 123})
+        schema({'bar': 'hi'})
         with pytest.raises(errors.ValidationError) as excinfo:
-            validate(schema, {'foo': 'hi'})
+            schema({'foo': 'hi'})
         assert ("AllFailed: {'foo': 'hi'} "
                 "('foo': must be int; InvalidKey: 'foo')") in excinfo.exconly()
         with pytest.raises(errors.ValidationError) as excinfo:
-            validate(schema, {'bar': 123})
+            schema({'bar': 123})
         assert ("AllFailed: {'bar': 123} "
                 "(InvalidKey: 'bar'; 'bar': must be str)") in excinfo.exconly()
 

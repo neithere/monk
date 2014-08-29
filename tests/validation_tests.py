@@ -27,9 +27,9 @@ import bson
 import pytest
 
 from monk.compat import text_type, safe_unicode
-from monk.errors import MissingKey, MissingValue, InvalidKey, ValidationError
-from monk.schema import optional, any_value
-from monk.reqs import (
+from monk.errors import MissingKey, InvalidKey, ValidationError
+from monk.schema import optional
+from monk import (
     Anything, IsA, Equals, NotExists, translate, MISSING, ListOf, InRange
 )
 from monk.validation import validate
@@ -579,9 +579,6 @@ class TestNested:
 
 class TestRuleShortcuts:
 
-    def test_any_value(self):
-        assert any_value == Anything()
-
     def test_optional(self):
         assert optional(str) == IsA(str) | Equals(None) | NotExists()
         assert optional(IsA(str)) == IsA(str) | Equals(None) | NotExists()
@@ -627,30 +624,30 @@ class TestRulesAsDictKeys:
         validate({None: 1}, {2: 3})
 
     def test_custom_validators_in_dict_keys(self):
-        day_note_schema = {
+        day_note_schema = translate({
             InRange(2000, 2020): {
                 InRange(1, 12): {
                     InRange(1, 31): str,
                 },
             },
-        }
+        })
         good_note = {2013: {12: {9:  'it is a good day today'}}}
         bad_note1 = {1999: {12: {9:  'wrong year: below min'}}}
         bad_note2 = {2013: {13: {9:  'wrong month: above max'}}}
         bad_note3 = {2013: {12: {40: 'wrong day of month: above max'}}}
 
-        validate(day_note_schema, good_note)
+        day_note_schema(good_note)
 
         with pytest.raises(InvalidKey) as excinfo:
-            validate(day_note_schema, bad_note1)
+            day_note_schema(bad_note1)
         assert excinfo.exconly().endswith("InvalidKey: 1999")
 
         with pytest.raises(InvalidKey) as excinfo:
-            validate(day_note_schema, bad_note2)
+            day_note_schema(bad_note2)
         assert excinfo.exconly().endswith('InvalidKey: 2013: 13')
 
         with pytest.raises(InvalidKey) as excinfo:
-            validate(day_note_schema, bad_note3)
+            day_note_schema(bad_note3)
         assert excinfo.exconly().endswith('InvalidKey: 2013: 12: 40')
 
     def test_nonsense(self):

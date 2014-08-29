@@ -7,6 +7,34 @@ Version 0.13
 
 * Added a new validation mechanism instead of the Rule/OneOf-based one.
 
+Removed (after deprecation):
+
+* `unfold_to_list` (deprecated since 0.10)
+* `unfold_to_list_of_dicts` (deprecated since 0.10)
+
+Removed (without deprecation stage):
+
+* `Rule` class is replaced with concrete validators.
+* `OneOf` class is replaced with `Any` combinator.
+* `any_value` shortcut is replaced with `Anything` validator.
+* `any_or_none` shortcut is dropped.
+* `canonize()` is replaced with `translate()`
+* custom validators to be used within a `Rule` are replaced with stand-alone
+  validators/mergers.
+* mergers are integrated into stand-alone validators/mergers; therefore
+  custom type-specific merger functions are dropped.
+  The function `merge_defaults` has been radically simplified and
+  it does not support `mergers` and `fallback` arguments anymore.
+
+Deprecated:
+
+* `one_of` shortcut is deprecated in favour of `Any` combinator.
+* `in_range` shortcut is deprecated in favour of `InRange` validator.
+
+Changed some details of behaviour:
+
+* XXX TODO describe from tests (grep CHANGED)
+
 Version 0.12
 ------------
 

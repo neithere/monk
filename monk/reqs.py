@@ -31,6 +31,9 @@ __all__ = [
     'ListOf',
     'DictOf',
     'NotExists',
+
+    'translate',
+    'MISSING',
 ]
 
 
@@ -326,9 +329,10 @@ class InRange(BaseRequirement):
     """
     Requires that the numeric value is in given boundaries.
     """
-    def __init__(self, min=None, max=None):
+    def __init__(self, min=None, max=None, default=NotImplemented):
         self._min = min
         self._max = max
+        self._default = default
 
     def _check(self, value):
         if value is MISSING:

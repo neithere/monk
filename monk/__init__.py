@@ -33,3 +33,7 @@ __version__ = '0.13.0-dev'
 #   * version
 # * hg tag
 #
+from .reqs import *
+from .combinators import *
+from .manipulation import *
+from .schema import *

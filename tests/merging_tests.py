@@ -22,14 +22,9 @@
 Tests for Merging Defaults
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
-import mock
-import pytest
-
 from monk.compat import text_type as t
-from monk.combinators import Any
-from monk.reqs import (
-    Anything, IsA, DictOf, ListOf, Equals, NotExists,
-    translate
+from monk import (
+    Any, Anything, IsA, DictOf, ListOf, Equals, NotExists, translate
 )
 from monk.schema import optional
 import monk.manipulation as m
