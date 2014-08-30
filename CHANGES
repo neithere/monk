@@ -7,7 +7,22 @@ Version 0.13
 
 The library has been completely rewritten.
 
-**Your old code will probably break** unless it only used plain Python specs.
+Improvements
+............
+
+Good news:
+
+* Validation is ~2× faster!
+* Very complex rules can be now created by *combining* basic validators;
+* Custom validators are easy to write;
+* Validators can be plugged right into the schema — they *are* the schema;
+* The old top-level "natural" syntax works as before on top of this one.
+
+Migration notes
+...............
+
+The good stuff comes at a cost; **your old code will probably break**
+unless it only used plain Python specs.
 
 This release maintains backwards compatibility only on the "natural syntax"
 level.  The underlying mechanism has been completely replaced.  Any code
@@ -26,6 +41,9 @@ An example of what you may need to do::
         'bar': IsA(int) & InRange(0, 5),   # or:  InRange(0,5) & int
         'quux': int,
     }
+
+Changes
+.......
 
 * Added a new validation mechanism instead of the Rule/OneOf-based one.
 
@@ -71,7 +89,44 @@ Deprecated:
 
 Changed some details of behaviour:
 
-* XXX TODO describe from tests (grep CHANGED)
+* validation: `ValidationError` is raised in most cases by most validators
+  instead of more concrete exceptions.  This may change in the future.
+  Validators must never raise exceptions from other branches of the class tree
+  (`TypeError`, `KeyError`, etc.) unless the problem is not in the data.
+
+* validation: `None` is now treated as an ordinary value.  Before this release
+  `None` would trigger a `MissingValue` error in some cases.
+
+* validation: list validation and list item validation are now separated.
+  This leads to the following:
+
+  * Value ``[]`` is now considered valid for either ``IsA(list)`` or
+    ``ListOf(x)``, even if `x` is not marked as optional.
+
+    Previously a non-optional list item would require that the list is not
+    empty.
+
+  * List length should be now checked by adding the `Length` validator.
+    This is actually done by `translate()` — the natural spec ``[str]`` becomes
+    ``ListOf(IsA(str)) & Length(min=1)``.
+
+  * As ``translate([str])`` produces a validator which requires a non-empty list,
+    the value ``[]`` now fails for the spec ``[optional(x)]`` because while the
+    item is optional (which now means that it may be equal to `None` or be
+    missing), there's still a requirement concerning its parent list length.
+
+    Previously marking the item as optional would allow its parent list to be
+    empty.
+
+* merging: empty dictionaries are not created anymore if only a type `dict` was
+  specified by the schema.
+  Example: ``merge_defaults(dict, None)`` now returns `None` (was ``{}``).
+
+* merging: optional keys are not inserted into dictionaries anymore.
+  Example: ``merge_defaults({optional('a'): 1})`` returns `None` (was ``{'a': 1}``).
+
+* merging: default value is not chosen over `None` if the value is optional
+  ("something or None").
 
 Version 0.12
 ------------
