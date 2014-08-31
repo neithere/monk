@@ -26,10 +26,15 @@ A simple schema validation layer for pymongo_. Inspired by MongoKit and Doqu.
 .. _pymongo: http://api.mongodb.org/python/current/
 
 """
-__version__ = '0.12.0'
+__version__ = '0.13.0-dev'
 # remember to also update:
 #
 # * PKGBUILD
 #   * version
 # * hg tag
 #
+from .errors import *
+from .validators import *
+from .manipulation import *
+from .shortcuts import *
+from .helpers import *

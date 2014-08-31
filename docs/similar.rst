@@ -50,7 +50,7 @@ MongoKit_
 
       spec = {
           'foo': 5,
-          'bar': optional(str),
+          'bar': nullable(str),
           'baz': {
               'quux': 'flux'
           }
@@ -71,7 +71,7 @@ MongoEngine_
 
       class Comment(EmbeddedDocument):
           author = ReferenceField(User, required=True)
-          content = StringField(required=True)
+          content = StringField(required=True, max_length=30)
           added = DateTimeField(required=True, default=datetime.datetime.utcnow)
 
       class Post(Document):
@@ -86,7 +86,7 @@ MongoEngine_
 
       comment_schema = {
           'author': ObjectId,   # see monk.modeling; still needs work
-          'content': str,
+          'content': IsA(str) & Length(max=30),
           'added': datetime.datetime.utcnow,
       }
 
@@ -97,10 +97,7 @@ MongoEngine_
           'comments': [ optional(comment_schema) ]
       }
 
-  MongoEngine allows things like ``StringField(max_length=30)`` (traditional
-  ORM stuff, barely needed in ODMs) which Monk doesn't support out of the box
-  though it's easily achievable with custom validators.  The `FooField` layer
-  can be added on top of the normal Monk syntax if needed.
+  The `FooField` layer can be added on top of the normal Monk syntax if needed.
 
   MongoEngine is tightly bound to MongoDB and provides many database-specific
   features which are not present in Monk (e.g. defining deletion policy of
@@ -146,32 +143,30 @@ Colander_
       from monk import validators
 
       friend_schema = {
-          'rank': Rule(int, validators=[validators.range(0, 9999)]),
+          'rank': IsA(int) & InRange(0, 9999),
           'name': str
       }
       phone_schema = {
-          'location': Rule(str, validators=[validators.choice('home', 'work')]),
+          'location': IsA(str) & one_of(['home', 'work']),
           'number': str,
       }
       person_schema = {
           'name': str,
-          'age': Rule(int, validators=[validators.range(0, 200)]),
+          'age': IsA(int) & InRange(0, 200),
           'friends': [ friend_schema ],
           'phones': [ phone_schema ],
       }
 
   .. note:: Tuples
 
-     Monk does not support fixed-size tuples with named arguments.
-     It is possible to specify `tuple` as the datatype but you'll need
-     to subclass `Rule` in order to combine this datatype with an `inner_spec`
-     in a meaningful manner.
+     Monk does not support fixed-size tuples with named arguments out of the
+     box.  However, it's easy to write a validator for this specific use case.
 
 Validation
 ----------
 
 **Monk**
-  See :mod:`monk.validation`.
+  See :mod:`monk.validators`.
 
 MongoKit_
   Type validation (extensible with custom types).  All validators beyond types

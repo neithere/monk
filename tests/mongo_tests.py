@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #    Monk is an unobtrusive data modeling, manipulation and validation library.
-#    Copyright © 2011—2013  Andrey Mikhaylenko
+#    Copyright © 2011—2014  Andrey Mikhaylenko
 #
 #    This file is part of Monk.
 #
@@ -27,7 +27,7 @@ import pytest
 
 from bson import DBRef, ObjectId
 from monk import mongo
-from monk.schema import optional
+from monk import nullable, ValidationError
 from monk.compat import text_type as t
 
 
@@ -110,7 +110,7 @@ class TestDocumentModel:
         event.validate()
         assert isinstance(event.time, datetime.datetime)
 
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             event = Event(time=datetime.date.today())
             event.validate()
 
@@ -130,7 +130,7 @@ class TestDocumentModel:
         assert isinstance(event.text, t)
         assert event.text == t('hello')
 
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             event = Event(text=123)
             event.validate()
 
@@ -154,7 +154,7 @@ class TestDocumentModel:
         assert isinstance(event.content.text, t)
         assert event.content.text == t('hello')
 
-        with pytest.raises(TypeError):
+        with pytest.raises(ValidationError):
             event = Event(content=dict(text=123))
             event.validate()
 
@@ -166,7 +166,7 @@ class TestMongo:
     class Entry(mongo.Document):
         collection = 'entries'
         structure = {
-            '_id': optional(ObjectId),
+            '_id': nullable(ObjectId),
             'title': t,
         }
 

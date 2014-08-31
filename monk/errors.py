@@ -22,26 +22,57 @@ Exceptions
 ~~~~~~~~~~
 """
 class ValidationError(Exception):
-    "Raised when a document or its part cannot pass validation."
+    """
+    Raised when a document or its part cannot pass validation.
+    """
 
 
 class StructureSpecificationError(ValidationError):
-    "Raised when malformed document structure is detected."
+    """
+    Raised when malformed document structure is detected.
+    """
 
 
 class MissingValue(ValidationError):
-    """ Raised when the value is `None` and the rule neither allows this
+    """
+    Raised when the value is `None` and the rule neither allows this
     (i.e. a `datatype` is defined) nor provides a `default` value.
     """
 
 
 class MissingKey(ValidationError):
-    """ Raised when a dictionary key is defined in :attr:`Rule.inner_spec`
+    """
+    Raised when a dictionary key is defined in :attr:`Rule.inner_spec`
     but is missing from the value.
     """
 
 
 class InvalidKey(ValidationError):
-    """ Raised whan the value dictionary contains a key which is not
+    """
+    Raised whan the value dictionary contains a key which is not
     in the dictionary's :attr:`Rule.inner_spec`.
+    """
+
+
+class CombinedValidationError(ValidationError):
+    """
+    Raised when a combination of specs has failed validation.
+    """
+
+
+class AllFailed(CombinedValidationError):
+    """
+    Raised when at least one validator was expected to pass but none did.
+    """
+
+
+class AtLeastOneFailed(CombinedValidationError):
+    """
+    Raised when all validators were expected to pas but at least one didn't.
+    """
+
+
+class NoDefaultValue(Exception):
+    """
+    Raised when the validator could not produce a default value.
     """

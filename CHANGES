@@ -2,6 +2,133 @@
 Changelog
 ~~~~~~~~~
 
+Version 0.13
+------------
+
+The library has been completely rewritten.
+
+Improvements
+............
+
+* Validation is ~2× faster!
+* Very complex rules can be now created by *combining* basic validators;
+* Custom validators are easy to write;
+* Validators can be plugged right into the schema — they *are* the schema;
+* The old top-level "natural" syntax works as before on top of this one.
+
+Migration notes
+...............
+
+The good stuff comes at a cost; **your old code will probably break**
+unless it only used plain Python specs.
+
+This release maintains backwards compatibility only on the "natural syntax"
+level.  The underlying mechanism has been completely replaced.  Any code
+that relied on Rules must be updated before upgrade.  This should be rather
+easy as the new mechanism is much more powerful and expressive.
+
+An example of what you may need to do::
+
+    old_spec = {
+        'foo': OneOf([str, int], as_rules=True),
+        'bar': Rule(datatype=int, validators=[in_range(0, 5)]),
+        'quux': int,
+    }
+    new_spec = {
+        'foo': IsA(str) | IsA(int),        # or:  Any([str, int])
+        'bar': IsA(int) & InRange(0, 5),   # or:  InRange(0,5) & int
+        'quux': int,
+    }
+
+Changes
+.......
+
+* Added a new validation mechanism instead of the Rule/OneOf-based one.
+
+* Added validators/combinators: `Any`, `All`.
+
+* Added validators/requirements: `Anything`, `IsA`, `Equals`, `InRange`,
+  `Length`, `ListOf`, `DictOf`, `NotExists`.
+
+* List validation and list item validation are now separated.  The natural
+  syntax works as before.  The underlying ``IsA(list)`` or ``ListOf(xs)``
+  can be combined with other validators such as `Length` for greater precision.
+
+* Dictionary validation is implemented via ``DictOf(pairs)`` with `pairs` of
+  key and value validators.  The syntax is somewhat cumbersome but it's always
+  possible to use the natural notation.  Note that while the natural notation 
+  remains the same as before — ``{'foo': int}`` — the key spec translates to
+  ``Equals('foo')`` in verbose notation only if the whole dictionary spec
+  is defined in the natural notation.  Note that normally ``'foo'`` is
+  translated as ``IsA(str, default='foo')`` which is too broad for a key
+  validator.
+
+Removed (after deprecation):
+
+* `unfold_to_list` (deprecated since 0.10)
+
+* `unfold_to_list_of_dicts` (deprecated since 0.10)
+
+**Removed/replaced without deprecation stage**:
+
+* `Rule` class is replaced with concrete validators.
+
+* `OneOf` class is replaced with `Any` combinator.
+
+* `any_value` shortcut is replaced with `Anything` validator.
+
+* `any_or_none` shortcut is dropped.
+
+* `canonize()` is replaced with `translate()`
+
+* custom validators to be used within a `Rule` are replaced with stand-alone
+  validators/mergers.
+
+* mergers are integrated into stand-alone validators/mergers; therefore
+  custom type-specific merger functions are dropped.
+  The function `merge_defaults` has been radically simplified and
+  it does not support `mergers` and `fallback` arguments anymore.
+
+* all validation logic has been integrated into stand-alone validators;
+  therefore there are no more type-specific validation functions.
+
+Deprecated:
+
+* `one_of` shortcut is deprecated in favour of `Any` combinator.
+
+* `in_range` shortcut is deprecated in favour of `InRange` validator.
+
+Changed some details of validation behaviour:
+
+* `ValidationError` is raised in most cases by most validators instead of more
+  concrete exceptions.  This may change in the future.
+  Validators must never raise exceptions from other branches of the class tree
+  (`TypeError`, `KeyError`, etc.) unless the problem is not in the data.
+
+* `None` is now treated as an ordinary value, therefore:
+
+  * `None` does not trigger the `MissingValue` exception anymore but it does
+    trigger validation error if found instead or something else.
+
+  * the `optional(x)` shortcut does not allow `x` being `None` anymore; it only
+    allows dict/list elements to be missing::
+
+  * to mark a value as nullable ("something or `None`"), the `nullable()`
+    shortcut must be used instead of `optional()` (or, if appropriate, the
+    underlying syntax should be used: ``IsA(str) | Equals(None)``).
+
+Changed some details of merging behaviour:
+
+* empty dictionaries are not created anymore if only a type `dict` was
+  specified by the schema.
+  Example: ``merge_defaults(dict, None)`` now returns `None` (was ``{}``).
+
+* optional keys are not inserted into dictionaries anymore.
+  Example: ``merge_defaults({optional('a'): 1})`` returns `None` (was ``{'a': 1}``).
+
+* default value is not chosen over `None` if the value is nullable
+  ("something or None").
+
 Version 0.12
 ------------
 

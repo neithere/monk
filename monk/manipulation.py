@@ -21,121 +21,21 @@
 Data manipulation
 ~~~~~~~~~~~~~~~~~
 """
-from monk.compat import text_type
-from monk.schema import Rule, OneOf, canonize
+from .compat import text_type
+from . import translate
 
 
 __all__ = [
     # functions
-    'merge_defaults', 'merged',
+    'merge_defaults',
     # helpers
-    'unfold_list_of_dicts', 'unfold_to_list',
-    # constants
-    'TYPE_MERGERS',
-    # merger functions
-    'merge_any', 'merge_dict', 'merge_list',
+    'normalize_to_list', 'normalize_list_of_dicts',
 ]
 
 
-# NOTE: updated at the end of file
-TYPE_MERGERS = {}
-""" The default set of type-specific value mergers:
-
-* ``dict`` -- :func:`merge_dict`
-* ``list`` -- :func:`merge_list`
-
-"""
-
-
-def merge_any(spec, value, mergers, fallback):
-    """ Always returns the value as is.
+def merge_defaults(spec, value):
     """
-    return value
-
-
-def merge_dict(spec, value, mergers, fallback):
-    """ Returns a dictionary based on `value` with each value recursively
-    merged with `spec`.
-    """
-    assert spec.datatype is dict
-
-    if spec.optional and value is None:
-        return None
-
-    if spec.inner_spec is None:
-        if value is None:
-            return {}
-        else:
-            return value
-
-    if value is not None and not isinstance(value, dict):
-        # bogus value; will not pass validation but should be preserved
-        return value
-
-    data = value or {}
-    result = {}
-
-    for key in set(list(spec.inner_spec.keys()) + list(data.keys())):
-        if isinstance(key, Rule):
-            continue
-
-        if key in spec.inner_spec:
-            value = merge_defaults(spec.inner_spec[key], data.get(key),
-                                   mergers, fallback)
-        else:
-            # never mind if there are nested structures: anyway we cannot check
-            # them as they aren't in the spec
-            value = data[key]
-
-        result[key] = value
-
-    return result
-
-
-def merge_list(spec, value, mergers, fallback):
-    """ Returns a list based on `value`:
-
-    * missing required value is converted to an empty list;
-    * missing required items are never created;
-    * nested items are merged recursively.
-
-    """
-    assert spec.datatype is list
-
-    if spec.optional and value is None:
-        return None
-
-    if not value:
-        return []
-
-    if value is not None and not isinstance(value, list):
-        # bogus value; will not pass validation but should be preserved
-        return value
-
-    item_spec = canonize(spec.inner_spec or None)
-
-    if isinstance(item_spec, OneOf):
-        # FIXME we've been expecting a rule (Rule instance) but got an instance
-        # of another class.  OneOf should inherit Rule or they should have
-        # a common base class.
-        if item_spec.first_is_default:
-            return merge_defaults(item_spec.choices[0], value, mergers, fallback)
-        else:
-            return value
-
-    if item_spec.datatype is None:
-        # any value is accepted as list item
-        return value
-
-    if item_spec.inner_spec:
-        return [merge_defaults(item_spec.inner_spec, item, mergers, fallback)
-                for item in value]
-
-    return value
-
-
-def merge_defaults(spec, value, mergers=TYPE_MERGERS, fallback=merge_any):
-    """ Returns a copy of `value` recursively updated to match the `spec`:
+    Returns a copy of `value` recursively updated to match the `spec`:
 
     * New values are added whenever possible (including nested ones).
     * Existing values are never changed or removed.
@@ -166,21 +66,7 @@ def merge_defaults(spec, value, mergers=TYPE_MERGERS, fallback=merge_any):
     :value:
         The value to merge into the `spec`.
 
-    :mergers:
-        An dictionary of merger functions assigned to specific types
-        of values (sort of `{int: integer_merger_func}`).
-
-        A merger function should accept the same arguments as this function,
-        only with `spec` always being a :class:`~monk.schema.Rule` instance.
-
-        Default: :attr:`TYPE_MERGERS`.
-
-    :fallback:
-        A merger function to use when no datatype-specific merger is found.
-
-        Default: :func:`merge_any`
-
-    Examples (with standard mergers)::
+    Examples::
 
         >>> merge_defaults('foo', None)
         'foo'
@@ -194,40 +80,28 @@ def merge_defaults(spec, value, mergers=TYPE_MERGERS, fallback=merge_any):
         {'a': [{'b': 123}, {'b': 123, 'x': 0}]}
 
     """
-    rule = canonize(spec)
 
-    if isinstance(rule, OneOf):
-        # FIXME we've been expecting a rule (Rule instance) but got an instance
-        # of another class.  OneOf should inherit Rule or they should have
-        # a common base class.
-        if rule.first_is_default:
-            return merge_defaults(rule.choices[0], value, mergers, fallback)
+    validator = translate(spec)
 
-        return value
-
-    if value is None and rule.default is not None:
-        return rule.default
-
-    merger = mergers.get(rule.datatype, fallback)
-
-    return merger(rule, value, mergers=mergers, fallback=fallback)
-
-
-def merged(spec, data, mergers=TYPE_MERGERS):
-    """
-    .. deprecated:: 0.10.0
-
-       Use :func:`merge_defaults` instead.
-    """
-    import warnings
-    warnings.warn('merged() is deprecated, use merge_defaults() instead',
-                  DeprecationWarning)
-
-    return merge_defaults(spec, data, mergers=mergers)
+    return validator.get_default_for(value)
 
 
 class UNDEFINED:
     pass
+
+
+def normalize_to_list(value):
+    """
+    Converts given value to a list  as follows:
+
+    * ``[x]`` → ``[x]``
+    * ``x``  → ``[x]``
+
+    """
+    if value and not isinstance(value, list):
+        return [value]
+    else:
+        return value
 
 
 def normalize_list_of_dicts(value, default_key, default_value=UNDEFINED):
@@ -262,40 +136,3 @@ def normalize_list_of_dicts(value, default_key, default_value=UNDEFINED):
             return list(map(_fix, value))
 
     return value
-
-
-def normalize_to_list(value):
-    """
-    Converts given value to a list  as follows:
-
-    * ``[x]`` → ``[x]``
-    * ``x``  → ``[x]``
-
-    """
-    if value and not isinstance(value, list):
-        return [value]
-    else:
-        return value
-
-
-def unfold_list_of_dicts(value, default_key):
-    """
-    .. deprecated:: 0.10.0
-
-       Use :func:`normalize_list_of_dicts` instead.
-    """
-    return normalize_list_of_dicts(value, default_key)
-
-
-def unfold_to_list(value):
-    """
-    .. deprecated:: 0.10.0
-
-       Use :func:`normalize_to_list` instead.
-    """
-    return normalize_to_list(value)
-
-TYPE_MERGERS.update({
-    dict: merge_dict,
-    list: merge_list,
-})

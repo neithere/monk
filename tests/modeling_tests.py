@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #    Monk is an unobtrusive data modeling, manipulation and validation library.
-#    Copyright © 2011—2013  Andrey Mikhaylenko
+#    Copyright © 2011—2014  Andrey Mikhaylenko
 #
 #    This file is part of Monk.
 #
@@ -62,6 +62,7 @@ def test_dot_expanded_dict():
     obj = modeling.DotExpandedDict(comments=[{'text': 'hi'}])
     assert obj.comments[0].text == obj['comments'][0]['text']
 
+
 def test_dot_expanded_dict_mixin():
     class Entry(modeling.DotExpandedDictMixin, dict):
         pass
@@ -99,7 +100,7 @@ def test_structured_dict_mixin():
         structure = {'foo': int, 'bar': {'quux': 123}}
 
     obj = Entry()
-    expected = manipulation.merged(obj.structure, obj)
+    expected = manipulation.merge_defaults(obj.structure, obj)
     obj._insert_defaults()
     assert obj == expected
 

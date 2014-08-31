@@ -21,6 +21,56 @@
 Helpers
 =======
 """
+from .validators import translate
+
+
+__all__ = [
+    # functions
+    'validate',
+    'walk_dict',
+]
+
+
+def validate(spec, value):
+    """
+    Validates given value against given specification.
+    Raises an exception if the value is invalid.
+    Always returns ``None``.
+
+    In fact, it's just a very thin wrapper around the validators.
+    These three expressions are equal::
+
+        IsA(str)('foo')
+        translate(str)('foo')
+        validate(str, 'foo')
+
+    :spec:
+        a validator instance or any value digestible by :func:`translate`.
+    :value:
+        any value including complex structures.
+
+    Can raise:
+
+    :class:`MissingValue`
+        if a dictionary key is in the spec but not in the value.
+        This applies to root and nested dictionaries.
+
+    :class:`MissingKey`
+        if a dictionary key is in the spec but not in the value.
+        This applies to root and nested dictionaries.
+
+    :class:`InvalidKey`
+        if a dictionary key is the value but not not in the spec.
+
+    :class:`StructureSpecificationError`
+        if errors were found in spec.
+
+    :class:`TypeError`
+        if the value (or a nested value) does not belong to the designated type.
+
+    """
+    validator = translate(spec)
+    validator(value)
 
 
 def walk_dict(data):
