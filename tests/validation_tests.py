@@ -24,7 +24,7 @@ Validation tests
 import datetime
 
 import bson
-import pytest
+from pytest import raises, raises_regexp
 
 from monk.compat import text_type, safe_unicode
 from monk import (
@@ -33,7 +33,7 @@ from monk import (
     translate,
     validate,
     optional,
-    MissingKey, InvalidKey, ValidationError,
+    MissingKey, InvalidKey, ValidationError, AllFailed,
 )
 
 
@@ -44,31 +44,31 @@ class TestOverall:
         # (pre-v0.13 "missing value", now None != MISSING)
 
         validate({'a': optional(text_type)}, {'a': text_type('')})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': text_type}, {'a': None})
 
         validate({'a': optional(dict)}, {'a': {}})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': dict}, {'a': None})
 
         validate({'a': optional(list)}, {'a': []})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': list}, {'a': None})
 
         validate({'a': bool}, {'a': True})
         validate({'a': bool}, {'a': False})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': optional(bool)}, {'a': None})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': bool}, {'a': None})
 
         # (pre-v0.13 TypeError, now everything has ValidationError as base)
 
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': text_type}, {'a': False})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': text_type}, {'a': 0})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': bool}, {'a': ''})
 
     def test_missing(self):
@@ -79,15 +79,15 @@ class TestOverall:
         dict_with_opt_key({})
 
         dict_with_req_key_opt_value = translate({'a': IsA(text_type) | Equals(None)})
-        with pytest.raises(MissingKey):
+        with raises(MissingKey):
             dict_with_req_key_opt_value({})
 
         dict_with_req_key_req_value = translate({'a': IsA(text_type)})
-        with pytest.raises(MissingKey):
+        with raises(MissingKey):
             dict_with_req_key_req_value({})
 
         dict_with_req_keys_req_values = translate({'a': text_type, 'b': int})
-        with pytest.raises(MissingKey):
+        with raises(MissingKey):
             dict_with_req_keys_req_values({'b': 1})
 
     def test_unknown_keys(self):
@@ -97,16 +97,16 @@ class TestOverall:
         # inner_spec not empty, value matches it
         validate({'x': None}, {'x': 123})
 
-        with pytest.raises(InvalidKey):
+        with raises(InvalidKey):
             validate({'x': None}, {'y': 123})
 
-        with pytest.raises(InvalidKey):
+        with raises(InvalidKey):
             validate({'x': None}, {'x': 123, 'y': 456})
 
     def test_unknown_keys_encoding(self):
-        with pytest.raises(InvalidKey):
+        with raises(InvalidKey):
             validate({'a': text_type}, {'привет': 1})
-        with pytest.raises(InvalidKey):
+        with raises(InvalidKey):
             validate({'a': text_type}, {safe_unicode('привет'): 1})
 
 
@@ -148,37 +148,36 @@ class TestDataTypes:
         validate({'a': []}, {'a': []})
         validate({'a': []}, {'a': ['b', 123]})
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, "'a': missing element: must be int"):
             validate({'a': [int]}, {'a': []})
-        assert "ValidationError: 'a': missing element: must be int" in excinfo.exconly()
 
         validate({'a': [int]}, {'a': [123]})
         validate({'a': [int]}, {'a': [123, 456]})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': [int]}, {'a': ['b', 123]})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': [text_type]}, {'a': [{'b': 'c'}]})
 
     def test_unicode(self):
         validate({'a': text_type}, {'a': text_type('hello')})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': text_type}, {'a': 123})
 
     def test_unicode_instance(self):
         validate({'a': text_type('foo')}, {'a': text_type('hello')})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': text_type('foo')}, {'a': 123})
 
     def test_datetime(self):
         validate({'a': datetime.datetime},
                  {'a': datetime.datetime.utcnow()})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': datetime.datetime}, {'a': 123})
 
     def test_datetime_instance(self):
         validate({'a': datetime.datetime(1900, 1, 1)},
                  {'a': datetime.datetime.utcnow()})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': datetime.datetime}, {'a': 123})
 
     def test_objectid(self):
@@ -209,13 +208,13 @@ class TestDataTypes:
         validate({'a': Obj.cmeth}, {'a': 2})
         validate({'a': Obj().ometh}, {'a': 2})
 
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': func}, {'a': 'foo'})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': Obj.smeth}, {'a': 'foo'})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': Obj.cmeth}, {'a': 'foo'})
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             validate({'a': Obj().ometh}, {'a': 'foo'})
 
     def test_valid_document(self):
@@ -290,14 +289,12 @@ class TestRuleSettings:
         spec(1)
 
         # value is present but does not match datatype
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, 'must be int'):
             spec('bogus')
-        assert "must be int" in excinfo.exconly()
 
         # value is missing
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, 'must be int'):
             spec(None)
-        assert "must be int" in excinfo.exconly()
 
     def test_typed_optional(self):
         "A value of given type or no value"
@@ -308,9 +305,9 @@ class TestRuleSettings:
         spec(1)
 
         # value is present but does not match datatype
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(AllFailed, "'bogus' \(must be int; != None\)"):
             spec('bogus')
-        assert "AllFailed: 'bogus' (must be int; != None)" in excinfo.exconly()
+
 
         # value is missing
         spec(None)
@@ -324,9 +321,8 @@ class TestRuleSettings:
         spec({})
 
         # value is missing
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, 'must be dict'):
             spec(None)
-        assert "must be dict" in excinfo.exconly()
 
     def test_typed_optional_dict(self):
         "A value of given type (dict) or no value"
@@ -348,14 +344,12 @@ class TestRuleSettings:
 
         spec([])
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, 'must be list'):
             spec('bogus')
-        assert "must be list" in excinfo.exconly()
 
         # value is missing
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, 'must be list'):
             spec(None)
-        assert "must be list" in excinfo.exconly()
 
     def test_typed_optional_list(self):
         "A value of given type (list) or no value"
@@ -378,15 +372,13 @@ class TestNested:
 
         # key is missing
 
-        with pytest.raises(MissingKey) as excinfo:
+        with raises_regexp(MissingKey, "Equals\('foo'\)"):
             spec({})
-        assert "MissingKey: Equals('foo')" in excinfo.exconly()
 
         # key is present, value is missing
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, "'foo': must be int"):
             spec({'foo': None})
-        assert "'foo': must be int" in excinfo.exconly()
 
         # key is present, value is present
 
@@ -399,15 +391,13 @@ class TestNested:
 
         # key is missing
 
-        with pytest.raises(MissingKey) as excinfo:
+        with raises_regexp(MissingKey, "Equals\('foo'\)"):
             spec({})
-        assert "MissingKey: Equals('foo')" in excinfo.exconly()
 
         # key is present, value is missing
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, "'foo': must be dict"):
             spec({'foo': None})
-        assert "'foo': must be dict" in excinfo.exconly()
 
         # value is present
 
@@ -420,15 +410,13 @@ class TestNested:
 
         # inner key is missing
 
-        with pytest.raises(MissingKey) as excinfo:
+        with raises_regexp(MissingKey, "'foo': Equals\('bar'\)"):
             spec({'foo': {}})
-        assert "'foo': Equals('bar')" in excinfo.exconly()
 
         # inner key is present, inner value is missing
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, "'foo': 'bar': must be int"):
             spec({'foo': {'bar': None}})
-        assert "'foo': 'bar': must be int" in excinfo.exconly()
 
         # inner value is present
 
@@ -445,15 +433,13 @@ class TestNested:
 
         # outer optional value is present, inner key is missing
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(AllFailed, "{} \(MissingKey: Equals\('foo'\); != None\)"):
             spec({})
-        assert "AllFailed: {} (MissingKey: Equals('foo'); != None)" in excinfo.exconly()
 
         # inner key is present, inner value is missing
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(AllFailed, "{'foo': None} \('foo': must be int; != None\)"):
             spec({'foo': None})
-        assert "AllFailed: {'foo': None} ('foo': must be int; != None)" in excinfo.exconly()
 
         # inner value is present
 
@@ -464,13 +450,12 @@ class TestNested:
 
         # outer value is missing
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, 'must be list'):
             spec(None)
-        assert "must be list" in excinfo.exconly()
 
         # outer value is present, inner value is missing
 
-        with pytest.raises_regexp(ValidationError, 'missing element: must be int'):
+        with raises_regexp(ValidationError, 'missing element: must be int'):
             spec([])
 
         # outer value is present, inner optional value is missing
@@ -480,9 +465,8 @@ class TestNested:
 
         # inner value is present but is None
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, '#0: must be int'):
             spec([None])
-        assert "#0: must be int" in excinfo.exconly()
 
         # inner value is present
 
@@ -494,9 +478,8 @@ class TestNested:
 
         # one of the inner values is of a wrong type
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, '#1: must be int'):
             spec([123, 'bogus'])
-        assert "#1: must be int" in excinfo.exconly()
 
     def test_freeform_dict_in_list(self):
         spec = ListOf(dict)
@@ -512,31 +495,27 @@ class TestNested:
 
         # one of the inner values is of a wrong type
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, '#1: must be dict'):
             spec([{}, 'bogus'])
-        assert "ValidationError: #1: must be dict" in excinfo.exconly()
 
     def test_schemed_dict_in_list(self):
         spec = ListOf({'foo': int})
 
         # dict in list: missing key
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises(ValidationError):
             spec([{}])
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, "#1: Equals\('foo'\)"):
             spec([{'foo': 123}, {}])
-        assert "ValidationError: #1: Equals('foo')" in excinfo.exconly()
 
         # dict in list: missing value
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, "#0: 'foo': must be int"):
             spec([{'foo': None}])
-        assert "ValidationError: #0: 'foo': must be int" in excinfo.exconly()
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, "#1: 'foo': must be int"):
             spec([{'foo': 123}, {'foo': None}])
-        assert "ValidationError: #1: 'foo': must be int" in excinfo.exconly()
 
         # multiple innermost values are present
 
@@ -551,28 +530,24 @@ class TestNested:
     def test_int_in_list_in_dict_in_list_in_dict(self):
         spec = translate({'foo': [{'bar': [int]}]})
 
-        with raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, "'foo': must be list"):
             spec({'foo': None})
-        assert "ValidationError: 'foo': must be list" in excinfo.exconly()
 
-        with raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, "'foo': #0: 'bar': must be list"):
             spec({'foo': [{'bar': None}]})
-        assert "ValidationError: 'foo': #0: 'bar': must be list" in excinfo.exconly()
 
-        with raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, "'foo': missing element: must be dict"):
             spec({'foo': []})
-        assert "ValidationError: 'foo': missing element: must be dict" in excinfo.exconly()
 
-        with raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError,
+                           "'foo': #0: 'bar': missing element: must be int"):
             spec({'foo': [{'bar': []}]})
-        assert "ValidationError: 'foo': #0: 'bar': missing element: must be int" in excinfo.exconly()
 
         spec({'foo': [{'bar': [1]}]})
         spec({'foo': [{'bar': [1, 2]}]})
 
-        with raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, "'foo': #0: 'bar': #1: must be int"):
             spec({'foo': [{'bar': [1, 'bogus']}]})
-        assert "ValidationError: 'foo': #0: 'bar': #1: must be int" in excinfo.exconly()
 
 
 class TestRulesAsDictKeys:
@@ -589,26 +564,26 @@ class TestRulesAsDictKeys:
             str: int,
             int: int,
         }
-        with pytest.raises(MissingKey):
+        with raises(MissingKey):
             validate(schema, {'a': 1})
-        with pytest.raises(MissingKey):
+        with raises(MissingKey):
             validate(schema, {123: 1})
         validate(schema, {'a': 1, 'b': 2, 123: 4, 456: 5})
 
     def test_type_error(self):
-        #with pytest.raises(TypeError):
-        with pytest.raises(InvalidKey):
+        #with raises(TypeError):
+        with raises(InvalidKey):
             validate({str: int}, {'a': 1, NotImplemented: 5})
 
     def test_invalid_key(self):
-        with pytest.raises(InvalidKey):
+        with raises(InvalidKey):
             validate({str: int}, {'a': 1, 1: 2})
-        with pytest.raises(InvalidKey):
+        with raises(InvalidKey):
             # special handling of rule.default in dict keys
             validate({'a': int}, {'a': 1, 'b': 5})
 
     def test_missing_key(self):
-        with pytest.raises(MissingKey):
+        with raises(MissingKey):
             validate({str: int}, {})
 
     def test_any_value_as_key(self):
@@ -629,20 +604,17 @@ class TestRulesAsDictKeys:
 
         day_note_schema(good_note)
 
-        with pytest.raises(InvalidKey) as excinfo:
+        with raises_regexp(InvalidKey, '^1999$'):
             day_note_schema(bad_note1)
-        assert excinfo.exconly().endswith("InvalidKey: 1999")
 
-        with pytest.raises(InvalidKey) as excinfo:
+        with raises_regexp(InvalidKey, '^2013: 13$'):
             day_note_schema(bad_note2)
-        assert excinfo.exconly().endswith('InvalidKey: 2013: 13')
 
-        with pytest.raises(InvalidKey) as excinfo:
+        with raises_regexp(InvalidKey, '^2013: 12: 40$'):
             day_note_schema(bad_note3)
-        assert excinfo.exconly().endswith('InvalidKey: 2013: 12: 40')
 
     def test_nonsense(self):
-        with pytest.raises(InvalidKey):
+        with raises(InvalidKey):
             validate({int: str}, {int: 'foo'})
 
 
@@ -651,7 +623,7 @@ class TestOneOf:
     def test_validate_optional_one_of_in_a_list(self):
         # unset "optional" should work exactly as in a Rule
         schema = translate([IsA(str) | IsA(int)])
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             schema([])
 
         schema = translate([optional(IsA(str) | IsA(int))])
@@ -659,7 +631,7 @@ class TestOneOf:
         schema([])
         schema([123])
         schema([123, 'sss'])
-        with pytest.raises(ValidationError):
+        with raises(ValidationError):
             schema([123, 'sss', 999.999])
 
 
@@ -668,7 +640,7 @@ class TestListEdgeCases:
 
         v = translate(list)
 
-        with pytest.raises_regexp(ValidationError, 'must be list'):
+        with raises_regexp(ValidationError, 'must be list'):
             v(None)
         v([])
         v(['hi'])
@@ -678,7 +650,7 @@ class TestListEdgeCases:
 
         v = translate([])
 
-        with pytest.raises_regexp(ValidationError, 'must be list'):
+        with raises_regexp(ValidationError, 'must be list'):
             v(None)
         v([])
         v([None])
@@ -689,25 +661,25 @@ class TestListEdgeCases:
 
         v = translate([str])
 
-        with pytest.raises_regexp(ValidationError, 'must be list'):
+        with raises_regexp(ValidationError, 'must be list'):
             v(None)
-        with pytest.raises_regexp(ValidationError, 'missing element: must be str'):
+        with raises_regexp(ValidationError, 'missing element: must be str'):
             v([])
-        with pytest.raises_regexp(ValidationError, '#0: must be str'):
+        with raises_regexp(ValidationError, '#0: must be str'):
             v([None])
         v(['hi'])
-        with pytest.raises_regexp(ValidationError, '#0: must be str'):
+        with raises_regexp(ValidationError, '#0: must be str'):
             v([1234])
 
     def test_list_with_opt_elem(self):
 
         v = translate([optional(str)])
 
-        with pytest.raises_regexp(ValidationError, 'must be list'):
+        with raises_regexp(ValidationError, 'must be list'):
             v(None)
         v([])
-        with pytest.raises_regexp(ValidationError, 'must be str; must not exist'):
+        with raises_regexp(ValidationError, 'must be str; must not exist'):
             v([None])
         v(['hi'])
-        with pytest.raises_regexp(ValidationError, 'must be str'):
+        with raises_regexp(ValidationError, 'must be str'):
             v([1234])
