@@ -22,10 +22,12 @@ Dependencies
 
 `Monk` is tested against the following versions of Python:
 
-* CPython 2.6, 2.7, 3.2, 3.3
+* CPython 2.6, 2.7, 3.2, 3.4
 * PyPy 2.0
 
-The MongoDB extension requires `pymongo`.
+Optional dependencies:
+
+* The MongoDB extension requires `pymongo`.
 
 Documentation
 -------------
@@ -45,9 +47,10 @@ The schema is defined as a template using native Python data types::
     spec = {
         'title': 'Untitled',
         'comments': [
-            { 'author': str,
-              'date': datetime.datetime.utcnow,
-              'text': str
+            {
+                'author': str,
+                'date': datetime.datetime.utcnow,
+                'text': str
             }
         ],
     }
@@ -59,22 +62,24 @@ arbitrary nested structures.
 When this "natural" pythonic approach is not sufficient, you can mix it with
 a more verbose notation, e.g.::
 
-    title_spec = Rule(datatype=str, default='Untitled', validators=[...])
+    title_spec = IsA(str, default='Untitled') | Equals(None)
 
 There are also neat shortcuts::
 
     spec = {
-        'url': optional(str),
+        'url': nullable(str),
         'status': one_of(['new', 'in progress', 'closed']),
-        'blob': any_or_none,
-        'price': optional(in_range(5, 200)),
+        'comments': [str],
+        'blob': None,
     }
 
-By the way, the last one is translated into this one under the hood::
+This could be written a bit more verbosely::
 
     spec = {
-        'price': Rule(datatype=int, optional=True,
-                      validators=[monk.validators.validate_range(5, 200)]),
+        'url': IsA(str) | Equals(None),
+        'status': Equals('new') | Equals('in progress') | Equals('closed'),
+        'comments': ListOf(IsA(str)),
+        'blob': Anything(),
     }
 
 It is even possible to define schemata for dictionary keys::
@@ -107,31 +112,35 @@ The schema can be used to create full documents from incomplete data:
 
 .. code-block:: python
 
-    from monk.manipulation import merged
+    from monk import merge_defaults
 
     # default values are set for missing keys
 
     >>> merge_defaults(spec, {})
-    { 'title': 'Untitled',
-      'comments': []
+    {
+        'title': 'Untitled',
+        'comments': [],
     }
 
     # it's easy to override the defaults
 
     >>> merge_defaults(spec, {'title': 'Hello'})
-    { 'title': 'Hello',
-      'comments': []
+    {
+        'title': 'Hello',
+        'comments': [],
     }
 
     # nested lists of dictionaries can be auto-filled, too.
     # by the way, note the date.
 
-    >>> merge_defaults(spec, {'comments': ['author': 'john']})
-    { 'title': 'Untitled',
-      'comments': [
-            { 'author': 'john',
-              'date': datetime.datetime(2013, 3, 3, 1, 8, 4, 152113),
-              'text': None
+    >>> merge_defaults(spec, {'comments': [{'author': 'john'}]})
+    {
+        'title': 'Untitled',
+        'comments': [
+            {
+                'author': 'john',
+                'date': datetime.datetime(2013, 3, 3, 1, 8, 4, 152113),
+                'text': None,
             }
         ]
     }
@@ -155,23 +164,39 @@ and the values are of correct types:
     >>> validate(spec, {'title': 'Hello'})
     Traceback (most recent call last):
        ...
-    monk.errors.MissingKey: comments
+    MissingKey: 'comments'
 
     # a key is missing in a dictionary in a nested list
 
     >>> validate(spec, {'comments': [{'author': 'john'}]}
     Traceback (most recent call last):
        ...
-    monk.errors.MissingKey: comments: #0: date
+    MissingKey: 'comments': #0: 'date'
 
     # type check; also works with functions and methods (by return value)
 
-    >>> validation.validate(spec, {'title': 123, 'comments': []})
+    >>> validate(spec, {'title': 123, 'comments': []})
     Traceback (most recent call last):
         ...
-    TypeError: title: expected str, got int 123
+    ValidationError: 'title': must be str
 
 Custom validators can be used.  Behaviour can be fine-tuned.
+
+The `validate()` function translates the "natural" notation to a validator
+object under the hood.  To improve performance you can "compile" the validator
+once (using `translate()` function or by creating a validator instance in place)
+and use it multiple times to validate different values::
+
+    >>> from monk import *
+    >>> translate(str) == IsA(str)
+    True
+    >>> validator = IsA(str) | IsA(int)
+    >>> validator('hello')
+    >>> validator(123)
+    >>> validator(5.5)
+    Traceback (most recent call last):
+        ...
+    AllFailed: 5.5 (must be str; must be int)
 
 The library can be also viewed as a framework for building ODMs
 (object-document mappers).  See the MongoDB extension and note how it reuses

@@ -23,9 +23,10 @@ to write a simple script, build a large project or a library upon Monk.
 If in doubt, I encourage you to use Monk.  If it's not enough, read the docs
 and make sure you squeeze the maximum from the rules.
 
-When *not* to use Monk?  Easy: when the case is complex and a dedicated tool
-already exists.  For instance, it is possible to build an alternative
-to WTForms upon Monk but why?  Well, who knows.
+When *not* to use Monk?  Easy: when the case is particularly complex, major
+additions should be done but a dedicated tool already exists.  For instance,
+it is possible to build an alternative to WTForms upon Monk but why?
+Well, who knows.
 
 What problems does Monk solve?
 ------------------------------
@@ -93,11 +94,52 @@ For example:
 
     spec = {
         'name': str,
-        'age': int,
-        'attrs': Rule(datatype=dict, optional=True, inner_spec={'foo': int})
+        'age': IsA(int, default=18) | Equals(None),
+        'attrs': [IsA(str) | IsA(int) | NotExists()]
     }
 
     validate(spec, { ... your data goes here ... })
+
+The validators can be combined with other validators or with non-validators;
+in the latter case the right-hand value is first translated to a validator:
+
+.. code-block:: python
+
+    >>> full = (InRange(0,9) & IsA(int)) | IsA(str, default='unknown')
+    >>> brief = InRange(0,9) & int | 'unknown'
+    >>> full == brief
+    True
+
+Of course the technique only works if the left-hand value is a validator.
+
+Which notation should I prefer?
+-------------------------------
+
+The one that's more readable in given use case.
+
+Consider these alternative notations::
+
+    IsA(str, default='foo')
+
+    'foo'
+
+The second one is definitely more readable.  But if the schema is mostly
+written in verbose notation, adding bits in the natural one may increase
+confusion::
+
+    (IsA(int) | IsA(float)) & InRange(0,5) | IsA(str)
+
+    (IsA(int) | float) & InRange(0,5) | str
+
+    # the last one is cleaner and shorter but the mind fails to correctly
+    # group the items using visual clues
+
+When in doubt, stick to the Zen of Python!
+
+It's also worth noting that natural specs are anyway translated to verbose
+specs, so if you happen to generate the specs a lot, skip the additional layer.
+Or, even better, build the schema once (including translation) and only
+call the resulting validator for every value.
 
 How "Natural" Declarations Map To "Verbose" Style?
 --------------------------------------------------
@@ -109,11 +151,11 @@ A **type or class** means that the value must be an instance of such:
 =========== ==========================
 natural     verbose
 =========== ==========================
-``int``     ``Rule(datatype=int)``
-``str``     ``Rule(datatype=str)``
-``list``    ``Rule(datatype=list)``
-``dict``    ``Rule(datatype=dict)``
-``MyClass`` ``Rule(datatype=MyClass)``
+``int``     ``IsA(int)``
+``str``     ``IsA(str)``
+``list``    ``IsA(list)``
+``dict``    ``IsA(dict)``
+``MyClass`` ``IsA(MyClass)``
 =========== ==========================
 
 An **instance** means that the value must be of the same type (or an instance
@@ -122,39 +164,34 @@ of the same class) *and* the spec is the default value:
 ================ ================================================
 natural          verbose
 ================ ================================================
-``5``            ``Rule(datatype=int, default=5)``
-``'hello'``      ``Rule(datatype=str, default='hello')``
-``[]``           ``Rule(datatype=list, default=[], inner_spec=None)``
-``{}``           ``Rule(datatype=dict, default=None, inner_spec={})``
-``MyClass('x')`` ``Rule(datatype=MyClass, default=MyClass('x'))``
+``5``            ``IsA(int, default=5)``
+``'hello'``      ``IsA(str, default='hello')``
+``[]``           ``ListOf([])``
+``{}``           ``DictOf([])``
+``MyClass('x')`` ``IsA(MyClass, default=MyClass('x'))``
 ================ ================================================
 
 Note that the `dict`, `list` and `MyClass` specs describe containers.
 It is possible to nest other specs inside of these.  Not all containers are
 handled by Monk as such: only `dict` and `list` are supported at the moment.
-They are the building blocks for complex multi-level schemata.
-If the "natural" spec is a non-empty container, it is wrapped into a `Rule`
-as its "inner spec":
+However, it all depends on validators and it's possible to write a validator
+and drop it into any place in the spec.
+Such validators are the building blocks for complex multi-level schemata.
+If the "natural" spec is a non-empty container, the `translate()` function
+wraps it in a relevant validator using its special requirements:
 
 ================ ============================================================
 natural          verbose
 ================ ============================================================
-``[str]``        ``Rule(datatype=list, default=[], inner_spec=str)``
-``{str: int}``   ``Rule(datatype=dict, default=None, inner_spec={str: int})``
+``[str]``        ``ListOf(IsA(str))``
+``{str: int}``   ``DictOf([ (IsA(str), IsA(int) ])``
 ================ ============================================================
 
-.. note:: FIXME
-
-   The `dict` and `list` actually behave differently (as in the tables):
-
-   * Empty `dict` goes to `inner_spec`; empty `list` goes to `default`.
-   * Non-empty `dict` goes to `inner_spec`; non-empty `list` item also goes to
-     `inner_spec` but without the surrounding list.
-
-   This may be somewhat reasonable but is utterly confusing.
-   The behaviour should be unified.
-
 .. note:: On defaults as dictionary keys
+
+   **WARNING: THIS SECTION APPLIES TO v0.12 BUT IS OUT OF DATE AS OF v0.13**
+
+   **TODO: UPDATE**
 
    Normally default values are only used in *manipulation*.
    In dictionaries they are also important for *validation*.  Consider this::
@@ -180,6 +217,10 @@ natural          verbose
    Of course the key datatype must be hashable.
 
 .. note:: On optional dictionary keys vs. values
+
+   **WARNING: THIS SECTION APPLIES TO v0.12 BUT IS OUT OF DATE AS OF v0.13**
+
+   **TODO: UPDATE**
 
    Consider this spec::
 
@@ -213,7 +254,7 @@ Is Monk stable enough?
 ----------------------
 
 **It depends** on requirements.  Feel free to use Monk in personal apps and
-prototypes.  Avoid using it in production until v.1.0 is out (or expect minor
+prototypes.  Avoid using it in production until v1.0 is out (or expect minor
 changes in the API and therefore ensure good coverage of your code).
 
 :quality:
@@ -221,8 +262,11 @@ changes in the API and therefore ensure good coverage of your code).
     covered.
 
 :stability:
-    The API is still evolving but the core is considered stable since v.0.7.
+    The API is still evolving but the core was considered stable since v0.7.
     Even serious changes under the hood barely affect the public interface.
+
+    Even after v0.13 featured a complete rewrite, the top-level API (the
+    "natural" notation) was almost intact.
 
 What are the alternatives?
 --------------------------

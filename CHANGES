@@ -10,8 +10,6 @@ The library has been completely rewritten.
 Improvements
 ............
 
-Good news:
-
 * Validation is ~2× faster!
 * Very complex rules can be now created by *combining* basic validators;
 * Custom validators are easy to write;
