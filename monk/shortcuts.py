@@ -22,10 +22,11 @@
 Shortcuts
 ~~~~~~~~~
 """
-from .import Any, Equals, NotExists, InRange, translate
+from .compat import text_type
+from . import Any, Equals, NotExists, InRange, translate
 
 
-__all__ = ['nullable', 'optional',  'one_of']
+__all__ = ['nullable', 'optional', 'opt_key', 'one_of']
 
 
 def nullable(spec):
@@ -43,13 +44,38 @@ def nullable(spec):
 def optional(spec):
     """
     Returns a validator which allows the value to be missing.
+
     ::
 
         >>> optional(str) == IsA(str) | NotExists()
         True
+        >>> optional('foo') == IsA(str, default='foo') | NotExists()
+        True
 
+    Note that you should normally :func:`opt_key` to mark dictionary keys
+    as optional.
     """
     return translate(spec) | NotExists()
+
+
+def opt_key(spec):
+    """
+    Returns a validator which allows the value to be missing.
+    Similar to :func:`optional` but wraps a string in
+    :class:`~monk.validators.Equals` instead of :class:`~monk.validators.IsA`.
+    Intended for dictionary keys.
+
+    ::
+
+        >>> opt_key(str) == IsA(str) | NotExists()
+        True
+        >>> opt_key('foo') == Equals('foo') | NotExists()
+        True
+
+    """
+    if isinstance(spec, text_type):
+        spec = Equals(spec)
+    return optional(spec)
 
 
 def one_of(choices, first_is_default=False, as_rules=False):

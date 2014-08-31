@@ -25,9 +25,11 @@ import datetime
 import pytest
 
 from monk import errors
+from monk.compat import text_type
 #from monk.schema import Rule, OneOf, canonize, one_of, any_value, any_or_none
 from monk import (
-    Any, Anything, IsA, Equals, NotExists, DictOf, translate, one_of, optional
+    Any, Anything, IsA, Equals, NotExists, DictOf, translate,
+    one_of, optional, opt_key
 )
 
 
@@ -137,3 +139,13 @@ class TestShortcuts:
     def test_optional(self):
         assert optional(str) == IsA(str) | NotExists()
         assert optional(IsA(str)) == IsA(str) | NotExists()
+        assert optional('foo') == IsA(str, default='foo') | NotExists()
+
+
+    def test_opt_key(self):
+        raw = {
+            opt_key(text_type('foo')): int,
+        }
+        assert translate(raw) == DictOf([
+            (Equals('foo') | NotExists(), IsA(int)),
+        ])

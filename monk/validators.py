@@ -253,7 +253,9 @@ class IsA(BaseRequirement):
 
     def _represent(self):
         if self._default:
-            return '{} {!r}'.format(self.expected_type.__name__, self._default)
+            return '{name} {default!r}'.format(
+                name=self.expected_type.__name__,
+                default=self._default)
         else:
             return self.expected_type.__name__
 

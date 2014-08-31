@@ -27,7 +27,8 @@ from monk import (
     All, Any, Anything, IsA, Equals, InRange, Length, ListOf, DictOf,
     NotExists, MISSING, translate,
     ValidationError, MissingKey, InvalidKey,
-    StructureSpecificationError
+    StructureSpecificationError,
+    optional,
 )
 
 

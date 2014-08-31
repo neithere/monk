@@ -2,6 +2,12 @@
 Changelog
 ~~~~~~~~~
 
+Version 0.13.1
+--------------
+
+* Added shortcut `opt_key` to fix the problem with `optional('x')` as
+  dictionary key.  A change in design may follow.
+
 Version 0.13
 ------------
 
