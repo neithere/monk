@@ -41,7 +41,7 @@ class TestOverall:
 
     def test_empty(self):
 
-        # MISSING VALUE
+        # (pre-v0.13 "missing value", now None != MISSING)
 
         validate({'a': optional(text_type)}, {'a': text_type('')})
         with pytest.raises(ValidationError):
@@ -57,11 +57,12 @@ class TestOverall:
 
         validate({'a': bool}, {'a': True})
         validate({'a': bool}, {'a': False})
-        validate({'a': optional(bool)}, {'a': None})
+        with pytest.raises(ValidationError):
+            validate({'a': optional(bool)}, {'a': None})
         with pytest.raises(ValidationError):
             validate({'a': bool}, {'a': None})
 
-        # TYPE ERROR
+        # (pre-v0.13 TypeError, now everything has ValidationError as base)
 
         with pytest.raises(ValidationError):
             validate({'a': text_type}, {'a': False})
@@ -149,7 +150,7 @@ class TestDataTypes:
 
         with pytest.raises(ValidationError) as excinfo:
             validate({'a': [int]}, {'a': []})
-        assert "ValidationError: 'a': length must be ≥ 1" in excinfo.exconly()
+        assert "ValidationError: 'a': missing element: must be int" in excinfo.exconly()
 
         validate({'a': [int]}, {'a': [123]})
         validate({'a': [int]}, {'a': [123, 456]})
@@ -468,13 +469,9 @@ class TestNested:
         assert "must be list" in excinfo.exconly()
 
         # outer value is present, inner value is missing
-        # XXX CHANGED (now it's part of translation of `[smth]`;
-        #              the ListOf validator alone doesn't care)
-        #
-        #with pytest.raises(ValidationError) as excinfo:
-        #    validate(spec, [])
-        #assert "expected at least one item, got empty list" in excinfo.exconly()
-        spec([])
+
+        with pytest.raises_regexp(ValidationError, 'missing element: must be int'):
+            spec([])
 
         # outer value is present, inner optional value is missing
 
@@ -548,42 +545,34 @@ class TestNested:
 
         # one of the innermost values is of a wrong type
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises_regexp(ValidationError, "#2: 'foo': must be int"):
             spec([{'foo': 123}, {'foo': 456}, {'foo': 'bogus'}])
-        assert "ValidationError: #2: 'foo': must be int" in excinfo.exconly()
 
     def test_int_in_list_in_dict_in_list_in_dict(self):
         spec = translate({'foo': [{'bar': [int]}]})
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises(ValidationError) as excinfo:
             spec({'foo': None})
         assert "ValidationError: 'foo': must be list" in excinfo.exconly()
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises(ValidationError) as excinfo:
             spec({'foo': [{'bar': None}]})
         assert "ValidationError: 'foo': #0: 'bar': must be list" in excinfo.exconly()
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises(ValidationError) as excinfo:
             spec({'foo': []})
-        assert "ValidationError: 'foo': length must be ≥ 1" in excinfo.exconly()
+        assert "ValidationError: 'foo': missing element: must be dict" in excinfo.exconly()
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises(ValidationError) as excinfo:
             spec({'foo': [{'bar': []}]})
-        assert "ValidationError: 'foo': #0: 'bar': length must be ≥ 1" in excinfo.exconly()
+        assert "ValidationError: 'foo': #0: 'bar': missing element: must be int" in excinfo.exconly()
 
         spec({'foo': [{'bar': [1]}]})
         spec({'foo': [{'bar': [1, 2]}]})
 
-        with pytest.raises(ValidationError) as excinfo:
+        with raises(ValidationError) as excinfo:
             spec({'foo': [{'bar': [1, 'bogus']}]})
         assert "ValidationError: 'foo': #0: 'bar': #1: must be int" in excinfo.exconly()
-
-
-class TestRuleShortcuts:
-
-    def test_optional(self):
-        assert optional(str) == IsA(str) | Equals(None) | NotExists()
-        assert optional(IsA(str)) == IsA(str) | Equals(None) | NotExists()
 
 
 class TestRulesAsDictKeys:
@@ -659,7 +648,6 @@ class TestRulesAsDictKeys:
 
 class TestOneOf:
     # regressions for edge cases where the kludge named "OneOf" would break
-    @pytest.mark.xfail
     def test_validate_optional_one_of_in_a_list(self):
         # unset "optional" should work exactly as in a Rule
         schema = translate([IsA(str) | IsA(int)])
@@ -668,10 +656,58 @@ class TestOneOf:
 
         schema = translate([optional(IsA(str) | IsA(int))])
 
-        # XXX CHANGED -- this is now failing.  Not sure if it should.
         schema([])
-
         schema([123])
         schema([123, 'sss'])
         with pytest.raises(ValidationError):
             schema([123, 'sss', 999.999])
+
+
+class TestListEdgeCases:
+    def test_list_type(self):
+
+        v = translate(list)
+
+        with pytest.raises_regexp(ValidationError, 'must be list'):
+            v(None)
+        v([])
+        v(['hi'])
+        v([1234])
+
+    def test_list_obj_empty(self):
+
+        v = translate([])
+
+        with pytest.raises_regexp(ValidationError, 'must be list'):
+            v(None)
+        v([])
+        v([None])
+        v(['hi'])
+        v([1234])
+
+    def test_list_with_req_elem(self):
+
+        v = translate([str])
+
+        with pytest.raises_regexp(ValidationError, 'must be list'):
+            v(None)
+        with pytest.raises_regexp(ValidationError, 'missing element: must be str'):
+            v([])
+        with pytest.raises_regexp(ValidationError, '#0: must be str'):
+            v([None])
+        v(['hi'])
+        with pytest.raises_regexp(ValidationError, '#0: must be str'):
+            v([1234])
+
+    def test_list_with_opt_elem(self):
+
+        v = translate([optional(str)])
+
+        with pytest.raises_regexp(ValidationError, 'must be list'):
+            v(None)
+        v([])
+        with pytest.raises_regexp(ValidationError, 'must be str; must not exist'):
+            v([None])
+        v(['hi'])
+        with pytest.raises_regexp(ValidationError, 'must be str'):
+            v([1234])

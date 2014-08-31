@@ -24,19 +24,31 @@ Schema Definition
 from .import Any, Equals, NotExists, InRange, translate
 
 
-__all__ = ['optional',  'one_of']
+__all__ = ['nullable', 'optional',  'one_of']
+
+
+def nullable(spec):
+    """
+    Returns a validator which allows the value to be `None`.
+    ::
+
+        >>> nullable(str) == IsA(str) | Equals(None)
+        True
+
+    """
+    return translate(spec) | Equals(None)
 
 
 def optional(spec):
     """
-    Returns a validator which allows the value to be `None` or missing.
+    Returns a validator which allows the value to be missing.
     ::
 
-        >>> optional(str) == IsA(str) | Equals(None) | NotExists()
+        >>> optional(str) == IsA(str) | NotExists()
         True
 
     """
-    return translate(spec) | Equals(None) | NotExists()
+    return translate(spec) | NotExists()
 
 
 def one_of(choices, first_is_default=False, as_rules=False):

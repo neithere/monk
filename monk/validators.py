@@ -318,6 +318,12 @@ class ListOf(BaseRequirement):
         self._default = default
 
     def _check(self, value):
+        if not value:
+            try:
+                self._nested_validator(MISSING)
+            except ValidationError as e:
+                raise ValidationError('missing element: {error}'
+                                      .format(error=e))
         for i, nested_value in enumerate(value):
             try:
                 self._nested_validator(nested_value)
@@ -549,7 +555,7 @@ def translate(value):
             return IsA(list)
         elif len(value) == 1:
             # the only item as spec for each item of the collection
-            return ListOf(translate(value[0])) & Length(min=1)
+            return ListOf(translate(value[0]))
         else:
             raise StructureSpecificationError(
                 'Expected a list containing exactly 1 item; '

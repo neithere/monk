@@ -27,7 +27,7 @@ import pytest
 from monk import errors
 #from monk.schema import Rule, OneOf, canonize, one_of, any_value, any_or_none
 from monk import (
-    Any, Anything, IsA, Equals, DictOf, translate, one_of
+    Any, Anything, IsA, Equals, NotExists, DictOf, translate, one_of, optional
 )
 
 
@@ -133,3 +133,7 @@ class TestShortcuts:
         with pytest.raises(errors.ValidationError) as excinfo:
             v(5.5)
         assert 'AllFailed: 5.5 (must be str; must be int)' in excinfo.exconly()
+
+    def test_optional(self):
+        assert optional(str) == IsA(str) | NotExists()
+        assert optional(IsA(str)) == IsA(str) | NotExists()

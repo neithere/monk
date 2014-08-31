@@ -52,6 +52,19 @@ Changes
 * Added validators/requirements: `Anything`, `IsA`, `Equals`, `InRange`,
   `Length`, `ListOf`, `DictOf`, `NotExists`.
 
+* List validation and list item validation are now separated.  The natural
+  syntax works as before.  The underlying ``IsA(list)`` or ``ListOf(xs)``
+  can be combined with other validators such as `Length` for greater precision.
+
+* Dictionary validation is implemented via ``DictOf(pairs)`` with `pairs` of
+  key and value validators.  The syntax is somewhat cumbersome but it's always
+  possible to use the natural notation.  Note that while the natural notation 
+  remains the same as before — ``{'foo': int}`` — the key spec translates to
+  ``Equals('foo')`` in verbose notation only if the whole dictionary spec
+  is defined in the natural notation.  Note that normally ``'foo'`` is
+  translated as ``IsA(str, default='foo')`` which is too broad for a key
+  validator.
+
 Removed (after deprecation):
 
 * `unfold_to_list` (deprecated since 0.10)
@@ -87,45 +100,35 @@ Deprecated:
 
 * `in_range` shortcut is deprecated in favour of `InRange` validator.
 
-Changed some details of behaviour:
+Changed some details of validation behaviour:
 
-* validation: `ValidationError` is raised in most cases by most validators
-  instead of more concrete exceptions.  This may change in the future.
+* `ValidationError` is raised in most cases by most validators instead of more
+  concrete exceptions.  This may change in the future.
   Validators must never raise exceptions from other branches of the class tree
   (`TypeError`, `KeyError`, etc.) unless the problem is not in the data.
 
-* validation: `None` is now treated as an ordinary value.  Before this release
-  `None` would trigger a `MissingValue` error in some cases.
+* `None` is now treated as an ordinary value, therefore:
 
-* validation: list validation and list item validation are now separated.
-  This leads to the following:
+  * `None` does not trigger the `MissingValue` exception anymore but it does
+    trigger validation error if found instead or something else.
 
-  * Value ``[]`` is now considered valid for either ``IsA(list)`` or
-    ``ListOf(x)``, even if `x` is not marked as optional.
+  * the `optional(x)` shortcut does not allow `x` being `None` anymore; it only
+    allows dict/list elements to be missing::
 
-    Previously a non-optional list item would require that the list is not
-    empty.
+  * to mark a value as nullable ("something or `None`"), the `nullable()`
+    shortcut must be used instead of `optional()` (or, if appropriate, the
+    underlying syntax should be used: ``IsA(str) | Equals(None)``).
 
-  * List length should be now checked by adding the `Length` validator.
-    This is actually done by `translate()` — the natural spec ``[str]`` becomes
-    ``ListOf(IsA(str)) & Length(min=1)``.
+Changed some details of merging behaviour:
 
-  * As ``translate([str])`` produces a validator which requires a non-empty list,
-    the value ``[]`` now fails for the spec ``[optional(x)]`` because while the
-    item is optional (which now means that it may be equal to `None` or be
-    missing), there's still a requirement concerning its parent list length.
-
-    Previously marking the item as optional would allow its parent list to be
-    empty.
-
-* merging: empty dictionaries are not created anymore if only a type `dict` was
+* empty dictionaries are not created anymore if only a type `dict` was
   specified by the schema.
   Example: ``merge_defaults(dict, None)`` now returns `None` (was ``{}``).
 
-* merging: optional keys are not inserted into dictionaries anymore.
+* optional keys are not inserted into dictionaries anymore.
   Example: ``merge_defaults({optional('a'): 1})`` returns `None` (was ``{'a': 1}``).
 
-* merging: default value is not chosen over `None` if the value is optional
+* default value is not chosen over `None` if the value is nullable
   ("something or None").
 
 Version 0.12
