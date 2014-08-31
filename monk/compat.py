@@ -18,8 +18,9 @@
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with Monk.  If not, see <http://gnu.org/licenses/>.
 """
+~~~~~~~~~~~~~
 Compatibility
-=============
+~~~~~~~~~~~~~
 
 This module is intended to hide away implementation details of various Python
 versions.

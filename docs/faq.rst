@@ -85,7 +85,7 @@ Can I mix the "natural" and "verbose" declarations?
 ---------------------------------------------------
 
 **Yes.**
-The :func:`~monk.validation.validate` function will convert the "natural"
+The :func:`~monk.helpers.validate` function will convert the "natural"
 declarations into rules; if it finds a ready-made rule, it just accepts it.
 
 For example:
@@ -177,8 +177,9 @@ handled by Monk as such: only `dict` and `list` are supported at the moment.
 However, it all depends on validators and it's possible to write a validator
 and drop it into any place in the spec.
 Such validators are the building blocks for complex multi-level schemata.
-If the "natural" spec is a non-empty container, the `translate()` function
-wraps it in a relevant validator using its special requirements:
+If the "natural" spec is a non-empty container,
+the :func:`~monk.validators.translate` function wraps it in a relevant
+validator using its special requirements:
 
 ================ ============================================================
 natural          verbose

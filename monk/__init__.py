@@ -18,15 +18,13 @@
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with Monk.  If not, see <http://gnu.org/licenses/>.
 """
+~~~~
 Monk
-====
+~~~~
 
-A simple schema validation layer for pymongo_. Inspired by MongoKit and Doqu.
-
-.. _pymongo: http://api.mongodb.org/python/current/
-
+An unobtrusive data modeling, manipulation and validation library.
 """
-__version__ = '0.13.0-dev'
+__version__ = '0.13.0'
 # remember to also update:
 #
 # * PKGBUILD

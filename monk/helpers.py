@@ -18,8 +18,9 @@
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with Monk.  If not, see <http://gnu.org/licenses/>.
 """
+~~~~~~~
 Helpers
-=======
+~~~~~~~
 """
 from .validators import translate
 
@@ -64,9 +65,6 @@ def validate(spec, value):
 
     :class:`StructureSpecificationError`
         if errors were found in spec.
-
-    :class:`TypeError`
-        if the value (or a nested value) does not belong to the designated type.
 
     """
     validator = translate(spec)
