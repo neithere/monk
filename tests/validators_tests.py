@@ -26,7 +26,7 @@ from pytest import raises_regexp
 from monk import (
     All, Any, Anything, IsA, Equals, InRange, Length, ListOf, DictOf,
     NotExists, MISSING, translate,
-    ValidationError, MissingKey, InvalidKey,
+    ValidationError, ExpectationError, MissingKey, InvalidKey,
     StructureSpecificationError,
     optional,
 )
@@ -50,7 +50,7 @@ def test_isa():
 
     v('foo')
 
-    with raises_regexp(ValidationError, '^must be str'):
+    with raises_regexp(ExpectationError, '^is str'):
         v(123)
 
 
@@ -61,7 +61,7 @@ def test_equals():
 
     v('foo')
 
-    with raises_regexp(ValidationError, "^!= 'foo'"):
+    with raises_regexp(ExpectationError, "^equals 'foo'"):
         v('bar')
 
 
@@ -75,9 +75,9 @@ def test_inrange():
     assert repr(range_max_4) == 'InRange(..4)'
 
     # below limit
-    with raises_regexp(ValidationError, '^must be ≥ 2'):
+    with raises_regexp(ExpectationError, '^≥ 2'):
         range_min_2(1)
-    with raises_regexp(ValidationError, '^must be ≥ 2'):
+    with raises_regexp(ExpectationError, '^≥ 2'):
         range_2_to_4(1)
     range_max_4(1)
 
@@ -98,9 +98,9 @@ def test_inrange():
 
     # above limit
     range_min_2(5)
-    with raises_regexp(ValidationError, '^must be ≤ 4'):
+    with raises_regexp(ExpectationError, '^≤ 4'):
         range_2_to_4(5)
-    with raises_regexp(ValidationError, '^must be ≤ 4'):
+    with raises_regexp(ExpectationError, '^≤ 4'):
         range_max_4(5)
 
 
@@ -114,9 +114,9 @@ def test_length():
     assert repr(len_max_4) == 'Length(..4)'
 
     # below limit
-    with raises_regexp(ValidationError, '^length must be ≥ 2'):
+    with raises_regexp(ExpectationError, '^length ≥ 2'):
         len_min_2('a')
-    with raises_regexp(ValidationError, '^length must be ≥ 2'):
+    with raises_regexp(ExpectationError, '^length ≥ 2'):
         len_2_to_4('a')
     len_max_4('a')
 
@@ -137,9 +137,9 @@ def test_length():
 
     # above limit
     len_min_2('aaaaa')
-    with raises_regexp(ValidationError, '^length must be ≤ 4'):
+    with raises_regexp(ExpectationError, '^length ≤ 4'):
         len_2_to_4('aaaaa')
-    with raises_regexp(ValidationError, '^length must be ≤ 4'):
+    with raises_regexp(ExpectationError, '^length ≤ 4'):
         len_max_4('aaaaa')
 
 
@@ -148,17 +148,17 @@ def test_listof():
 
     assert repr(v) == 'ListOf(IsA(str))'
 
-    with raises_regexp(ValidationError, '^must be list'):
+    with raises_regexp(ExpectationError, '^is list'):
         v('foo')
 
-    with raises_regexp(ValidationError, '^missing element: must be str'):
+    with raises_regexp(ValidationError, '^missing element: is str'):
         v([])
 
     v(['foo'])
 
     v(['foo', 'bar'])
 
-    with raises_regexp(ValidationError, '^#2: must be str'):
+    with raises_regexp(ValidationError, '^#2: is str'):
         v(['foo', 'bar', 123])
 
 
@@ -183,7 +183,7 @@ def test_dictof():
 
     with raises_regexp(InvalidKey, '123'):
         dict_of_str_to_int({'foo': 123, 'bar': 456, 123: 'quux'})
-    with raises_regexp(ValidationError, "'quux': must be int"):
+    with raises_regexp(ExpectationError, "'quux': is int"):
         dict_of_str_to_int({'foo': 123, 'bar': 456, 'quux': 4.2})
 
 
@@ -194,10 +194,10 @@ def test_notexists():
 
     v(MISSING)    # because the validator is for a special case — this one
 
-    with raises_regexp(ValidationError, 'must not exist'):
+    with raises_regexp(ExpectationError, 'does not exist'):
         v(None)
 
-    with raises_regexp(ValidationError, 'must not exist'):
+    with raises_regexp(ExpectationError, 'does not exist'):
         v('foo')
 
 
@@ -208,7 +208,7 @@ def test_combinator_any():
 
     v('foo')
     v(123)
-    with raises_regexp(ValidationError, '^4.5 \(must be str; must be int\)'):
+    with raises_regexp(ValidationError, '^4.5 \(is str or is int\)'):
         v(4.5)
 
 
@@ -217,11 +217,11 @@ def test_combinator_all():
 
     assert repr(v) == 'All[Length(2..), Length(..3)]'
 
-    with raises_regexp(ValidationError, 'length must be ≥ 2'):
+    with raises_regexp(ExpectationError, 'length ≥ 2'):
         v('f')
     v('fo')
     v('foo')
-    with raises_regexp(ValidationError, 'length must be ≤ 3'):
+    with raises_regexp(ExpectationError, 'length ≤ 3'):
         v('fooo')
 
 

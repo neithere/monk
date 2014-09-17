@@ -148,7 +148,7 @@ class TestDataTypes:
         validate({'a': []}, {'a': []})
         validate({'a': []}, {'a': ['b', 123]})
 
-        with raises_regexp(ValidationError, "'a': missing element: must be int"):
+        with raises_regexp(ValidationError, "'a': missing element: is int"):
             validate({'a': [int]}, {'a': []})
 
         validate({'a': [int]}, {'a': [123]})
@@ -289,11 +289,11 @@ class TestRuleSettings:
         spec(1)
 
         # value is present but does not match datatype
-        with raises_regexp(ValidationError, 'must be int'):
+        with raises_regexp(ValidationError, 'is int'):
             spec('bogus')
 
         # value is missing
-        with raises_regexp(ValidationError, 'must be int'):
+        with raises_regexp(ValidationError, 'is int'):
             spec(None)
 
     def test_typed_optional(self):
@@ -305,7 +305,7 @@ class TestRuleSettings:
         spec(1)
 
         # value is present but does not match datatype
-        with raises_regexp(AllFailed, "'bogus' \(must be int; != None\)"):
+        with raises_regexp(AllFailed, "'bogus' \(is int or equals None\)"):
             spec('bogus')
 
 
@@ -321,7 +321,7 @@ class TestRuleSettings:
         spec({})
 
         # value is missing
-        with raises_regexp(ValidationError, 'must be dict'):
+        with raises_regexp(ValidationError, 'is dict'):
             spec(None)
 
     def test_typed_optional_dict(self):
@@ -344,11 +344,11 @@ class TestRuleSettings:
 
         spec([])
 
-        with raises_regexp(ValidationError, 'must be list'):
+        with raises_regexp(ValidationError, 'is list'):
             spec('bogus')
 
         # value is missing
-        with raises_regexp(ValidationError, 'must be list'):
+        with raises_regexp(ValidationError, 'is list'):
             spec(None)
 
     def test_typed_optional_list(self):
@@ -377,7 +377,7 @@ class TestNested:
 
         # key is present, value is missing
 
-        with raises_regexp(ValidationError, "'foo': must be int"):
+        with raises_regexp(ValidationError, "'foo': is int"):
             spec({'foo': None})
 
         # key is present, value is present
@@ -396,7 +396,7 @@ class TestNested:
 
         # key is present, value is missing
 
-        with raises_regexp(ValidationError, "'foo': must be dict"):
+        with raises_regexp(ValidationError, "'foo': is dict"):
             spec({'foo': None})
 
         # value is present
@@ -415,7 +415,7 @@ class TestNested:
 
         # inner key is present, inner value is missing
 
-        with raises_regexp(ValidationError, "'foo': 'bar': must be int"):
+        with raises_regexp(ValidationError, "'foo': 'bar': is int"):
             spec({'foo': {'bar': None}})
 
         # inner value is present
@@ -433,12 +433,12 @@ class TestNested:
 
         # outer optional value is present, inner key is missing
 
-        with raises_regexp(AllFailed, "{} \(MissingKey: Equals\('foo'\); != None\)"):
+        with raises_regexp(AllFailed, "{} \(MissingKey: Equals\('foo'\) or equals None\)"):
             spec({})
 
         # inner key is present, inner value is missing
 
-        with raises_regexp(AllFailed, "{'foo': None} \('foo': must be int; != None\)"):
+        with raises_regexp(AllFailed, "{'foo': None} \('foo': is int or equals None\)"):
             spec({'foo': None})
 
         # inner value is present
@@ -450,12 +450,12 @@ class TestNested:
 
         # outer value is missing
 
-        with raises_regexp(ValidationError, 'must be list'):
+        with raises_regexp(ValidationError, 'is list'):
             spec(None)
 
         # outer value is present, inner value is missing
 
-        with raises_regexp(ValidationError, 'missing element: must be int'):
+        with raises_regexp(ValidationError, 'missing element: is int'):
             spec([])
 
         # outer value is present, inner optional value is missing
@@ -465,7 +465,7 @@ class TestNested:
 
         # inner value is present but is None
 
-        with raises_regexp(ValidationError, '#0: must be int'):
+        with raises_regexp(ValidationError, '#0: is int'):
             spec([None])
 
         # inner value is present
@@ -478,7 +478,7 @@ class TestNested:
 
         # one of the inner values is of a wrong type
 
-        with raises_regexp(ValidationError, '#1: must be int'):
+        with raises_regexp(ValidationError, '#1: is int'):
             spec([123, 'bogus'])
 
     def test_freeform_dict_in_list(self):
@@ -495,7 +495,7 @@ class TestNested:
 
         # one of the inner values is of a wrong type
 
-        with raises_regexp(ValidationError, '#1: must be dict'):
+        with raises_regexp(ValidationError, '#1: is dict'):
             spec([{}, 'bogus'])
 
     def test_schemed_dict_in_list(self):
@@ -511,10 +511,10 @@ class TestNested:
 
         # dict in list: missing value
 
-        with raises_regexp(ValidationError, "#0: 'foo': must be int"):
+        with raises_regexp(ValidationError, "#0: 'foo': is int"):
             spec([{'foo': None}])
 
-        with raises_regexp(ValidationError, "#1: 'foo': must be int"):
+        with raises_regexp(ValidationError, "#1: 'foo': is int"):
             spec([{'foo': 123}, {'foo': None}])
 
         # multiple innermost values are present
@@ -524,29 +524,29 @@ class TestNested:
 
         # one of the innermost values is of a wrong type
 
-        with raises_regexp(ValidationError, "#2: 'foo': must be int"):
+        with raises_regexp(ValidationError, "#2: 'foo': is int"):
             spec([{'foo': 123}, {'foo': 456}, {'foo': 'bogus'}])
 
     def test_int_in_list_in_dict_in_list_in_dict(self):
         spec = translate({'foo': [{'bar': [int]}]})
 
-        with raises_regexp(ValidationError, "'foo': must be list"):
+        with raises_regexp(ValidationError, "'foo': is list"):
             spec({'foo': None})
 
-        with raises_regexp(ValidationError, "'foo': #0: 'bar': must be list"):
+        with raises_regexp(ValidationError, "'foo': #0: 'bar': is list"):
             spec({'foo': [{'bar': None}]})
 
-        with raises_regexp(ValidationError, "'foo': missing element: must be dict"):
+        with raises_regexp(ValidationError, "'foo': missing element: is dict"):
             spec({'foo': []})
 
         with raises_regexp(ValidationError,
-                           "'foo': #0: 'bar': missing element: must be int"):
+                           "'foo': #0: 'bar': missing element: is int"):
             spec({'foo': [{'bar': []}]})
 
         spec({'foo': [{'bar': [1]}]})
         spec({'foo': [{'bar': [1, 2]}]})
 
-        with raises_regexp(ValidationError, "'foo': #0: 'bar': #1: must be int"):
+        with raises_regexp(ValidationError, "'foo': #0: 'bar': #1: is int"):
             spec({'foo': [{'bar': [1, 'bogus']}]})
 
 
@@ -640,7 +640,7 @@ class TestListEdgeCases:
 
         v = translate(list)
 
-        with raises_regexp(ValidationError, 'must be list'):
+        with raises_regexp(ExpectationError, 'is list'):
             v(None)
         v([])
         v(['hi'])
@@ -650,7 +650,7 @@ class TestListEdgeCases:
 
         v = translate([])
 
-        with raises_regexp(ValidationError, 'must be list'):
+        with raises_regexp(ExpectationError, 'is list'):
             v(None)
         v([])
         v([None])
@@ -661,25 +661,25 @@ class TestListEdgeCases:
 
         v = translate([str])
 
-        with raises_regexp(ValidationError, 'must be list'):
+        with raises_regexp(ExpectationError, 'is list'):
             v(None)
-        with raises_regexp(ValidationError, 'missing element: must be str'):
+        with raises_regexp(ValidationError, 'missing element: is str'):
             v([])
-        with raises_regexp(ValidationError, '#0: must be str'):
+        with raises_regexp(ValidationError, '#0: is str'):
             v([None])
         v(['hi'])
-        with raises_regexp(ValidationError, '#0: must be str'):
+        with raises_regexp(ValidationError, '#0: is str'):
             v([1234])
 
     def test_list_with_opt_elem(self):
 
         v = translate([optional(str)])
 
-        with raises_regexp(ValidationError, 'must be list'):
+        with raises_regexp(ValidationError, 'is list'):
             v(None)
         v([])
-        with raises_regexp(ValidationError, 'must be str; must not exist'):
+        with raises_regexp(ValidationError, 'is str or does not exist'):
             v([None])
         v(['hi'])
-        with raises_regexp(ValidationError, 'must be str'):
+        with raises_regexp(ValidationError, 'is str'):
             v([1234])

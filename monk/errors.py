@@ -28,6 +28,13 @@ class ValidationError(Exception):
     """
 
 
+class ExpectationError(ValidationError):
+    """
+    Raised when a value does not match given expectation defined by
+    a validator.
+    """
+
+
 class StructureSpecificationError(ValidationError):
     """
     Raised when malformed document structure is detected.

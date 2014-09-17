@@ -52,7 +52,8 @@ __all__ = [
 from . import compat
 from .errors import (
     CombinedValidationError, AtLeastOneFailed, AllFailed, ValidationError,
-    NoDefaultValue, InvalidKey, MissingKey, StructureSpecificationError
+    NoDefaultValue, InvalidKey, MissingKey, StructureSpecificationError,
+    ExpectationError,
 )
 
 
@@ -104,6 +105,8 @@ class BaseValidator(object):
 class BaseCombinator(BaseValidator):
     error_class = CombinedValidationError
     break_on_first_fail = False
+    #: separator for error messages of nested validators
+    err_sep = '; '
 
     def __init__(self, specs, default=None, first_is_default=False):
         assert specs
@@ -133,13 +136,13 @@ class BaseCombinator(BaseValidator):
         if not self.can_tolerate(errors):
             def fmt_err(e):
                 # only display error class if it's not obvious
-                if type(e) is ValidationError:
+                if type(e) in (ValidationError, ExpectationError):
                     tmpl = '{err}'
                 else:
                     tmpl = '{cls}: {err}'
                 return tmpl.format(cls=e.__class__.__name__, err=e)
 
-            errors_str = '; '.join((fmt_err(e) for e in errors))
+            errors_str = self.err_sep.join((fmt_err(e) for e in errors))
             raise self.error_class(
                 '{value!r} ({errors})'.format(value=value, errors=errors_str))
 
@@ -181,6 +184,7 @@ class All(BaseCombinator):
     """
     error_class = AtLeastOneFailed
     break_on_first_fail = True
+    err_sep = ' and '
 
     def can_tolerate(self, errors):
         # TODO: fail early, work as `or` does
@@ -194,6 +198,7 @@ class Any(BaseCombinator):
     Requires that the value passes at least one of nested validators.
     """
     error_class = AllFailed
+    err_sep = ' or '
 
     def can_tolerate(self, errors):
         if len(errors) < len(self._specs):
@@ -248,8 +253,8 @@ class IsA(BaseRequirement):
 
     def _check(self, value):
         if not isinstance(value, self.expected_type):
-            raise ValidationError('must be {type}'
-                                  .format(type=self.expected_type.__name__))
+            raise ExpectationError('is {type}'
+                                   .format(type=self.expected_type.__name__))
 
     def _represent(self):
         if self._default:
@@ -269,8 +274,8 @@ class Equals(BaseRequirement):
 
     def _check(self, value):
         if self._expected_value != value:
-            raise ValidationError('!= {expected!r}'
-                                  .format(expected=self._expected_value))
+            raise ExpectationError('equals {expected!r}'
+                                   .format(expected=self._expected_value))
 
     def _represent(self):
         return repr(self._expected_value)
@@ -291,7 +296,7 @@ class NotExists(BaseRequirement):
 
     def _check(self, value):
         if value is not MISSING:
-            raise ValidationError('must not exist')
+            raise ExpectationError('does not exist')
 
     def _represent(self):
         return ''
@@ -308,8 +313,8 @@ class ListOf(BaseRequirement):
         >>> v([123, 'hello', 5.5])
         Traceback (most recent call last):
         ...
-        ValidationError: #2: 5.5 (ValidationError: must be int;
-                                  ValidationError: must be str)
+        ValidationError: #2: 5.5 (ValidationError: is int;
+                                  ValidationError: is str)
 
     """
     is_recursive = True
@@ -382,13 +387,13 @@ class DictOf(BaseRequirement):
         >>> v({'name': 'John', 'age': 25.5})
         Traceback (most recent call last):
         ...
-        monk.errors.ValidationError: 'age': must be int
+        monk.errors.ValidationError: 'age': is int
         >>> v({'name': 'John', 'age': 25, 'note': 'custom field'})
         >>> v({'name': 'John', 'age': 25, 'note': 5.5})
         Traceback (most recent call last):
         ...
-        AllFailed: 'note': 5.5 (ValidationError: must be str;
-                                ValidationError: must be int)
+        AllFailed: 'note': 5.5 (ValidationError: is str;
+                                ValidationError: is int)
 
     Note that this validator supports :class:`NotExists` to mark keys that can
     be missing.
@@ -502,11 +507,11 @@ class InRange(BaseRequirement):
         if value is MISSING:
             raise InvalidKey(value)
         if self._min is not None and self._min > value:
-            raise ValidationError('must be ≥ {expected}'
-                                  .format(expected=self._min))
+            raise ExpectationError('≥ {expected}'
+                                   .format(expected=self._min))
         if self._max is not None and self._max < value:
-            raise ValidationError('must be ≤ {expected}'
-                                  .format(expected=self._max))
+            raise ExpectationError('≤ {expected}'
+                                   .format(expected=self._max))
 
     def _represent(self):
         def _fmt(x):
@@ -523,7 +528,7 @@ class Length(InRange):
         try:
             super(Length, self)._check(len(value))
         except ValidationError as e:
-            raise ValidationError('length ' + str(e))
+            raise ExpectationError('length ' + str(e))
 
 
 def translate(value):

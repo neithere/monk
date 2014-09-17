@@ -91,7 +91,7 @@ class TestAlternativeRules:
         schema('foo')
         with pytest.raises(errors.ValidationError) as excinfo:
             schema({})
-        assert "AllFailed: {} (must be int; must be str)" in excinfo.exconly()
+        assert "AllFailed: {} (is int or is str)" in excinfo.exconly()
 
     def test_nested(self):
         schema = Any([
@@ -103,11 +103,11 @@ class TestAlternativeRules:
         with pytest.raises(errors.ValidationError) as excinfo:
             schema({'foo': 'hi'})
         assert ("AllFailed: {'foo': 'hi'} "
-                "('foo': must be int; InvalidKey: 'foo')") in excinfo.exconly()
+                "('foo': is int or InvalidKey: 'foo')") in excinfo.exconly()
         with pytest.raises(errors.ValidationError) as excinfo:
             schema({'bar': 123})
         assert ("AllFailed: {'bar': 123} "
-                "(InvalidKey: 'bar'; 'bar': must be str)") in excinfo.exconly()
+                "(InvalidKey: 'bar' or 'bar': is str)") in excinfo.exconly()
 
 
 class TestShortcuts:
@@ -121,7 +121,7 @@ class TestShortcuts:
         v('foo')
         with pytest.raises(errors.ValidationError) as excinfo:
             v('quux')
-        assert "AllFailed: 'quux' (!= 'foo'; != 'bar')" in excinfo.exconly()
+        assert "AllFailed: 'quux' (equals 'foo' or equals 'bar')" in excinfo.exconly()
 
         # non-literals → rules (behaviour explicitly turned on)
 
@@ -134,7 +134,7 @@ class TestShortcuts:
         v(456)
         with pytest.raises(errors.ValidationError) as excinfo:
             v(5.5)
-        assert 'AllFailed: 5.5 (must be str; must be int)' in excinfo.exconly()
+        assert 'AllFailed: 5.5 (is str or is int)' in excinfo.exconly()
 
     def test_optional(self):
         assert optional(str) == IsA(str) | NotExists()
