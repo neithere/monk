@@ -2,6 +2,12 @@
 Changelog
 ~~~~~~~~~
 
+Version 0.13.2
+--------------
+
+* Fixed bug in shortcut `opt_key`: it would construct a validator
+  of wrong class from a `str` value under Python 2.x.
+
 Version 0.13.1
 --------------
 
