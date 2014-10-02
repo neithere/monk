@@ -38,9 +38,11 @@ func_types = (
 
 
 if sys.version_info < (3,0):
+    text_types = unicode, str
     text_type = unicode
     binary_type = str
 else:
+    text_types = str,
     text_type = str
     binary_type = bytes
 

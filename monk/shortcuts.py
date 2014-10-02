@@ -22,7 +22,7 @@
 Shortcuts
 ~~~~~~~~~
 """
-from .compat import text_type
+from .compat import text_types
 from . import Any, Equals, NotExists, InRange, translate
 
 
@@ -73,7 +73,7 @@ def opt_key(spec):
         True
 
     """
-    if isinstance(spec, text_type):
+    if isinstance(spec, text_types):
         spec = Equals(spec)
     return optional(spec)
 

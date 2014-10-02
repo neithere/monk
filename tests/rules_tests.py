@@ -23,9 +23,9 @@ Schema Rules Tests
 """
 import datetime
 import pytest
+import sys
 
 from monk import errors
-from monk.compat import text_type
 #from monk.schema import Rule, OneOf, canonize, one_of, any_value, any_or_none
 from monk import (
     Any, Anything, IsA, Equals, NotExists, DictOf, translate,
@@ -143,9 +143,19 @@ class TestShortcuts:
 
 
     def test_opt_key(self):
+        if sys.version_info < (3,0):
+            # py2: str
+            raw = {
+                opt_key('foo'): int,
+            }
+            assert translate(raw) == DictOf([
+                (Equals('foo') | NotExists(), IsA(int)),
+            ])
+
+        # py2: unicode, py3: str
         raw = {
-            opt_key(text_type('foo')): int,
+            opt_key(u'foo'): int,
         }
         assert translate(raw) == DictOf([
-            (Equals('foo') | NotExists(), IsA(int)),
+            (Equals(u'foo') | NotExists(), IsA(int)),
         ])
