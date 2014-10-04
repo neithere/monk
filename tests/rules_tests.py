@@ -25,8 +25,7 @@ import datetime
 import pytest
 import sys
 
-from monk import errors
-#from monk.schema import Rule, OneOf, canonize, one_of, any_value, any_or_none
+from monk import compat, errors
 from monk import (
     Any, Anything, IsA, Equals, NotExists, DictOf, translate,
     one_of, optional, opt_key
@@ -141,21 +140,20 @@ class TestShortcuts:
         assert optional(IsA(str)) == IsA(str) | NotExists()
         assert optional('foo') == IsA(str, default='foo') | NotExists()
 
-
-    def test_opt_key(self):
-        if sys.version_info < (3,0):
-            # py2: str
-            raw = {
-                opt_key('foo'): int,
-            }
-            assert translate(raw) == DictOf([
-                (Equals('foo') | NotExists(), IsA(int)),
-            ])
-
-        # py2: unicode, py3: str
+    @pytest.mark.skipif(sys.version_info >= (3,0), reason='Python 2.x only')
+    def test_opt_key__py2_unicode(self):
         raw = {
-            opt_key(u'foo'): int,
+            opt_key(unicode('foo')): int,
         }
         assert translate(raw) == DictOf([
-            (Equals(u'foo') | NotExists(), IsA(int)),
+            (Equals(unicode('foo')) | NotExists(), IsA(int)),
+        ])
+
+    def test_opt_key__str(self):
+        # this also means Unicode for Py3 but it's OK
+        raw = {
+            opt_key('foo'): int,
+        }
+        assert translate(raw) == DictOf([
+            (Equals('foo') | NotExists(), IsA(int)),
         ])
