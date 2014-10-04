@@ -49,6 +49,8 @@ __all__ = [
 ]
 
 
+import copy
+
 from . import compat
 from .errors import (
     CombinedValidationError, AtLeastOneFailed, AllFailed, ValidationError,
@@ -58,6 +60,7 @@ from .errors import (
 
 class BaseValidator(object):
     _default = NotImplemented
+    negated = False
 
     def _combine(self, other, combinator):
         # XXX should we flatten same-logic one-item combs?
@@ -86,6 +89,23 @@ class BaseValidator(object):
     def __eq__(self, other):
         return isinstance(other, type(self)) and self.__dict__ == other.__dict__
 
+    def __invert__(self):
+        clone = copy.deepcopy(self)
+        clone.negated = not self.negated
+        return clone
+
+    def __call__(self, value):
+        try:
+            self._check(value)
+        except ValidationError:
+            if self.negated:
+                return
+            else:
+                raise
+        else:
+            if self.negated:
+                raise ValidationError(repr(self))
+
     def __hash__(self):
         # TODO think this over and check Python docs
         #return hash(((k,v) for k,v in self.__dict__.items()))
@@ -100,6 +120,9 @@ class BaseValidator(object):
             else:
                 raise
 
+    def _check(self, value):
+        raise NotImplementedError
+
 
 class BaseCombinator(BaseValidator):
     error_class = CombinedValidationError
@@ -112,7 +135,7 @@ class BaseCombinator(BaseValidator):
         self._default = default
         self._first_is_default = first_is_default
 
-    def __call__(self, value):
+    def _check(self, value):
         errors = []
         for spec in self._specs:
             # TODO: group errors by exception type
@@ -145,9 +168,10 @@ class BaseCombinator(BaseValidator):
 
 
     def __repr__(self):
-        return '{cls}[{validators}]'.format(
+        return '{negated}{cls}[{validators}]'.format(
             cls=self.__class__.__name__,
-            validators=', '.join(map(str, self._specs)))
+            validators=', '.join(map(str, self._specs)),
+            negated='~' if self.negated else '')
 
 
     def can_tolerate(self, errors):
@@ -216,15 +240,16 @@ class BaseRequirement(BaseValidator):
     def __call__(self, value):
         if self.implies is not NotImplemented:
             self.implies(value)
-        self._check(value)
+        super(BaseRequirement, self).__call__(value)
 
     def _represent(self):
         return self.__dict__
 
     def __repr__(self):
-        return '{cls}({rep})'.format(cls=self.__class__.__name__,
-                                     rep=self._represent())
-
+        return '{negated}{cls}({rep})'.format(
+            cls=self.__class__.__name__,
+            rep=self._represent(),
+            negated='~' if self.negated else '')
 
 
 class Anything(BaseRequirement):

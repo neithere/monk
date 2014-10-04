@@ -340,3 +340,49 @@ def test_translate_dict():
 
 def test_translate_fallback():
     assert translate('hello') == IsA(str, default='hello')
+
+
+def test_invert_requirement():
+    says_hello = Equals('hello')
+    says_hello('hello')
+    with raises_regexp(ValidationError, "^!= 'hello'$"):
+        says_hello('bye')
+
+    says_not_hello = ~says_hello
+    with raises_regexp(ValidationError, "^~Equals\('hello'\)$"):
+        says_not_hello('hello')
+    says_not_hello('bye')
+
+
+def test_invert_combinator():
+    hello_or_bye = Equals('hello') | Equals('bye')
+    hello_or_bye('hello')
+    hello_or_bye('bye')
+    with raises_regexp(ValidationError, "^'albatross!' \(!= 'hello'; != 'bye'\)$"):
+        hello_or_bye('albatross!')
+
+    neither_hello_nor_bye = ~hello_or_bye
+    with raises_regexp(ValidationError,
+        "^~Any\[Equals\('hello'\), Equals\('bye'\)\]$"):
+        neither_hello_nor_bye('hello')
+    with raises_regexp(ValidationError,
+        "^~Any\[Equals\('hello'\), Equals\('bye'\)\]$"):
+        neither_hello_nor_bye('bye')
+    neither_hello_nor_bye('albatross!')
+
+
+def test_double_invert_requirement():
+    a = Equals('hello')
+    a('hello')
+    with raises_regexp(ValidationError, "!= 'hello'"):
+        a('bye')
+
+    b = ~a
+    with raises_regexp(ValidationError, "^~Equals\('hello'\)$"):
+        b('hello')
+    b('bye')
+
+    c = ~b
+    c('hello')
+    with raises_regexp(ValidationError, "!= 'hello'"):
+        c('bye')
