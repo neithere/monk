@@ -28,7 +28,7 @@ from pytest import raises, raises_regexp
 
 from monk.compat import text_type, safe_unicode
 from monk import (
-    Anything, IsA, Equals, NotExists, ListOf, InRange,
+    Anything, IsA, Equals, Exists, ListOf, InRange,
     MISSING,
     translate,
     validate,
@@ -75,7 +75,7 @@ class TestOverall:
 
         # MISSING KEY
 
-        dict_with_opt_key = translate({IsA(text_type) | NotExists(): text_type})
+        dict_with_opt_key = translate({IsA(text_type) | ~Exists(): text_type})
         dict_with_opt_key({})
 
         dict_with_req_key_opt_value = translate({'a': IsA(text_type) | Equals(None)})
@@ -271,7 +271,7 @@ class TestRuleSettings:
     def test_any_optional(self):
         "A value of any type or no value"
 
-        spec = Anything() | NotExists()
+        spec = Anything() | ~Exists()
 
         # value is present
         spec(1)
@@ -678,7 +678,7 @@ class TestListEdgeCases:
         with raises_regexp(ValidationError, 'must be list'):
             v(None)
         v([])
-        with raises_regexp(ValidationError, 'must be str; must not exist'):
+        with raises_regexp(ValidationError, 'must be str; ~Exists()'):
             v([None])
         v(['hi'])
         with raises_regexp(ValidationError, 'must be str'):

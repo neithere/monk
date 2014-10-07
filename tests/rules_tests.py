@@ -27,7 +27,7 @@ import sys
 
 from monk import compat, errors
 from monk import (
-    Any, Anything, IsA, Equals, NotExists, DictOf, translate,
+    Any, Anything, IsA, Equals, Exists, DictOf, translate,
     one_of, optional, opt_key
 )
 
@@ -136,9 +136,9 @@ class TestShortcuts:
         assert 'AllFailed: 5.5 (must be str; must be int)' in excinfo.exconly()
 
     def test_optional(self):
-        assert optional(str) == IsA(str) | NotExists()
-        assert optional(IsA(str)) == IsA(str) | NotExists()
-        assert optional('foo') == IsA(str, default='foo') | NotExists()
+        assert optional(str) == IsA(str) | ~Exists()
+        assert optional(IsA(str)) == IsA(str) | ~Exists()
+        assert optional('foo') == IsA(str, default='foo') | ~Exists()
 
     @pytest.mark.skipif(sys.version_info >= (3,0), reason='Python 2.x only')
     def test_opt_key__py2_unicode(self):
@@ -146,7 +146,7 @@ class TestShortcuts:
             opt_key(unicode('foo')): int,
         }
         assert translate(raw) == DictOf([
-            (Equals(unicode('foo')) | NotExists(), IsA(int)),
+            (Equals(unicode('foo')) | ~Exists(), IsA(int)),
         ])
 
     def test_opt_key__str(self):
@@ -155,5 +155,5 @@ class TestShortcuts:
             opt_key('foo'): int,
         }
         assert translate(raw) == DictOf([
-            (Equals('foo') | NotExists(), IsA(int)),
+            (Equals('foo') | ~Exists(), IsA(int)),
         ])

@@ -25,7 +25,7 @@ from pytest import raises_regexp
 
 from monk import (
     All, Any, Anything, IsA, Equals, InRange, Length, ListOf, DictOf,
-    NotExists, MISSING, translate,
+    Exists, MISSING, translate,
     ValidationError, MissingKey, InvalidKey,
     StructureSpecificationError,
     optional,
@@ -165,7 +165,7 @@ def test_listof():
 def test_dictof():
     # key may be missing
     dict_of_str_to_int_optional_keys = DictOf([
-        (IsA(str) | NotExists(), IsA(int)),
+        (IsA(str) | ~Exists(), IsA(int)),
     ])
     dict_of_str_to_int_optional_keys({})
     dict_of_str_to_int_optional_keys({'foo': 123})
@@ -187,18 +187,33 @@ def test_dictof():
         dict_of_str_to_int({'foo': 123, 'bar': 456, 'quux': 4.2})
 
 
-def test_notexists():
-    v = NotExists()
+def test_exists():
+    must_exist = Exists()
 
-    assert repr(v) == 'NotExists()'
+    assert repr(must_exist) == 'Exists()'
 
-    v(MISSING)    # because the validator is for a special case — this one
+    with raises_regexp(ValidationError, 'must exist'):
+        must_exist(MISSING)
 
-    with raises_regexp(ValidationError, 'must not exist'):
-        v(None)
+    must_exist(None)
+    must_exist(0)
+    must_exist(False)
+    must_exist('foo')
+    must_exist([])
 
-    with raises_regexp(ValidationError, 'must not exist'):
-        v('foo')
+    # negated
+
+    must_not_exist = ~Exists()
+
+    assert repr(must_not_exist) == '~Exists()'
+
+    must_not_exist(MISSING)
+
+    with raises_regexp(ValidationError, '~Exists()'):
+        must_not_exist(None)
+
+    with raises_regexp(ValidationError, '~Exists()'):
+        must_not_exist('foo')
 
 
 def test_combinator_any():
@@ -268,8 +283,8 @@ def test_magic_hash():
 
 
 def test_combinator_edge_cases():
-    with raises_regexp(TypeError, 'got NotExists class instead of its instance'):
-        IsA(str) | NotExists
+    with raises_regexp(TypeError, 'got Exists class instead of its instance'):
+        IsA(str) | Exists
 
     # translate() is applied to the right argument
     assert IsA(str) | 'Albatross!' == IsA(str) | IsA(str, default='Albatross!')
@@ -386,3 +401,14 @@ def test_double_invert_requirement():
     c('hello')
     with raises_regexp(ValidationError, "!= 'hello'"):
         c('bye')
+
+
+def test_regression_22():
+    ~Anything()
+    ~IsA(str)
+    ~Equals(5)
+    ~InRange(5)
+    ~Length(5)
+    ~ListOf(str)
+    ~DictOf([])
+    ~Exists()

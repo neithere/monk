@@ -24,7 +24,7 @@ Monk
 
 An unobtrusive data modeling, manipulation and validation library.
 """
-__version__ = '0.13.2'
+__version__ = '0.14.0-dev'
 # remember to also update:
 #
 # * PKGBUILD

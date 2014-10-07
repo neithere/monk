@@ -24,7 +24,7 @@ Tests for Merging Defaults
 """
 from monk.compat import text_type as t
 from monk import (
-    Any, Anything, IsA, DictOf, ListOf, Equals, NotExists, translate,
+    Any, Anything, IsA, DictOf, ListOf, Equals, Exists, translate,
     merge_defaults, optional
 )
 
@@ -399,7 +399,7 @@ class TestMisc:
 
     def test_rule_as_key(self):
         spec_a = DictOf([ (IsA(str), IsA(int)) ])
-        spec_b = DictOf([ (IsA(str) | NotExists(), IsA(int)) ])
+        spec_b = DictOf([ (IsA(str) | ~Exists(), IsA(int)) ])
 
         assert spec_a.get_default_for({}) == {}
         assert spec_b.get_default_for({}) == {}

@@ -23,7 +23,7 @@ Shortcuts
 ~~~~~~~~~
 """
 from .compat import text_types
-from . import Any, Equals, NotExists, InRange, translate
+from . import Any, Equals, Exists, InRange, translate
 
 
 __all__ = ['nullable', 'optional', 'opt_key', 'one_of']
@@ -47,15 +47,15 @@ def optional(spec):
 
     ::
 
-        >>> optional(str) == IsA(str) | NotExists()
+        >>> optional(str) == IsA(str) | ~Exists()
         True
-        >>> optional('foo') == IsA(str, default='foo') | NotExists()
+        >>> optional('foo') == IsA(str, default='foo') | ~Exists()
         True
 
     Note that you should normally :func:`opt_key` to mark dictionary keys
     as optional.
     """
-    return translate(spec) | NotExists()
+    return translate(spec) | ~Exists()
 
 
 def opt_key(spec):
@@ -67,9 +67,9 @@ def opt_key(spec):
 
     ::
 
-        >>> opt_key(str) == IsA(str) | NotExists()
+        >>> opt_key(str) == IsA(str) | ~Exists()
         True
-        >>> opt_key('foo') == Equals('foo') | NotExists()
+        >>> opt_key('foo') == Equals('foo') | ~Exists()
         True
 
     """

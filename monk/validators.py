@@ -33,13 +33,13 @@ __all__ = [
     # requirements
     'BaseRequirement',
     'Anything',
+    'Exists',
     'IsA',
     'Equals',
     'InRange',
     'Length',
     'ListOf',
     'DictOf',
-    'NotExists',
 
     # functions
     'translate',
@@ -65,7 +65,7 @@ class BaseValidator(object):
     def _combine(self, other, combinator):
         # XXX should we flatten same-logic one-item combs?
         if isinstance(other, type) and issubclass(other, BaseValidator):
-            # e.g. NotExists instead of NotExists()
+            # e.g. Exists instead of Exists()
             raise TypeError('got {cls} class instead of its instance'
                             .format(cls=other.__name__))
 
@@ -226,7 +226,7 @@ class Any(BaseCombinator):
 
 class MISSING:
     """
-    Stub for NotExists validator to pass if the value is missing
+    Stub for Exists validator to pass if the value is missing
     (e.g. for dictionary keys).
     """
     pass
@@ -305,9 +305,9 @@ class Equals(BaseRequirement):
         return self._expected_value
 
 
-class NotExists(BaseRequirement):
+class Exists(BaseRequirement):
     """
-    Requires that the value does not exist.  Obviously this only makes sense in
+    Requires that the value exists.  Obviously this only makes sense in
     special cases like dictionary keys; otherwise there's simply nothing to
     validate.  Note that this is *not* a check against `None` or `False`.
     """
@@ -315,8 +315,8 @@ class NotExists(BaseRequirement):
         self._default = default
 
     def _check(self, value):
-        if value is not MISSING:
-            raise ValidationError('must not exist')
+        if value is MISSING:
+            raise ValidationError('must exist')
 
     def _represent(self):
         return ''
@@ -398,7 +398,7 @@ class DictOf(BaseRequirement):
         ...     # key "name" must exist; its value must be a `str`
         ...     (Equals('name'), IsA(str)),
         ...     # key "age" may not exist; its value must be an `int`
-        ...     (Equals('age') | NotExists(), IsA(int)),
+        ...     (Equals('age') | ~Exists(), IsA(int)),
         ...     # there may be other `str` keys with `str` or `int` values
         ...     (IsA(str), IsA(str) | IsA(int)),
         ... ])
@@ -415,7 +415,7 @@ class DictOf(BaseRequirement):
         AllFailed: 'note': 5.5 (ValidationError: must be str;
                                 ValidationError: must be int)
 
-    Note that this validator supports :class:`NotExists` to mark keys that can
+    Note that this validator supports :class:`Exists` to mark keys that can
     be missing.
     """
     implies = IsA(dict)
