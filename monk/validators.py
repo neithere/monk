@@ -542,7 +542,8 @@ class InRange(BaseRequirement):
     def __init__(self, min=None, max=None, default=NotImplemented):
         self._min = min
         self._max = max
-        self._default = default
+        if default is not NotImplemented:
+            self._default = default
 
     def _check(self, value):
         if value is MISSING:
