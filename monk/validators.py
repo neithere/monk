@@ -319,7 +319,7 @@ class Contains(BaseRequirement):
                                   .format(expected=self._expected_value))
 
     def _represent(self):
-        return 'contains {!r}'.format(self._expected_value)
+        return repr(self._expected_value)
 
     @property
     def _default(self):
