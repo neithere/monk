@@ -7,8 +7,11 @@ Version 0.14-dev
 
 * Added support for inverted validators.  If `IsA(str)` allows any `str`
   instance, then `~IsA(str)` allows anything but a `str` instance.
+
 * Added validator `Exists`.  It can be inverted; therefore validator
   `NotExists` has been removed (use `~Exists()` instead).
+
+* Added validator `Contains`.
 
 Version 0.13.2
 --------------
@@ -47,7 +50,9 @@ level.  The underlying mechanism has been completely replaced.  Any code
 that relied on Rules must be updated before upgrade.  This should be rather
 easy as the new mechanism is much more powerful and expressive.
 
-An example of what you may need to do::
+An example of what you may need to do:
+
+.. code-block:: python
 
     old_spec = {
         'foo': OneOf([str, int], as_rules=True),

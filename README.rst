@@ -40,7 +40,9 @@ Examples
 Modeling
 ........
 
-The schema is defined as a template using native Python data types::
+The schema is defined as a template using native Python data types:
+
+.. code-block:: python
 
     # we will reuse this structure in examples below
 
@@ -60,11 +62,15 @@ The `manipulation` and `validation` functions (described below) support
 arbitrary nested structures.
 
 When this "natural" pythonic approach is not sufficient, you can mix it with
-a more verbose notation, e.g.::
+a more verbose notation, e.g.:
+
+.. code-block:: python
 
     title_spec = IsA(str, default='Untitled') | Equals(None)
 
-There are also neat shortcuts::
+There are also neat shortcuts:
+
+.. code-block:: python
 
     spec = {
         'url': nullable(str),
@@ -73,7 +79,9 @@ There are also neat shortcuts::
         'blob': None,
     }
 
-This could be written a bit more verbosely::
+This could be written a bit more verbosely:
+
+.. code-block:: python
 
     spec = {
         'url': IsA(str) | Equals(None),
@@ -82,12 +90,14 @@ This could be written a bit more verbosely::
         'blob': Anything(),
     }
 
-It is even possible to define schemata for dictionary keys::
+It is even possible to define schemata for dictionary keys:
+
+.. code-block:: python
 
     CATEGORIES = ['books', 'films', 'toys']
     spec = {
         'title': str,
-        optional('price'): float,    # key is optional; value is mandatory
+        opt_key('price'): float,    # key is optional; value is mandatory
         'similar_items': {
             one_of(CATEGORIES): [    # suggestions grouped by category
                 {'url': str, 'title': str}
@@ -185,7 +195,9 @@ Custom validators can be used.  Behaviour can be fine-tuned.
 The `validate()` function translates the "natural" notation to a validator
 object under the hood.  To improve performance you can "compile" the validator
 once (using `translate()` function or by creating a validator instance in place)
-and use it multiple times to validate different values::
+and use it multiple times to validate different values:
+
+.. code-block:: python
 
     >>> from monk import *
     >>> translate(str) == IsA(str)
@@ -202,7 +214,9 @@ The library can be also viewed as a framework for building ODMs
 (object-document mappers).  See the MongoDB extension and note how it reuses
 mixins provided by DB-agnostic modules.
 
-Here's an example of the MongoDB ODM bundled with Monk::
+Here's an example of the MongoDB ODM bundled with Monk:
+
+.. code-block:: python
 
     from monk.mongo import Document
 
