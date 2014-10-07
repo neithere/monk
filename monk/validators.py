@@ -36,6 +36,7 @@ __all__ = [
     'Exists',
     'IsA',
     'Equals',
+    'Contains',
     'InRange',
     'Length',
     'ListOf',
@@ -299,6 +300,26 @@ class Equals(BaseRequirement):
 
     def _represent(self):
         return repr(self._expected_value)
+
+    @property
+    def _default(self):
+        return self._expected_value
+
+
+class Contains(BaseRequirement):
+    """
+    Requires that the value contains given expected value.
+    """
+    def __init__(self, expected_value):
+        self._expected_value = expected_value
+
+    def _check(self, value):
+        if self._expected_value not in value:
+            raise ValidationError('not contains {expected!r}'
+                                  .format(expected=self._expected_value))
+
+    def _represent(self):
+        return 'contains {!r}'.format(self._expected_value)
 
     @property
     def _default(self):

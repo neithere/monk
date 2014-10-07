@@ -24,7 +24,7 @@ Validators tests
 from pytest import raises_regexp
 
 from monk import (
-    All, Any, Anything, IsA, Equals, InRange, Length, ListOf, DictOf,
+    All, Any, Anything, IsA, Equals, Contains, InRange, Length, ListOf, DictOf,
     Exists, MISSING, translate,
     ValidationError, MissingKey, InvalidKey,
     StructureSpecificationError,
@@ -63,6 +63,23 @@ def test_equals():
 
     with raises_regexp(ValidationError, "^!= 'foo'"):
         v('bar')
+
+
+def test_contains():
+    v = Contains('tech')
+
+    assert repr(v) == "Contains('tech')"
+
+    v('technology')
+    v('Autechre')
+
+    # wrong case
+    with raises_regexp(ValidationError, "^not contains 'tech'$"):
+        v('Technology')
+
+    # wrong destiny
+    with raises_regexp(ValidationError, "^not contains 'tech'$"):
+        v('Arthur "Two Sheds" Jackson')
 
 
 def test_inrange():
@@ -407,6 +424,7 @@ def test_regression_22():
     ~Anything()
     ~IsA(str)
     ~Equals(5)
+    ~Contains('x')
     ~InRange(5)
     ~Length(5)
     ~ListOf(str)
