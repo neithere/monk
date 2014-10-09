@@ -13,6 +13,10 @@ Version 0.14-dev
 
 * Added validator `Contains`.
 
+* Added validators `ListOfAll` and `ListOfAny`; the older `ListOf` becomes
+  an alias for `ListOfAll`.  Both are thin subclasses of the new `BaseListOf`
+  which allows implementation of different error toleration strategies.
+
 Version 0.13.2
 --------------
 

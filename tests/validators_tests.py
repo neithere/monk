@@ -24,7 +24,8 @@ Validators tests
 from pytest import raises_regexp
 
 from monk import (
-    All, Any, Anything, IsA, Equals, Contains, InRange, Length, ListOf, DictOf,
+    All, Any, Anything, IsA, Equals, Contains, InRange, Length, DictOf,
+    ListOf, ListOfAll, ListOfAny,
     Exists, MISSING, translate,
     ValidationError, MissingKey, InvalidKey,
     StructureSpecificationError,
@@ -161,9 +162,13 @@ def test_length():
 
 
 def test_listof():
-    v = ListOf(IsA(str))
+    assert ListOf == ListOfAll
 
-    assert repr(v) == 'ListOf(IsA(str))'
+
+def test_list_of_all():
+    v = ListOfAll(IsA(str))
+
+    assert repr(v) == 'ListOfAll(IsA(str))'
 
     with raises_regexp(ValidationError, '^must be list'):
         v('foo')
@@ -171,12 +176,59 @@ def test_listof():
     with raises_regexp(ValidationError, '^missing element: must be str'):
         v([])
 
+    # positive
+
     v(['foo'])
 
     v(['foo', 'bar'])
 
-    with raises_regexp(ValidationError, '^#2: must be str'):
+    with raises_regexp(ValidationError, '^#2: must be str$'):
         v(['foo', 'bar', 123])
+
+    # negated
+
+    v = ~v
+
+    with raises_regexp(ValidationError, '^~ListOfAll\(IsA\(str\)\)$'):
+        v(['foo'])
+
+    with raises_regexp(ValidationError, '^~ListOfAll\(IsA\(str\)\)$'):
+        v(['foo', 'bar'])
+
+    v(['foo', 'bar', 123])
+
+
+def test_list_of_any():
+    v = ListOfAny(IsA(str))
+
+    assert repr(v) == 'ListOfAny(IsA(str))'
+
+    with raises_regexp(ValidationError, '^must be list'):
+        v('foo')
+
+    with raises_regexp(ValidationError, '^missing element: must be str'):
+        v([])
+
+    # positive
+
+    v(['foo'])
+
+    v(['foo', 123])
+
+    with raises_regexp(ValidationError, '^\[123, 5.5\] \(#0: must be str;\n#1: must be str\)'):
+        v([123, 5.5])
+
+    # negated
+
+    v = ~v
+
+    with raises_regexp(ValidationError, '^~ListOfAny\(IsA\(str\)\)$'):
+        v(['foo'])
+
+    with raises_regexp(ValidationError, '^~ListOfAny\(IsA\(str\)\)$'):
+        v(['foo', 123])
+
+    v([123, 5.5])
 
 
 def test_dictof():

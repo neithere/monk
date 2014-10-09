@@ -40,6 +40,8 @@ __all__ = [
     'InRange',
     'Length',
     'ListOf',
+    'ListOfAll',
+    'ListOfAny',
     'DictOf',
 
     # functions
@@ -57,6 +59,12 @@ from .errors import (
     CombinedValidationError, AtLeastOneFailed, AllFailed, ValidationError,
     NoDefaultValue, InvalidKey, MissingKey, StructureSpecificationError
 )
+
+
+#: The value is valid if any of its items passes validation.
+ITEM_STRATEGY_ANY = 'any'
+#: The value is valid if all of its items pass validation.
+ITEM_STRATEGY_ALL = 'all'
 
 
 class BaseValidator(object):
@@ -343,23 +351,16 @@ class Exists(BaseRequirement):
         return ''
 
 
-
-class ListOf(BaseRequirement):
+class BaseListOf(BaseRequirement):
     """
-    Requires that the value is a `list` which items match given validator.
-    Usage::
-
-        >>> v = ListOf(IsA(int) | IsA(str))
-        >>> v([123, 'hello'])
-        >>> v([123, 'hello', 5.5])
-        Traceback (most recent call last):
-        ...
-        ValidationError: #2: 5.5 (ValidationError: must be int;
-                                  ValidationError: must be str)
-
+    The base class for validating lists.  Supports different error toleration
+    strategies which can be selected by subclasses.  In many aspects this is
+    similar to :class:`BaseCombinator`.
     """
-    is_recursive = True
     implies = IsA(list)
+    item_strategy = NotImplemented
+    error_class = ValidationError
+    is_recursive = True
 
     def __init__(self, validator, default=None):
         self._nested_validator = translate(validator)
@@ -372,12 +373,46 @@ class ListOf(BaseRequirement):
             except ValidationError as e:
                 raise ValidationError('missing element: {error}'
                                       .format(error=e))
+
+        errors = []
         for i, nested_value in enumerate(value):
             try:
                 self._nested_validator(nested_value)
             except ValidationError as e:
-                raise ValidationError('#{elem}: {error}'
-                                      .format(elem=i, error=e))
+                annotated_error = ValidationError(
+                    '#{elem}: {error}'.format(elem=i, error=e))
+                if self.item_strategy == ITEM_STRATEGY_ALL:
+                    raise annotated_error
+                errors.append(annotated_error)
+
+        if self.can_tolerate(errors, value):
+            return
+
+        def fmt_err(e):
+            # only display error class if it's not obvious
+            if type(e) is ValidationError:
+                tmpl = '{err}'
+            else:
+                tmpl = '{cls}: {err}'
+            return tmpl.format(cls=e.__class__.__name__, err=e)
+
+        errors_str = ';\n'.join((fmt_err(e) for e in errors))
+        raise self.error_class(
+            '{value!r} ({errors})'.format(value=value, errors=errors_str))
+
+    def can_tolerate(self, errors, value):
+        if self.item_strategy == ITEM_STRATEGY_ALL:
+            if errors:
+                return False
+            else:
+                return True
+        elif self.item_strategy == ITEM_STRATEGY_ANY:
+            if len(errors) < len(value):
+                return True
+            else:
+                return False
+        else:
+            raise ValueError('unknown strategy')
 
     def _represent(self):
         return repr(self._nested_validator)
@@ -401,13 +436,40 @@ class ListOf(BaseRequirement):
         return [x if x is None else item_spec.get_default_for(x) for x in value]
 
 
+class ListOfAll(BaseListOf):
+    """
+    Requires that the value is a `list` which items match given validator.
+    Usage::
+
+        >>> v = ListOfAll(IsA(int) | IsA(str))
+        >>> v([123, 'hello'])
+        >>> v([123, 'hello', 5.5])
+        Traceback (most recent call last):
+        ...
+        ValidationError: #2: 5.5 (ValidationError: must be int;
+                                  ValidationError: must be str)
+
+    """
+    error_class = AtLeastOneFailed
+    item_strategy = ITEM_STRATEGY_ALL
+
+
+class ListOfAny(BaseListOf):
+    """
+    Same as :class:`ListOfAll` but tolerates invalid items as long as there
+    is at least one valid among them.
+    """
+    error_class = AllFailed
+    item_strategy = ITEM_STRATEGY_ANY
+
+
+ListOf = ListOfAll
+
 
 #@requirement(implies=[IsA(dict)], is_recursive=True, vars=['key', 'req'])
 #def dict_contains(ctx, value):
 #    nested_value = value[ctx['key']]
 #    ctx['req'](nested_value)
-
-
 
 
 class DictOf(BaseRequirement):
