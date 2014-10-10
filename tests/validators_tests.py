@@ -24,8 +24,8 @@ Validators tests
 from pytest import raises_regexp
 
 from monk import (
-    All, Any, Anything, IsA, Equals, Contains, InRange, Length, DictOf,
-    ListOf, ListOfAll, ListOfAny,
+    All, Any, Anything, IsA, HasAttr, Equals, Contains, InRange, Length,
+    DictOf, ListOf, ListOfAll, ListOfAny,
     Exists, MISSING, translate,
     ValidationError, MissingKeys, InvalidKeys,
     StructureSpecificationError,
@@ -52,6 +52,15 @@ def test_isa():
     v('foo')
 
     with raises_regexp(ValidationError, '^must be str'):
+        v(123)
+
+
+def test_hasattr():
+    v = HasAttr('__len__')
+
+    v('string does have length')
+
+    with raises_regexp(ValidationError, "^must have attribute '__len__'$"):
         v(123)
 
 

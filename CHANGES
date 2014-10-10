@@ -8,14 +8,13 @@ Version 0.14-dev
 * Added support for inverted validators.  If `IsA(str)` allows any `str`
   instance, then `~IsA(str)` allows anything but a `str` instance.
 
-* Added validator `Exists`.  It can be inverted; therefore validator
-  `NotExists` has been removed (use `~Exists()` instead).
-
-* Added validator `Contains`.
+* Replaced validator `NotExists` with invertible `Exists`.
 
 * Added validators `ListOfAll` and `ListOfAny`; the older `ListOf` becomes
   an alias for `ListOfAll`.  Both are thin subclasses of the new `BaseListOf`
   which allows implementation of different error toleration strategies.
+
+* Added simple validators `Contains` and `HasAttr`.
 
 * Exception messages and validator representations have been made more
   friendly to these humans that may try reading them someday.

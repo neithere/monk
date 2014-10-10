@@ -35,6 +35,7 @@ __all__ = [
     'Anything',
     'Exists',
     'IsA',
+    'HasAttr',
     'Equals',
     'Contains',
     'InRange',
@@ -76,6 +77,23 @@ class MISSING:
     pass
 
 
+def _reluctantly_translate(spec):
+    # `translate()` can do it itself but some validators have the `implies`
+    # attribute which can trigger instantiation of a BaseValidator subclass
+    # before the translation function is ready.
+    #
+    # We don't want to defer its usage as far as we can because it is best
+    # to fully build the validator in order to fail early.
+    #
+    # So this function is just a small barrier that prevents NameError
+    # in some cases.
+
+    if isinstance(spec, BaseValidator):
+        return spec
+    else:
+        return translate(spec)
+
+
 class BaseValidator(object):
     error_class = ValidationError
     _default = NotImplemented
@@ -88,7 +106,8 @@ class BaseValidator(object):
             raise TypeError('got {cls} class instead of its instance'
                             .format(cls=other.__name__))
 
-        return combinator([self, translate(other)])
+
+        return combinator([self, _reluctantly_translate(other)])
 
     def _merge(self, value):
         if value is not None:
@@ -154,8 +173,7 @@ class BaseCombinator(BaseValidator):
 
     def __init__(self, specs, default=None, first_is_default=False):
         assert specs
-
-        self._specs = [translate(s) for s in specs]
+        self._specs = [_reluctantly_translate(s) for s in specs]
         self._default = default
         self._first_is_default = first_is_default
 
@@ -603,6 +621,8 @@ class InRange(BaseRequirement):
     """
     Requires that the numeric value is in given boundaries.
     """
+    implies = IsA(int) | IsA(float)
+
     def __init__(self, min=None, max=None, default=NotImplemented):
         self._min = min
         self._max = max
@@ -626,10 +646,34 @@ class InRange(BaseRequirement):
             must=must, min_=_fmt(self._min), max_=_fmt(self._max))
 
 
+
+class HasAttr(BaseRequirement):
+    """
+    Requires that the value has given attribute.
+    """
+    def __init__(self, attr_name):
+        self._attr_name = attr_name
+
+    def _check(self, value):
+        if not hasattr(value, self._attr_name):
+            self._raise_error(value)
+
+    def __repr__(self):
+        if self.negated:
+            must = 'must not'
+        else:
+            must = 'must'
+        return '{must} have attribute {name!r}'.format(
+            must=must, name=self._attr_name)
+
+
+
 class Length(InRange):
     """
     Requires that the value length is in given boundaries.
     """
+    implies = HasAttr('__len__')
+
     def _check(self, value):
         try:
             super(Length, self)._check(len(value))
