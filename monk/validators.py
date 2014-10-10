@@ -57,7 +57,8 @@ import copy
 from . import compat
 from .errors import (
     CombinedValidationError, AtLeastOneFailed, AllFailed, ValidationError,
-    NoDefaultValue, InvalidKey, MissingKey, StructureSpecificationError
+    NoDefaultValue, InvalidKeys, MissingKeys, StructureSpecificationError,
+    DictValueError,
 )
 
 
@@ -67,7 +68,16 @@ ITEM_STRATEGY_ANY = 'any'
 ITEM_STRATEGY_ALL = 'all'
 
 
+class MISSING:
+    """
+    Stub for Exists validator to pass if the value is missing
+    (e.g. for dictionary keys).
+    """
+    pass
+
+
 class BaseValidator(object):
+    error_class = ValidationError
     _default = NotImplemented
     negated = False
 
@@ -113,7 +123,7 @@ class BaseValidator(object):
                 raise
         else:
             if self.negated:
-                raise ValidationError(repr(self))
+                self._raise_error(value)
 
     def __hash__(self):
         # TODO think this over and check Python docs
@@ -132,10 +142,15 @@ class BaseValidator(object):
     def _check(self, value):
         raise NotImplementedError
 
+    def _raise_error(self, value):
+        raise self.error_class(repr(self))
+
 
 class BaseCombinator(BaseValidator):
     error_class = CombinedValidationError
     break_on_first_fail = False
+    _repr_tmpl = '{not_}({items})'
+    _repr_items_sep = '; '
 
     def __init__(self, specs, default=None, first_is_default=False):
         assert specs
@@ -163,24 +178,14 @@ class BaseCombinator(BaseValidator):
                     raise
                 errors.append(e)
         if not self.can_tolerate(errors):
-            def fmt_err(e):
-                # only display error class if it's not obvious
-                if type(e) is ValidationError:
-                    tmpl = '{err}'
-                else:
-                    tmpl = '{cls}: {err}'
-                return tmpl.format(cls=e.__class__.__name__, err=e)
-
-            errors_str = '; '.join((fmt_err(e) for e in errors))
-            raise self.error_class(
-                '{value!r} ({errors})'.format(value=value, errors=errors_str))
+            raise self.error_class(*errors)
 
 
     def __repr__(self):
-        return '{negated}{cls}[{validators}]'.format(
+        return self._repr_tmpl.format(
             cls=self.__class__.__name__,
-            validators=', '.join(map(str, self._specs)),
-            negated='~' if self.negated else '')
+            items=self._repr_items_sep.join(map(str, self._specs)),
+            not_='not ' if self.negated else '')
 
 
     def can_tolerate(self, errors):
@@ -214,6 +219,7 @@ class All(BaseCombinator):
     """
     error_class = AtLeastOneFailed
     break_on_first_fail = True
+    _repr_items_sep = ' and '
 
     def can_tolerate(self, errors):
         # TODO: fail early, work as `or` does
@@ -227,18 +233,11 @@ class Any(BaseCombinator):
     Requires that the value passes at least one of nested validators.
     """
     error_class = AllFailed
+    _repr_items_sep = ' or '
 
     def can_tolerate(self, errors):
         if len(errors) < len(self._specs):
             return True
-
-
-class MISSING:
-    """
-    Stub for Exists validator to pass if the value is missing
-    (e.g. for dictionary keys).
-    """
-    pass
 
 
 class BaseRequirement(BaseValidator):
@@ -282,16 +281,13 @@ class IsA(BaseRequirement):
 
     def _check(self, value):
         if not isinstance(value, self.expected_type):
-            raise ValidationError('must be {type}'
-                                  .format(type=self.expected_type.__name__))
+            self._raise_error(value)
 
-    def _represent(self):
-        if self._default:
-            return '{name} {default!r}'.format(
-                name=self.expected_type.__name__,
-                default=self._default)
-        else:
-            return self.expected_type.__name__
+    def __repr__(self):
+        s = 'must be {pattern_}'.format(pattern_=self.expected_type.__name__)
+        if self.negated:
+            s = 'not ({s})'.format(s=s)
+        return s
 
 
 class Equals(BaseRequirement):
@@ -303,11 +299,13 @@ class Equals(BaseRequirement):
 
     def _check(self, value):
         if self._expected_value != value:
-            raise ValidationError('!= {expected!r}'
-                                  .format(expected=self._expected_value))
+            self._raise_error(value)
 
-    def _represent(self):
-        return repr(self._expected_value)
+    def __repr__(self):
+        s = 'must equal {pattern_!r}'.format(pattern_=self._expected_value)
+        if self.negated:
+            s = 'not ({s})'.format(s=s)
+        return s
 
     @property
     def _default(self):
@@ -323,11 +321,13 @@ class Contains(BaseRequirement):
 
     def _check(self, value):
         if self._expected_value not in value:
-            raise ValidationError('not contains {expected!r}'
-                                  .format(expected=self._expected_value))
+            self._raise_error(value)
 
-    def _represent(self):
-        return repr(self._expected_value)
+    def __repr__(self):
+        s = 'must contain {pattern_!r}'.format(pattern_=self._expected_value)
+        if self.negated:
+            s = 'not ({s})'.format(s=s)
+        return s
 
     @property
     def _default(self):
@@ -345,10 +345,13 @@ class Exists(BaseRequirement):
 
     def _check(self, value):
         if value is MISSING:
-            raise ValidationError('must exist')
+            self._raise_error(value)
 
-    def _represent(self):
-        return ''
+    def __repr__(self):
+        if self.negated:
+            return 'must not exist'
+        else:
+            return 'must exist'
 
 
 class BaseListOf(BaseRequirement):
@@ -359,7 +362,7 @@ class BaseListOf(BaseRequirement):
     """
     implies = IsA(list)
     item_strategy = NotImplemented
-    error_class = ValidationError
+    error_class = CombinedValidationError
     is_recursive = True
 
     def __init__(self, validator, default=None):
@@ -371,7 +374,7 @@ class BaseListOf(BaseRequirement):
             try:
                 self._nested_validator(MISSING)
             except ValidationError as e:
-                raise ValidationError('missing element: {error}'
+                raise ValidationError('lacks item: {error}'
                                       .format(error=e))
 
         errors = []
@@ -380,7 +383,7 @@ class BaseListOf(BaseRequirement):
                 self._nested_validator(nested_value)
             except ValidationError as e:
                 annotated_error = ValidationError(
-                    '#{elem}: {error}'.format(elem=i, error=e))
+                    'item #{elem}: {error}'.format(elem=i, error=e))
                 if self.item_strategy == ITEM_STRATEGY_ALL:
                     raise annotated_error
                 errors.append(annotated_error)
@@ -388,17 +391,7 @@ class BaseListOf(BaseRequirement):
         if self.can_tolerate(errors, value):
             return
 
-        def fmt_err(e):
-            # only display error class if it's not obvious
-            if type(e) is ValidationError:
-                tmpl = '{err}'
-            else:
-                tmpl = '{cls}: {err}'
-            return tmpl.format(cls=e.__class__.__name__, err=e)
-
-        errors_str = ';\n'.join((fmt_err(e) for e in errors))
-        raise self.error_class(
-            '{value!r} ({errors})'.format(value=value, errors=errors_str))
+        raise self.error_class(*errors)
 
     def can_tolerate(self, errors, value):
         if self.item_strategy == ITEM_STRATEGY_ALL:
@@ -524,19 +517,24 @@ class DictOf(BaseRequirement):
                 if k in validated_data_keys:
                     continue
 
-                # check if this key is described by current rule;
-                # if it isn't, just skip it (and try another rule on it later on)
+                # check if this key is described by current key validator;
+                # if it isn't, just skip it (and try another validator
+                # on it later on)
                 try:
                     k_validator(k)
                 except (TypeError, ValidationError):
                     continue
 
-                # this key *is* described by current rule;
+                # this key *is* described by current value validator;
                 # validate the value (it *must* validate)
                 try:
                     v_validator(v)
                 except (ValidationError, TypeError) as e:
-                    raise type(e)('{k!r}: {e}'.format(k=k, e=e))
+                    if isinstance(e, DictValueError):
+                        msg = 'in {k!r} ({e})'
+                    else:
+                        msg = '{k!r} value {e}'
+                    raise DictValueError(msg.format(k=k, e=e))
 
                 validated_data_keys.append(k)
                 matched = True
@@ -553,12 +551,16 @@ class DictOf(BaseRequirement):
         # check if there are data keys that did not match any key spec;
         # if yes, raise InvalidKey for them
         if len(validated_data_keys) < len(value):
-            raise InvalidKey(', '.join(repr(x) for x in set(value) - set(validated_data_keys)))
+            invalid_keys = set(value) - set(validated_data_keys)
+            raise InvalidKeys(*invalid_keys)
 
         if missing_key_specs:
-            # NOTE: this prints rules, not keys as strings
-            raise MissingKey('{0}'.format(
-                ', '.join(compat.safe_str(rule) for rule in missing_key_specs)))
+            # XXX this prints validators, not keys as strings;
+            #     one exception is the Equals validator from which we get
+            #     the expected value via internal API.  And that's gross.
+            reprs = (spec._expected_value if isinstance(spec, Equals) else spec
+                     for spec in missing_key_specs)
+            raise MissingKeys(*reprs)
 
 
     def _merge(self, value):
@@ -608,20 +610,20 @@ class InRange(BaseRequirement):
             self._default = default
 
     def _check(self, value):
-        if value is MISSING:
-            raise InvalidKey(value)
         if self._min is not None and self._min > value:
-            raise ValidationError('must be ≥ {expected}'
-                                  .format(expected=self._min))
+            self._raise_error(value)
         if self._max is not None and self._max < value:
-            raise ValidationError('must be ≤ {expected}'
-                                  .format(expected=self._max))
+            self._raise_error(value)
 
-    def _represent(self):
+    def __repr__(self):
+        if self.negated:
+            must = 'must not'
+        else:
+            must = 'must'
         def _fmt(x):
             return '' if x is None else x
-        return '{min}..{max}'.format(min=_fmt(self._min),
-                                     max=_fmt(self._max))
+        return '{must} belong to {min_}..{max_}'.format(
+            must=must, min_=_fmt(self._min), max_=_fmt(self._max))
 
 
 class Length(InRange):
@@ -632,7 +634,17 @@ class Length(InRange):
         try:
             super(Length, self)._check(len(value))
         except ValidationError as e:
-            raise ValidationError('length ' + str(e))
+            self._raise_error(value)
+
+    def __repr__(self):
+        if self.negated:
+            must = 'must not'
+        else:
+            must = 'must'
+        def _fmt(x):
+            return '' if x is None else x
+        return '{must} have length of {min_}..{max_}'.format(
+            must=must, min_=_fmt(self._min), max_=_fmt(self._max))
 
 
 def translate(value):

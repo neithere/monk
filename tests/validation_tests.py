@@ -33,7 +33,7 @@ from monk import (
     translate,
     validate,
     optional,
-    MissingKey, InvalidKey, ValidationError, AllFailed,
+    MissingKeys, InvalidKeys, ValidationError, AllFailed,
 )
 
 
@@ -79,15 +79,15 @@ class TestOverall:
         dict_with_opt_key({})
 
         dict_with_req_key_opt_value = translate({'a': IsA(text_type) | Equals(None)})
-        with raises(MissingKey):
+        with raises(MissingKeys):
             dict_with_req_key_opt_value({})
 
         dict_with_req_key_req_value = translate({'a': IsA(text_type)})
-        with raises(MissingKey):
+        with raises(MissingKeys):
             dict_with_req_key_req_value({})
 
         dict_with_req_keys_req_values = translate({'a': text_type, 'b': int})
-        with raises(MissingKey):
+        with raises(MissingKeys):
             dict_with_req_keys_req_values({'b': 1})
 
     def test_unknown_keys(self):
@@ -97,16 +97,16 @@ class TestOverall:
         # inner_spec not empty, value matches it
         validate({'x': None}, {'x': 123})
 
-        with raises(InvalidKey):
+        with raises(InvalidKeys):
             validate({'x': None}, {'y': 123})
 
-        with raises(InvalidKey):
+        with raises(InvalidKeys):
             validate({'x': None}, {'x': 123, 'y': 456})
 
     def test_unknown_keys_encoding(self):
-        with raises(InvalidKey):
+        with raises(InvalidKeys):
             validate({'a': text_type}, {'привет': 1})
-        with raises(InvalidKey):
+        with raises(InvalidKeys):
             validate({'a': text_type}, {safe_unicode('привет'): 1})
 
 
@@ -148,7 +148,8 @@ class TestDataTypes:
         validate({'a': []}, {'a': []})
         validate({'a': []}, {'a': ['b', 123]})
 
-        with raises_regexp(ValidationError, "'a': missing element: must be int"):
+        with raises_regexp(ValidationError,
+            "'a' value lacks item: must be int"):
             validate({'a': [int]}, {'a': []})
 
         validate({'a': [int]}, {'a': [123]})
@@ -304,8 +305,11 @@ class TestRuleSettings:
         # value is present and matches datatype
         spec(1)
 
+        # value is present and equals None
+        spec(None)
+
         # value is present but does not match datatype
-        with raises_regexp(AllFailed, "'bogus' \(must be int; != None\)"):
+        with raises_regexp(AllFailed, "must be int or must equal None"):
             spec('bogus')
 
 
@@ -372,12 +376,12 @@ class TestNested:
 
         # key is missing
 
-        with raises_regexp(MissingKey, "Equals\('foo'\)"):
+        with raises_regexp(MissingKeys, "must have keys: 'foo'"):
             spec({})
 
         # key is present, value is missing
 
-        with raises_regexp(ValidationError, "'foo': must be int"):
+        with raises_regexp(ValidationError, "'foo' value must be int"):
             spec({'foo': None})
 
         # key is present, value is present
@@ -391,12 +395,12 @@ class TestNested:
 
         # key is missing
 
-        with raises_regexp(MissingKey, "Equals\('foo'\)"):
+        with raises_regexp(MissingKeys, "must have keys: 'foo'"):
             spec({})
 
         # key is present, value is missing
 
-        with raises_regexp(ValidationError, "'foo': must be dict"):
+        with raises_regexp(ValidationError, "'foo' value must be dict"):
             spec({'foo': None})
 
         # value is present
@@ -410,12 +414,12 @@ class TestNested:
 
         # inner key is missing
 
-        with raises_regexp(MissingKey, "'foo': Equals\('bar'\)"):
+        with raises_regexp(ValidationError, "^'foo' value must have keys: 'bar'$"):
             spec({'foo': {}})
 
         # inner key is present, inner value is missing
 
-        with raises_regexp(ValidationError, "'foo': 'bar': must be int"):
+        with raises_regexp(ValidationError, "^in 'foo' \('bar' value must be int\)$"):
             spec({'foo': {'bar': None}})
 
         # inner value is present
@@ -433,12 +437,12 @@ class TestNested:
 
         # outer optional value is present, inner key is missing
 
-        with raises_regexp(AllFailed, "{} \(MissingKey: Equals\('foo'\); != None\)"):
+        with raises_regexp(AllFailed, "must have keys: 'foo' or must equal None"):
             spec({})
 
         # inner key is present, inner value is missing
 
-        with raises_regexp(AllFailed, "{'foo': None} \('foo': must be int; != None\)"):
+        with raises_regexp(AllFailed, "'foo' value must be int or must equal None"):
             spec({'foo': None})
 
         # inner value is present
@@ -455,7 +459,7 @@ class TestNested:
 
         # outer value is present, inner value is missing
 
-        with raises_regexp(ValidationError, 'missing element: must be int'):
+        with raises_regexp(ValidationError, 'lacks item: must be int'):
             spec([])
 
         # outer value is present, inner optional value is missing
@@ -465,7 +469,7 @@ class TestNested:
 
         # inner value is present but is None
 
-        with raises_regexp(ValidationError, '#0: must be int'):
+        with raises_regexp(ValidationError, 'item #0: must be int'):
             spec([None])
 
         # inner value is present
@@ -478,7 +482,7 @@ class TestNested:
 
         # one of the inner values is of a wrong type
 
-        with raises_regexp(ValidationError, '#1: must be int'):
+        with raises_regexp(ValidationError, 'item #1: must be int'):
             spec([123, 'bogus'])
 
     def test_freeform_dict_in_list(self):
@@ -495,7 +499,7 @@ class TestNested:
 
         # one of the inner values is of a wrong type
 
-        with raises_regexp(ValidationError, '#1: must be dict'):
+        with raises_regexp(ValidationError, 'item #1: must be dict'):
             spec([{}, 'bogus'])
 
     def test_schemed_dict_in_list(self):
@@ -506,15 +510,15 @@ class TestNested:
         with raises(ValidationError):
             spec([{}])
 
-        with raises_regexp(ValidationError, "#1: Equals\('foo'\)"):
+        with raises_regexp(ValidationError, "item #1: must have keys: 'foo'"):
             spec([{'foo': 123}, {}])
 
         # dict in list: missing value
 
-        with raises_regexp(ValidationError, "#0: 'foo': must be int"):
+        with raises_regexp(ValidationError, "item #0: 'foo' value must be int"):
             spec([{'foo': None}])
 
-        with raises_regexp(ValidationError, "#1: 'foo': must be int"):
+        with raises_regexp(ValidationError, "item #1: 'foo' value must be int"):
             spec([{'foo': 123}, {'foo': None}])
 
         # multiple innermost values are present
@@ -524,29 +528,33 @@ class TestNested:
 
         # one of the innermost values is of a wrong type
 
-        with raises_regexp(ValidationError, "#2: 'foo': must be int"):
+        with raises_regexp(ValidationError, "item #2: 'foo' value must be int"):
             spec([{'foo': 123}, {'foo': 456}, {'foo': 'bogus'}])
 
     def test_int_in_list_in_dict_in_list_in_dict(self):
         spec = translate({'foo': [{'bar': [int]}]})
 
-        with raises_regexp(ValidationError, "'foo': must be list"):
+        with raises_regexp(ValidationError,
+            "'foo' value must be list"):
             spec({'foo': None})
 
-        with raises_regexp(ValidationError, "'foo': #0: 'bar': must be list"):
+        with raises_regexp(ValidationError,
+            "'foo' value item #0: 'bar' value must be list"):
             spec({'foo': [{'bar': None}]})
 
-        with raises_regexp(ValidationError, "'foo': missing element: must be dict"):
+        with raises_regexp(ValidationError,
+            "'foo' value lacks item: must be dict"):
             spec({'foo': []})
 
         with raises_regexp(ValidationError,
-                           "'foo': #0: 'bar': missing element: must be int"):
+           "'foo' value item #0: 'bar' value lacks item: must be int"):
             spec({'foo': [{'bar': []}]})
 
         spec({'foo': [{'bar': [1]}]})
         spec({'foo': [{'bar': [1, 2]}]})
 
-        with raises_regexp(ValidationError, "'foo': #0: 'bar': #1: must be int"):
+        with raises_regexp(ValidationError,
+            "'foo' value item #0: 'bar' value item #1: must be int"):
             spec({'foo': [{'bar': [1, 'bogus']}]})
 
 
@@ -564,32 +572,36 @@ class TestRulesAsDictKeys:
             str: int,
             int: int,
         }
-        with raises(MissingKey):
+        with raises(MissingKeys):
             validate(schema, {'a': 1})
-        with raises(MissingKey):
+        with raises(MissingKeys):
             validate(schema, {123: 1})
         validate(schema, {'a': 1, 'b': 2, 123: 4, 456: 5})
 
     def test_type_error(self):
         #with raises(TypeError):
-        with raises(InvalidKey):
+        with raises(InvalidKeys):
             validate({str: int}, {'a': 1, NotImplemented: 5})
 
     def test_invalid_key(self):
-        with raises(InvalidKey):
+        with raises(InvalidKeys):
             validate({str: int}, {'a': 1, 1: 2})
-        with raises(InvalidKey):
+        with raises(InvalidKeys):
             # special handling of rule.default in dict keys
             validate({'a': int}, {'a': 1, 'b': 5})
 
     def test_missing_key(self):
-        with raises(MissingKey):
+        with raises(MissingKeys):
             validate({str: int}, {})
 
     def test_any_value_as_key(self):
         validate({None: 1}, {2: 3})
 
     def test_custom_validators_in_dict_keys(self):
+        # FIXME this is one of those cases where "human-readable" errors
+        #       are much less readable than "mechanical" ones (as before).
+        #       Can we do anything?
+
         day_note_schema = translate({
             InRange(2000, 2020): {
                 InRange(1, 12): {
@@ -604,17 +616,23 @@ class TestRulesAsDictKeys:
 
         day_note_schema(good_note)
 
-        with raises_regexp(InvalidKey, '^1999$'):
+        #with raises_regexp(InvalidKeys, '^1999$'):
+        with raises_regexp(ValidationError,
+                           "^must not have keys like 1999$"):
             day_note_schema(bad_note1)
 
-        with raises_regexp(InvalidKey, '^2013: 13$'):
+        #with raises_regexp(InvalidKeys, '^2013: 13$'):
+        with raises_regexp(ValidationError,
+                           "^2013 value must not have keys like 13$"):
             day_note_schema(bad_note2)
 
-        with raises_regexp(InvalidKey, '^2013: 12: 40$'):
+        #with raises_regexp(InvalidKeys, '^2013: 12: 40$'):
+        with raises_regexp(ValidationError,
+                           "^in 2013 \(12 value must not have keys like 40\)$"):
             day_note_schema(bad_note3)
 
     def test_nonsense(self):
-        with raises(InvalidKey):
+        with raises(InvalidKeys):
             validate({int: str}, {int: 'foo'})
 
 
@@ -663,7 +681,7 @@ class TestListEdgeCases:
 
         with raises_regexp(ValidationError, 'must be list'):
             v(None)
-        with raises_regexp(ValidationError, 'missing element: must be str'):
+        with raises_regexp(ValidationError, 'lacks item: must be str'):
             v([])
         with raises_regexp(ValidationError, '#0: must be str'):
             v([None])
@@ -678,7 +696,7 @@ class TestListEdgeCases:
         with raises_regexp(ValidationError, 'must be list'):
             v(None)
         v([])
-        with raises_regexp(ValidationError, 'must be str; ~Exists()'):
+        with raises_regexp(ValidationError, 'must be str or must not exist'):
             v([None])
         v(['hi'])
         with raises_regexp(ValidationError, 'must be str'):

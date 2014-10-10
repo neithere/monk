@@ -17,6 +17,9 @@ Version 0.14-dev
   an alias for `ListOfAll`.  Both are thin subclasses of the new `BaseListOf`
   which allows implementation of different error toleration strategies.
 
+* Exception messages and validator representations have been made more
+  friendly to these humans that may try reading them someday.
+
 Version 0.13.2
 --------------
 

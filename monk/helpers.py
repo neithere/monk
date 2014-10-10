@@ -52,10 +52,6 @@ def validate(spec, value):
 
     Can raise:
 
-    :class:`MissingValue`
-        if a dictionary key is in the spec but not in the value.
-        This applies to root and nested dictionaries.
-
     :class:`MissingKey`
         if a dictionary key is in the spec but not in the value.
         This applies to root and nested dictionaries.

@@ -34,43 +34,64 @@ class StructureSpecificationError(ValidationError):
     """
 
 
-class MissingValue(ValidationError):
+class DictValueError(ValidationError):
     """
-    Raised when the value is `None` and the rule neither allows this
-    (i.e. a `datatype` is defined) nor provides a `default` value.
-    """
-
-
-class MissingKey(ValidationError):
-    """
-    Raised when a dictionary key is defined in :attr:`Rule.inner_spec`
-    but is missing from the value.
+    Raised when dictionary value fails validation.  Used to detect nested
+    errors in order to format the human-readable messages unambiguously.
     """
 
 
-class InvalidKey(ValidationError):
+class MissingKeys(ValidationError):
     """
-    Raised whan the value dictionary contains a key which is not
-    in the dictionary's :attr:`Rule.inner_spec`.
+    Raised when a required dictionary key is missing from the value dict.
     """
+    def __str__(self):
+        keys_str = ', '.join(map(repr, self.args))
+        return 'must have keys: {keys}'.format(keys=keys_str)
+
+
+class InvalidKeys(ValidationError):
+    """
+    Raised whan the value dictionary contains an unexpected key.
+    """
+    def __str__(self):
+        keys_str = ', '.join(map(repr, self.args))
+        return 'must not have keys like {keys}'.format(keys=keys_str)
 
 
 class CombinedValidationError(ValidationError):
     """
     Raised when a combination of specs has failed validation.
     """
+    _error_string_separator = '; '
+
+    def _format_nested_error(self, e):
+        # only display error class if it's not obvious
+        if isinstance(e, str):
+            tmpl = '{err}'
+        elif isinstance(e, ValidationError):
+            tmpl = '{err}'
+        else:
+            tmpl = '{cls}: {err}'
+        return tmpl.format(cls=e.__class__.__name__, err=e)
+
+    def __str__(self):
+        err_strings = map(self._format_nested_error, self.args)
+        return self._error_string_separator.join(err_strings)
 
 
 class AllFailed(CombinedValidationError):
     """
     Raised when at least one validator was expected to pass but none did.
     """
+    _error_string_separator = ' or '
 
 
 class AtLeastOneFailed(CombinedValidationError):
     """
     Raised when all validators were expected to pas but at least one didn't.
     """
+    _error_string_separator = ' and '
 
 
 class NoDefaultValue(Exception):

@@ -27,7 +27,7 @@ from monk import (
     All, Any, Anything, IsA, Equals, Contains, InRange, Length, DictOf,
     ListOf, ListOfAll, ListOfAny,
     Exists, MISSING, translate,
-    ValidationError, MissingKey, InvalidKey,
+    ValidationError, MissingKeys, InvalidKeys,
     StructureSpecificationError,
     optional,
 )
@@ -47,7 +47,7 @@ def test_anything():
 def test_isa():
     v = IsA(str)
 
-    assert repr(v) == 'IsA(str)'
+    assert repr(v) == 'must be str'
 
     v('foo')
 
@@ -58,28 +58,28 @@ def test_isa():
 def test_equals():
     v = Equals('foo')
 
-    assert repr(v) == "Equals('foo')"
+    assert repr(v) == "must equal 'foo'"
 
     v('foo')
 
-    with raises_regexp(ValidationError, "^!= 'foo'"):
+    with raises_regexp(ValidationError, "^must equal 'foo'"):
         v('bar')
 
 
 def test_contains():
     v = Contains('tech')
 
-    assert repr(v) == "Contains('tech')"
+    assert repr(v) == "must contain 'tech'"
 
     v('technology')
     v('Autechre')
 
     # wrong case
-    with raises_regexp(ValidationError, "^not contains 'tech'$"):
+    with raises_regexp(ValidationError, "^must contain 'tech'$"):
         v('Technology')
 
     # wrong destiny
-    with raises_regexp(ValidationError, "^not contains 'tech'$"):
+    with raises_regexp(ValidationError, "^must contain 'tech'$"):
         v('Arthur "Two Sheds" Jackson')
 
 
@@ -88,14 +88,14 @@ def test_inrange():
     range_min_2 = InRange(min=2)
     range_max_4 = InRange(max=4)
 
-    assert repr(range_2_to_4) == 'InRange(2..4)'
-    assert repr(range_min_2) == 'InRange(2..)'
-    assert repr(range_max_4) == 'InRange(..4)'
+    assert repr(range_2_to_4) == 'must belong to 2..4'
+    assert repr(range_min_2) == 'must belong to 2..'
+    assert repr(range_max_4) == 'must belong to ..4'
 
     # below limit
-    with raises_regexp(ValidationError, '^must be ≥ 2'):
+    with raises_regexp(ValidationError, 'must belong to 2\.\.'):
         range_min_2(1)
-    with raises_regexp(ValidationError, '^must be ≥ 2'):
+    with raises_regexp(ValidationError, 'must belong to 2\.\.'):
         range_2_to_4(1)
     range_max_4(1)
 
@@ -116,9 +116,9 @@ def test_inrange():
 
     # above limit
     range_min_2(5)
-    with raises_regexp(ValidationError, '^must be ≤ 4'):
+    with raises_regexp(ValidationError, '^must belong to 2\.\.4$'):
         range_2_to_4(5)
-    with raises_regexp(ValidationError, '^must be ≤ 4'):
+    with raises_regexp(ValidationError, '^must belong to \.\.4$'):
         range_max_4(5)
 
 
@@ -127,14 +127,14 @@ def test_length():
     len_min_2 = Length(min=2)
     len_max_4 = Length(max=4)
 
-    assert repr(len_2_to_4) == 'Length(2..4)'
-    assert repr(len_min_2) == 'Length(2..)'
-    assert repr(len_max_4) == 'Length(..4)'
+    assert repr(len_2_to_4) == 'must have length of 2..4'
+    assert repr(len_min_2) == 'must have length of 2..'
+    assert repr(len_max_4) == 'must have length of ..4'
 
     # below limit
-    with raises_regexp(ValidationError, '^length must be ≥ 2'):
+    with raises_regexp(ValidationError, '^must have length of 2\.\.$'):
         len_min_2('a')
-    with raises_regexp(ValidationError, '^length must be ≥ 2'):
+    with raises_regexp(ValidationError, '^must have length of 2\.\.4$'):
         len_2_to_4('a')
     len_max_4('a')
 
@@ -155,9 +155,9 @@ def test_length():
 
     # above limit
     len_min_2('aaaaa')
-    with raises_regexp(ValidationError, '^length must be ≤ 4'):
+    with raises_regexp(ValidationError, '^must have length of 2\.\.4$'):
         len_2_to_4('aaaaa')
-    with raises_regexp(ValidationError, '^length must be ≤ 4'):
+    with raises_regexp(ValidationError, '^must have length of \.\.4$'):
         len_max_4('aaaaa')
 
 
@@ -168,12 +168,12 @@ def test_listof():
 def test_list_of_all():
     v = ListOfAll(IsA(str))
 
-    assert repr(v) == 'ListOfAll(IsA(str))'
+    assert repr(v) == 'ListOfAll(must be str)'
 
-    with raises_regexp(ValidationError, '^must be list'):
+    with raises_regexp(ValidationError, '^must be list$'):
         v('foo')
 
-    with raises_regexp(ValidationError, '^missing element: must be str'):
+    with raises_regexp(ValidationError, '^lacks item: must be str$'):
         v([])
 
     # positive
@@ -182,17 +182,17 @@ def test_list_of_all():
 
     v(['foo', 'bar'])
 
-    with raises_regexp(ValidationError, '^#2: must be str$'):
+    with raises_regexp(ValidationError, '^item #2: must be str$'):
         v(['foo', 'bar', 123])
 
     # negated
 
     v = ~v
 
-    with raises_regexp(ValidationError, '^~ListOfAll\(IsA\(str\)\)$'):
+    with raises_regexp(ValidationError, '^~ListOfAll\(must be str\)$'):
         v(['foo'])
 
-    with raises_regexp(ValidationError, '^~ListOfAll\(IsA\(str\)\)$'):
+    with raises_regexp(ValidationError, '^~ListOfAll\(must be str\)$'):
         v(['foo', 'bar'])
 
     v(['foo', 'bar', 123])
@@ -201,12 +201,12 @@ def test_list_of_all():
 def test_list_of_any():
     v = ListOfAny(IsA(str))
 
-    assert repr(v) == 'ListOfAny(IsA(str))'
+    assert repr(v) == 'ListOfAny(must be str)'
 
-    with raises_regexp(ValidationError, '^must be list'):
+    with raises_regexp(ValidationError, '^must be list$'):
         v('foo')
 
-    with raises_regexp(ValidationError, '^missing element: must be str'):
+    with raises_regexp(ValidationError, '^lacks item: must be str$'):
         v([])
 
     # positive
@@ -215,17 +215,18 @@ def test_list_of_any():
 
     v(['foo', 123])
 
-    with raises_regexp(ValidationError, '^\[123, 5.5\] \(#0: must be str;\n#1: must be str\)'):
+    with raises_regexp(ValidationError,
+        '^item #0: must be str or item #1: must be str$'):
         v([123, 5.5])
 
     # negated
 
     v = ~v
 
-    with raises_regexp(ValidationError, '^~ListOfAny\(IsA\(str\)\)$'):
+    with raises_regexp(ValidationError, '^~ListOfAny\(must be str\)$'):
         v(['foo'])
 
-    with raises_regexp(ValidationError, '^~ListOfAny\(IsA\(str\)\)$'):
+    with raises_regexp(ValidationError, '^~ListOfAny\(must be str\)$'):
         v(['foo', 123])
 
     v([123, 5.5])
@@ -238,28 +239,28 @@ def test_dictof():
     ])
     dict_of_str_to_int_optional_keys({})
     dict_of_str_to_int_optional_keys({'foo': 123})
-    with raises_regexp(InvalidKey, '123'):
+    with raises_regexp(InvalidKeys, '123'):
         dict_of_str_to_int_optional_keys({123: 456})
 
     # key must be present, exact literals not specified
     dict_of_str_to_int = DictOf([
         (IsA(str), IsA(int)),
     ])
-    with raises_regexp(MissingKey, 'IsA\(str\)'):
+    with raises_regexp(MissingKeys, 'must have keys: must be str'):
         dict_of_str_to_int({})
     dict_of_str_to_int({'foo': 123})
     dict_of_str_to_int({'foo': 123, 'bar': 456})
 
-    with raises_regexp(InvalidKey, '123'):
+    with raises_regexp(InvalidKeys, '123'):
         dict_of_str_to_int({'foo': 123, 'bar': 456, 123: 'quux'})
-    with raises_regexp(ValidationError, "'quux': must be int"):
+    with raises_regexp(ValidationError, "'quux' value must be int"):
         dict_of_str_to_int({'foo': 123, 'bar': 456, 'quux': 4.2})
 
 
 def test_exists():
     must_exist = Exists()
 
-    assert repr(must_exist) == 'Exists()'
+    assert repr(must_exist) == 'must exist'
 
     with raises_regexp(ValidationError, 'must exist'):
         must_exist(MISSING)
@@ -274,38 +275,38 @@ def test_exists():
 
     must_not_exist = ~Exists()
 
-    assert repr(must_not_exist) == '~Exists()'
+    assert repr(must_not_exist) == 'must not exist'
 
     must_not_exist(MISSING)
 
-    with raises_regexp(ValidationError, '~Exists()'):
+    with raises_regexp(ValidationError, 'must not exist'):
         must_not_exist(None)
 
-    with raises_regexp(ValidationError, '~Exists()'):
+    with raises_regexp(ValidationError, 'must not exist'):
         must_not_exist('foo')
 
 
 def test_combinator_any():
     v = Any([ IsA(str), IsA(int) ])
 
-    assert repr(v) == 'Any[IsA(str), IsA(int)]'
+    assert repr(v) == '(must be str or must be int)'
 
     v('foo')
     v(123)
-    with raises_regexp(ValidationError, '^4.5 \(must be str; must be int\)'):
+    with raises_regexp(ValidationError, '^must be str or must be int$'):
         v(4.5)
 
 
 def test_combinator_all():
     v = All([ Length(min=2), Length(max=3) ])
 
-    assert repr(v) == 'All[Length(2..), Length(..3)]'
+    assert repr(v) == '(must have length of 2.. and must have length of ..3)'
 
-    with raises_regexp(ValidationError, 'length must be ≥ 2'):
+    with raises_regexp(ValidationError, '^must have length of 2\.\.$'):
         v('f')
     v('fo')
     v('foo')
-    with raises_regexp(ValidationError, 'length must be ≤ 3'):
+    with raises_regexp(ValidationError, '^must have length of \.\.3$'):
         v('fooo')
 
 
@@ -331,17 +332,18 @@ def test_magic_eq():
 def test_magic_and_or():
     v = IsA(str) | IsA(int)
     assert isinstance(v, Any)
-    assert repr(v) == 'Any[IsA(str), IsA(int)]'
+    assert repr(v) == '(must be str or must be int)'
 
     v = IsA(str) & IsA(int)    # silly but who cares
     assert isinstance(v, All)
-    assert repr(v) == 'All[IsA(str), IsA(int)]'
+    assert repr(v) == '(must be str and must be int)'
+
 
     v = IsA(str) & IsA(int) | IsA(float)
-    assert repr(v) == 'Any[All[IsA(str), IsA(int)], IsA(float)]'
+    assert repr(v) == '((must be str and must be int) or must be float)'
 
     v = IsA(str) | IsA(int) & IsA(float)
-    assert repr(v) == 'Any[IsA(str), All[IsA(int), IsA(float)]]'
+    assert repr(v) == '(must be str or (must be int and must be float))'
 
 
 def test_magic_hash():
@@ -429,11 +431,11 @@ def test_translate_fallback():
 def test_invert_requirement():
     says_hello = Equals('hello')
     says_hello('hello')
-    with raises_regexp(ValidationError, "^!= 'hello'$"):
+    with raises_regexp(ValidationError, "^must equal 'hello'$"):
         says_hello('bye')
 
     says_not_hello = ~says_hello
-    with raises_regexp(ValidationError, "^~Equals\('hello'\)$"):
+    with raises_regexp(ValidationError, "^not \(must equal 'hello'\)$"):
         says_not_hello('hello')
     says_not_hello('bye')
 
@@ -442,15 +444,15 @@ def test_invert_combinator():
     hello_or_bye = Equals('hello') | Equals('bye')
     hello_or_bye('hello')
     hello_or_bye('bye')
-    with raises_regexp(ValidationError, "^'albatross!' \(!= 'hello'; != 'bye'\)$"):
+    with raises_regexp(ValidationError, "^must equal 'hello' or must equal 'bye'$"):
         hello_or_bye('albatross!')
 
     neither_hello_nor_bye = ~hello_or_bye
     with raises_regexp(ValidationError,
-        "^~Any\[Equals\('hello'\), Equals\('bye'\)\]$"):
+        "^not \(must equal 'hello' or must equal 'bye'\)$"):
         neither_hello_nor_bye('hello')
     with raises_regexp(ValidationError,
-        "^~Any\[Equals\('hello'\), Equals\('bye'\)\]$"):
+        "^not \(must equal 'hello' or must equal 'bye'\)$"):
         neither_hello_nor_bye('bye')
     neither_hello_nor_bye('albatross!')
 
@@ -458,17 +460,17 @@ def test_invert_combinator():
 def test_double_invert_requirement():
     a = Equals('hello')
     a('hello')
-    with raises_regexp(ValidationError, "!= 'hello'"):
+    with raises_regexp(ValidationError, "^must equal 'hello'$"):
         a('bye')
 
     b = ~a
-    with raises_regexp(ValidationError, "^~Equals\('hello'\)$"):
+    with raises_regexp(ValidationError, "^not \(must equal 'hello'\)$"):
         b('hello')
     b('bye')
 
     c = ~b
     c('hello')
-    with raises_regexp(ValidationError, "!= 'hello'"):
+    with raises_regexp(ValidationError, "^must equal 'hello'$"):
         c('bye')
 
 
