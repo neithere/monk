@@ -1,8 +1,8 @@
 -r ext_mongo.txt
 -r docs.txt
 
-coverage==3.6
+coverage==3.7.1
 pep8==1.4.6
-pytest==2.3.5
-pytest-cov==1.6
+pytest==2.6.3
+pytest-cov==1.8
 pytest-raisesregexp==1.0
