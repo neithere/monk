@@ -453,12 +453,13 @@ class ListOfAll(BaseListOf):
     Usage::
 
         >>> v = ListOfAll(IsA(int) | IsA(str))
+
         >>> v([123, 'hello'])
+
         >>> v([123, 'hello', 5.5])
         Traceback (most recent call last):
         ...
-        ValidationError: #2: 5.5 (ValidationError: must be int;
-                                  ValidationError: must be str)
+        ValidationError: item #2: must be int or must be str
 
     """
     error_class = AtLeastOneFailed
@@ -496,18 +497,22 @@ class DictOf(BaseRequirement):
         ...     # there may be other `str` keys with `str` or `int` values
         ...     (IsA(str), IsA(str) | IsA(int)),
         ... ])
+
         >>> v({'name': 'John'})
+
         >>> v({'name': 'John', 'age': 25})
+
         >>> v({'name': 'John', 'age': 25.5})
         Traceback (most recent call last):
         ...
-        monk.errors.ValidationError: 'age': must be int
+        DictValueError: 'age' value must be int
+
         >>> v({'name': 'John', 'age': 25, 'note': 'custom field'})
+
         >>> v({'name': 'John', 'age': 25, 'note': 5.5})
         Traceback (most recent call last):
         ...
-        AllFailed: 'note': 5.5 (ValidationError: must be str;
-                                ValidationError: must be int)
+        DictValueError: 'note' value must be str or must be int
 
     Note that this validator supports :class:`Exists` to mark keys that can
     be missing.
@@ -699,6 +704,7 @@ def translate(value):
 
         >>> translate(str)
         IsA(str)
+
         >>> translate('hello')
         IsA(str, default='hello')
 

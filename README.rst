@@ -115,10 +115,66 @@ start** and then provides very **powerful tools when you need them**;
 you won't have to rewrite the "intuitive" code, only augment complexity
 exactly in places where it's inevitable.
 
+Validation
+..........
+
+The schema can be used to ensure that the document has correct structure
+and the values are of correct types.
+
+.. code-block:: python
+
+    from monk.validation import validate
+
+    # correct data: staying silent
+
+    >>> validate(spec, data)
+
+    # a key is missing
+
+    >>> validate(spec, {'title': 'Hello'})
+    Traceback (most recent call last):
+       ...
+    MissingKeys: must have keys: 'comments'
+
+    # a key is missing in a dictionary in a nested list
+
+    >>> validate(spec, {'comments': [{'author': 'john'}]}
+    Traceback (most recent call last):
+       ...
+    DictValueError: 'comments' value item #0: must have keys: 'text', 'date'
+
+
+    # type check; also works with functions and methods (by return value)
+
+    >>> validate(spec, {'title': 123, 'comments': []})
+    Traceback (most recent call last):
+        ...
+    DictValueError: 'title' value must be str
+
+Custom validators can be used.  Behaviour can be fine-tuned.
+
+The `validate()` function translates the "natural" notation to a validator
+object under the hood.  To improve performance you can "compile" the validator
+once (using `translate()` function or by creating a validator instance in place)
+and use it multiple times to validate different values:
+
+.. code-block:: python
+
+    >>> from monk import *
+    >>> translate(str) == IsA(str)
+    True
+    >>> validator = IsA(str) | IsA(int)
+    >>> validator('hello')
+    >>> validator(123)
+    >>> validator(5.5)
+    Traceback (most recent call last):
+        ...
+    AllFailed: must be str or must be int
+
 Manipulation
 ............
 
-The schema can be used to create full documents from incomplete data:
+The same schema can be used to create full documents from incomplete data.
 
 .. code-block:: python
 
@@ -155,60 +211,8 @@ The schema can be used to create full documents from incomplete data:
         ]
     }
 
-Validation
-..........
-
-The same schema can be used to ensure that the document has correct structure
-and the values are of correct types:
-
-.. code-block:: python
-
-    from monk.validation import validate
-
-    # correct data: staying silent
-
-    >>> validate(spec, data)
-
-    # a key is missing
-
-    >>> validate(spec, {'title': 'Hello'})
-    Traceback (most recent call last):
-       ...
-    MissingKey: 'comments'
-
-    # a key is missing in a dictionary in a nested list
-
-    >>> validate(spec, {'comments': [{'author': 'john'}]}
-    Traceback (most recent call last):
-       ...
-    MissingKey: 'comments': #0: 'date'
-
-    # type check; also works with functions and methods (by return value)
-
-    >>> validate(spec, {'title': 123, 'comments': []})
-    Traceback (most recent call last):
-        ...
-    ValidationError: 'title': must be str
-
-Custom validators can be used.  Behaviour can be fine-tuned.
-
-The `validate()` function translates the "natural" notation to a validator
-object under the hood.  To improve performance you can "compile" the validator
-once (using `translate()` function or by creating a validator instance in place)
-and use it multiple times to validate different values:
-
-.. code-block:: python
-
-    >>> from monk import *
-    >>> translate(str) == IsA(str)
-    True
-    >>> validator = IsA(str) | IsA(int)
-    >>> validator('hello')
-    >>> validator(123)
-    >>> validator(5.5)
-    Traceback (most recent call last):
-        ...
-    AllFailed: 5.5 (must be str; must be int)
+Object-Document Mapping
+-----------------------
 
 The library can be also viewed as a framework for building ODMs
 (object-document mappers).  See the MongoDB extension and note how it reuses
@@ -221,8 +225,14 @@ Here's an example of the MongoDB ODM bundled with Monk:
     from monk.mongo import Document
 
     class Item(Document):
-        structure = dict(text=unicode, slug=unicode)
-        indexes = dict(text=None, slug=dict(unique=True))
+        structure = {
+            'text': unicode,
+            'slug': unicode,
+        }
+        indexes = {
+            'text': None,
+            'slug': {'unique': True},
+        }
 
     # this involves manipulation (inserting missing fields)
     item = Item(text=u'foo', slug=u'bar')

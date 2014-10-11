@@ -269,6 +269,19 @@ changes in the API and therefore ensure good coverage of your code).
     Even after v0.13 featured a complete rewrite, the top-level API (the
     "natural" notation) was almost intact.
 
+:speed:
+    There are real-life projects where declarative Monk-powered code processes
+    large volumes of data with roughly the same speed as the previous purely
+    imperative version of rather good quality.  Monk makes it easy to prepare
+    various operations as validator objects and simply apply them to the value
+    so the overall overhead is minimal; in some cases Monk-based logic performs
+    even better than "classic" implementation.  This is mostly related to tasks
+    where you need to make decisions based on rules, tables, etc. being unable
+    to hard-code all the logic once and forever.  Of course the speed rather
+    depends on design: one could arrange the "classic" code better and cache
+    a mixture of data and functions to save on lookups, but here you have that
+    mixture with a nice and clean API, "Monk" it is called.
+
 What are the alternatives?
 --------------------------
 
