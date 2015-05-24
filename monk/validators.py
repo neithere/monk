@@ -57,6 +57,7 @@ import copy
 
 from . import compat
 from .errors import (
+    EXCEPTION_VALUES_ATTR,
     CombinedValidationError, AtLeastOneFailed, AllFailed, ValidationError,
     NoDefaultValue, InvalidKeys, MissingKeys, StructureSpecificationError,
     DictValueError,
@@ -132,17 +133,32 @@ class BaseValidator(object):
         clone.negated = not self.negated
         return clone
 
-    def __call__(self, value):
+    def __call__(self, value):    #, show_value_on_error=False):
         try:
             self._check(value)
-        except ValidationError:
+        except ValidationError as e:
             if self.negated:
                 return
             else:
-                raise
+                #e.args = ('{} - {}'.format(', '.join(e.args), value),)
+                #print(e.args, value)
+                #e.args += (value,)
+                print('> got', e)
+                if hasattr(e, EXCEPTION_VALUES_ATTR):
+                    print('propagated value: ', e.values)
+                else:
+                    print('no value propagated')
+                #if not hasattr(e, EXCEPTION_VALUES_ATTR):
+                #    setattr(e, EXCEPTION_VALUES_ATTR, [])
+                #getattr(e, EXCEPTION_VALUES_ATTR).append(value)
+                e.values.append(value)
+                #setattr(e, EXCEPTION_VALUES_ATTR,
+                #    getattr(e, EXCEPTION_VALUES_ATTR, []) + [value])
+                print('reraising as', e)
+                raise e from None
         else:
             if self.negated:
-                self._raise_error(value)
+                self._raise_error(value)    #, show_value=show_value_on_error)
 
     def __hash__(self):
         # TODO think this over and check Python docs
@@ -161,8 +177,10 @@ class BaseValidator(object):
     def _check(self, value):
         raise NotImplementedError
 
-    def _raise_error(self, value):
-        raise self.error_class(repr(self))
+    def _raise_error(self, value):    #, show_value=False):
+        e = self.error_class(repr(self))
+        setattr(e, EXCEPTION_VALUES_ATTR, [value])
+        raise e
 
 
 class BaseCombinator(BaseValidator):
@@ -193,10 +211,10 @@ class BaseCombinator(BaseValidator):
             except ValidationError as e:
                 if self.break_on_first_fail:
                     # don't even wrap the error
-                    raise
+                    raise e from None
                 errors.append(e)
         if not self.can_tolerate(errors):
-            raise self.error_class(*errors)
+            raise self.error_class(errors, value=value)
 
 
     def __repr__(self):
@@ -393,7 +411,7 @@ class BaseListOf(BaseRequirement):
                 self._nested_validator(MISSING)
             except ValidationError as e:
                 raise ValidationError('lacks item: {error}'
-                                      .format(error=e))
+                                      .format(error=e), value=value)
 
         errors = []
         for i, nested_value in enumerate(value):
@@ -401,7 +419,8 @@ class BaseListOf(BaseRequirement):
                 self._nested_validator(nested_value)
             except ValidationError as e:
                 annotated_error = ValidationError(
-                    'item #{elem}: {error}'.format(elem=i, error=e))
+                    'item #{elem}: {error}'.format(elem=i, error=e),
+                    value=value)
                 if self.item_strategy == ITEM_STRATEGY_ALL:
                     raise annotated_error
                 errors.append(annotated_error)
@@ -409,7 +428,7 @@ class BaseListOf(BaseRequirement):
         if self.can_tolerate(errors, value):
             return
 
-        raise self.error_class(*errors)
+        raise self.error_class(errors, value=value)
 
     def can_tolerate(self, errors, value):
         if self.item_strategy == ITEM_STRATEGY_ALL:
@@ -557,7 +576,7 @@ class DictOf(BaseRequirement):
                         msg = 'in {k!r} ({e})'
                     else:
                         msg = '{k!r} value {e}'
-                    raise DictValueError(msg.format(k=k, e=e))
+                    raise DictValueError(msg.format(k=k, e=e), value=value)
 
                 validated_data_keys.append(k)
                 matched = True
@@ -575,7 +594,7 @@ class DictOf(BaseRequirement):
         # if yes, raise InvalidKey for them
         if len(validated_data_keys) < len(value):
             invalid_keys = set(value) - set(validated_data_keys)
-            raise InvalidKeys(*invalid_keys)
+            raise InvalidKeys(invalid_keys, value=value)
 
         if missing_key_specs:
             # XXX this prints validators, not keys as strings;
@@ -583,7 +602,7 @@ class DictOf(BaseRequirement):
             #     the expected value via internal API.  And that's gross.
             reprs = (spec._expected_value if isinstance(spec, Equals) else spec
                      for spec in missing_key_specs)
-            raise MissingKeys(*reprs)
+            raise MissingKeys(reprs, value=value)
 
 
     def _merge(self, value):

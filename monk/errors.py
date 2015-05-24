@@ -22,10 +22,21 @@
 Exceptions
 ~~~~~~~~~~
 """
+
+#: Exception attribute that holds the stack of values that caused the error
+EXCEPTION_VALUES_ATTR = 'values'
+
+
 class ValidationError(Exception):
     """
     Raised when a document or its part cannot pass validation.
     """
+    def __init__(self, message, value=None):
+        self.message = message
+        self.values = [value] if value else []
+
+    def __str__(self):
+        return str(self.message)
 
 
 class StructureSpecificationError(ValidationError):
@@ -46,7 +57,8 @@ class MissingKeys(ValidationError):
     Raised when a required dictionary key is missing from the value dict.
     """
     def __str__(self):
-        keys_str = ', '.join(map(repr, self.args))
+        assert isinstance(self.message, (list, tuple))
+        keys_str = ', '.join(map(repr, self.message))
         return 'must have keys: {keys}'.format(keys=keys_str)
 
 
@@ -54,9 +66,12 @@ class InvalidKeys(ValidationError):
     """
     Raised whan the value dictionary contains an unexpected key.
     """
-    def __str__(self):
-        keys_str = ', '.join(map(repr, self.args))
-        return 'must not have keys like {keys}'.format(keys=keys_str)
+#    def __str__(self):
+#        #assert isinstance(self.message, (list, tuple))
+#        #print('%%%', repr(self.message))
+#        keys_str = ', '.join(map(repr, self.message))
+#        #keys_str = self.message
+#        return 'must not have keys like {keys}'.format(keys=keys_str)
 
 
 class CombinedValidationError(ValidationError):
@@ -76,7 +91,8 @@ class CombinedValidationError(ValidationError):
         return tmpl.format(cls=e.__class__.__name__, err=e)
 
     def __str__(self):
-        err_strings = map(self._format_nested_error, self.args)
+        #assert isinstance(self.message, (list, tuple)), repr(self.message)
+        err_strings = map(self._format_nested_error, self.message)
         return self._error_string_separator.join(err_strings)
 
 

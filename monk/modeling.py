@@ -70,10 +70,11 @@ class DotExpandedDictMixin(object):
             self[key] = make_dot_expanded(value)
 
     def __getattr__(self, attr):
+        # note that __getattr__ is called only if a real attribute did not exist
         if not attr.startswith('_') and attr in self:
             return self[attr]
-        raise AttributeError('Attribute or key {0.__class__.__name__}.{1} '
-                             'does not exist'.format(self, attr))
+        raise AttributeError('cannot find neither attribute nor key '
+                             '{0.__class__.__name__}.{1}' .format(self, attr))
 
     def __setattr__(self, attr, value):
         if not attr.startswith('_') and attr in self:

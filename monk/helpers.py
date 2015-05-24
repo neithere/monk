@@ -22,6 +22,7 @@
 Helpers
 ~~~~~~~
 """
+from .errors import EXCEPTION_VALUES_ATTR, ValidationError
 from .validators import translate
 
 
@@ -32,7 +33,7 @@ __all__ = [
 ]
 
 
-def validate(spec, value):
+def validate(spec, value, show_value_on_error=False):
     """
     Validates given value against given specification.
     Raises an exception if the value is invalid.
@@ -49,6 +50,8 @@ def validate(spec, value):
         a validator instance or any value digestible by :func:`translate`.
     :value:
         any value including complex structures.
+    :show_value_on_error:
+        TODO XXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
     Can raise:
 
@@ -64,7 +67,18 @@ def validate(spec, value):
 
     """
     validator = translate(spec)
-    validator(value)
+    try:
+        validator(value)
+    except ValidationError as e:
+        print('---------------------------')
+        if show_value_on_error:
+            values = getattr(e, EXCEPTION_VALUES_ATTR, None)
+            if values:
+                for v in values:
+                    print('> ',v)
+                #e.args = ('{} - {}'.format(e, values[-1]),)
+                e.message = '{} - {}'.format(e, e.values[-1])
+        raise e from None
 
 
 def walk_dict(data):
