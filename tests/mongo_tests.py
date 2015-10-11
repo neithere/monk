@@ -171,7 +171,7 @@ class TestMongo:
         }
 
     def setup_method(self, method):
-        self.db = pymongo.Connection()[self.DATABASE]
+        self.db = pymongo.MongoClient()[self.DATABASE]
         self.collection = self.db[self.Entry.collection]
         self.collection.drop()
 
@@ -209,7 +209,7 @@ class TestMongo:
         obj_id = entry.save(self.db)
         assert obj_id == entry['_id']
         assert self.Entry.find(self.db).count() == 1
-        assert [entry] == list(self.Entry.find(self.db, _id=obj_id))
+        assert [entry] == list(self.Entry.find(self.db, {'_id': obj_id}))
 
         # update
         entry.title = t('Bye')
@@ -267,13 +267,15 @@ class TestMongo:
 
     def test_index_id(self):
         "Index for _id is created on first save to a collection"
-        assert self.collection.index_information() == {}
+        with pytest.raises_regexp(pymongo.errors.OperationFailure, 'no collection'):
+            self.collection.index_information()
         self.Entry(title=t('entry')).save(self.db)
         assert '_id_' in self.collection.index_information()
 
     def test_index_custom(self):
         "Index for _id is created on first save to a collection"
-        assert self.collection.index_information() == {}
+        with pytest.raises_regexp(pymongo.errors.OperationFailure, 'no collection'):
+            self.collection.index_information()
         class IndexedEntry(self.Entry):
             indexes = {'title': None}
         IndexedEntry(title=t('Hello')).save(self.db)

@@ -2,11 +2,26 @@
 Monk
 ~~~~
 
-.. image:: https://badge.fury.io/py/monk.png
-   :target: http://badge.fury.io/py/monk
+.. image:: https://img.shields.io/coveralls/neithere/monk.svg
+    :target: https://coveralls.io/r/neithere/monk
 
-.. image:: https://travis-ci.org/neithere/monk.png?branch=master
-   :target: https://travis-ci.org/neithere/monk
+.. image:: https://img.shields.io/travis/neithere/monk.svg
+    :target: https://travis-ci.org/neithere/monk
+
+.. image:: https://img.shields.io/pypi/format/monk.svg
+    :target: https://pypi.python.org/pypi/monk
+
+.. image:: https://img.shields.io/pypi/status/monk.svg
+    :target: https://pypi.python.org/pypi/monk
+
+.. image:: https://img.shields.io/pypi/v/monk.svg
+    :target: https://pypi.python.org/pypi/monk
+
+.. image:: https://img.shields.io/pypi/pyversions/monk.svg
+    :target: https://pypi.python.org/pypi/monk
+
+.. image:: https://img.shields.io/pypi/dd/monk.svg
+    :target: https://pypi.python.org/pypi/monk
 
 An unobtrusive data modeling, manipulation and validation library.
 
@@ -22,7 +37,7 @@ Dependencies
 
 `Monk` is tested against the following versions of Python:
 
-* CPython 2.6, 2.7, 3.2, 3.4
+* CPython 2.6, 2.7, 3.2, 3.5
 * PyPy 2.0
 
 Optional dependencies:

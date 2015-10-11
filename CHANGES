@@ -19,6 +19,10 @@ Version 0.14-dev
 * Exception messages and validator representations have been made more
   friendly to these humans that may try reading them someday.
 
+* Dropped support for Python 3.3 and 3.4, added for 3.5.
+
+* Fixed some MongoDB-specific tests.
+
 Version 0.13.2
 --------------
 
