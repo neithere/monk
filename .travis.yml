@@ -5,6 +5,7 @@ python:
   - 3.2
   - 3.5
 # - 'pypy'    # commented out due to issue #12
+sudo: false
 install:
   - pip install -r requirements/devel.txt --use-mirrors --quiet
   - pip install coveralls
