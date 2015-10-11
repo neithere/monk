@@ -1,7 +1,7 @@
 # coding: utf-8
 #
 #    Monk is an unobtrusive data modeling, manipulation and validation library.
-#    Copyright © 2011—2014  Andrey Mikhaylenko
+#    Copyright © 2011—2015  Andrey Mikhaylenko
 #
 #    This file is part of Monk.
 #
