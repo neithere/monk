@@ -42,7 +42,7 @@ Dependencies
 
 Optional dependencies:
 
-* The MongoDB extension requires `pymongo`.
+* The MongoDB extension requires `pymongo` ≥ 3.0 (older may work too).
 
 Documentation
 -------------

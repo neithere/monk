@@ -8,6 +8,7 @@ python:
 sudo: false
 install:
   - pip install -r requirements/devel.txt --use-mirrors --quiet
+  - pip install -r requirements/ext_mongo.txt --use-mirrors --quiet
   - pip install coveralls
 services:
   - mongodb
